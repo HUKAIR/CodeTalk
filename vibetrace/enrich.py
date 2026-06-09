@@ -1,0 +1,99 @@
+"""Per-commit narrative enrichment, SHA-keyed and never recomputed."""
+import hashlib
+import json
+import logging
+
+from .config import redact_secrets
+from .llm import LLMError
+
+log = logging.getLogger("vibetrace")
+
+OVERVIEW_SCHEMA = {
+    "type": "object",
+    "properties": {"overview": {
+        "type": "string", "description": "今日开发概览,中文,不超过 3 句"}},
+    "required": ["overview"], "additionalProperties": False,
+}
+
+
+def _commit_prompt(commit):
+    parts = [
+        f"## Commit {commit['sha'][:10]}",
+        f"时间:{commit['date'].isoformat()} 作者:{commit['author']}",
+        f"message:{commit['subject']}\n{commit['body'][:500]}".strip(),
+        "### 变更统计\n" + commit["stat"],
+        "### diff 节选\n" + commit["diff_excerpt"],
+    ]
+    for match in commit.get("matches", [])[:2]:
+        session = match["session"]
+        parts.append(
+            f"### 关联会话 {session['session_id'][:8]}"
+            f"(置信度 {match['confidence']},文件交集:"
+            f"{', '.join(match['overlap']) or '无'})")
+        if session["title"]:
+            parts.append("会话标题:" + session["title"])
+        if session["prompts"]:
+            parts.append("用户原话:\n"
+                         + "\n".join("- " + p for p in session["prompts"][:6]))
+        if session["excerpts"]:
+            parts.append("AI 关键陈述:\n"
+                         + "\n".join("- " + e for e in session["excerpts"][:6]))
+    if not commit.get("matches"):
+        parts.append("### 无关联会话数据 —— why 字段只能基于 commit 本身,请注明属于推测")
+    return "\n\n".join(parts)
+
+
+def _normalize(narrative):
+    clean = {"what": str(narrative.get("what", "")),
+             "why": str(narrative.get("why", ""))}
+    for key in ("decisions", "risks", "open_loops"):
+        value = narrative.get(key, [])
+        clean[key] = [str(v) for v in value] if isinstance(value, list) else [str(value)]
+    return clean
+
+
+def enrich_commits(commits, llm, cache, project):
+    stats = {"cache_hits": 0, "llm_calls": 0, "failures": 0}
+    for commit in commits:
+        cached = cache.get_narrative(commit["sha"])
+        if cached:
+            commit["narrative"] = cached
+            stats["cache_hits"] += 1
+            continue
+        try:
+            raw = llm.narrate(redact_secrets(_commit_prompt(commit)))
+            narrative = json.loads(redact_secrets(
+                json.dumps(_normalize(raw), ensure_ascii=False)))
+            stats["llm_calls"] += 1
+            commit["narrative"] = narrative
+            cache.put_narrative(commit["sha"], project, llm.model, narrative)
+        except LLMError as exc:
+            log.warning("commit %s 富集失败:%s", commit["sha"][:8], exc)
+            stats["failures"] += 1
+            commit["narrative"] = {
+                "what": commit["subject"], "why": f"(LLM 富集失败:{exc})",
+                "decisions": [], "risks": [], "open_loops": [], "degraded": True}
+    return stats
+
+
+def make_overview(commits, llm, cache, project, date_str):
+    """≤3 句日报概览;以 (日期+全部 SHA) 哈希为缓存键,重跑零调用。"""
+    fallback = f"今日 {len(commits)} 个 commit:" + ";".join(
+        c["subject"] for c in commits[:3])
+    key = "digest:" + hashlib.sha256(
+        (date_str + "".join(c["sha"] for c in commits)).encode()).hexdigest()[:40]
+    cached = cache.get_narrative(key)
+    if cached:
+        return cached.get("overview", fallback), 0
+    listing = "\n".join(
+        f"- {c['sha'][:8]} {c['subject']}|what: {c['narrative']['what'][:150]}"
+        for c in commits)
+    try:
+        raw = llm.narrate("为以下一天的 commit 写不超过 3 句的中文概览:\n" + listing,
+                          schema=OVERVIEW_SCHEMA)
+        overview = str(raw.get("overview", "")).strip() or fallback
+        cache.put_narrative(key, project, llm.model, {"overview": overview})
+        return overview, 1
+    except LLMError as exc:
+        log.warning("概览生成失败,使用降级文本:%s", exc)
+        return fallback, 0

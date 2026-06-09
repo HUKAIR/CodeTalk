@@ -1,0 +1,131 @@
+"""Unified LLM wrapper: prompt template, retries, token accounting.
+
+deepseek / openai / qwen share the OpenAI-compatible /chat/completions
+protocol, called via stdlib urllib (no extra dependency). anthropic uses
+the official SDK with prompt caching + json_schema structured output.
+"""
+import json
+import logging
+import time
+import urllib.error
+import urllib.request
+
+from .config import resolve_api_key
+
+log = logging.getLogger("vibetrace")
+
+RETRYABLE_HTTP = {429, 500, 502, 503, 504}
+MAX_ATTEMPTS = 4
+MAX_OUTPUT_TOKENS = 3000
+
+SYSTEM_PROMPT = (
+    "你是 vibetrace 的代码变更叙事引擎。基于 git commit(message、stat、diff 节选)"
+    "与关联的 Claude Code 会话摘录,为开发者本人生成中文叙事,帮他几天后快速回忆"
+    "“AI 替我做了什么、为什么”。只陈述材料中有依据的事实,禁止编造文件名、函数名、"
+    "数字或动机;材料不足以回答某字段时,直说“材料不足”。"
+    "输出必须是符合给定 JSON Schema 的单个 JSON 对象,不要输出任何其他文字。"
+)
+
+NARRATIVE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "what": {"type": "string", "description": "改了什么:人话,讲决策与取舍,不复述 diff"},
+        "why": {"type": "string", "description": "为什么改:从会话提取的意图来源;无会话依据时注明推测"},
+        "decisions": {"type": "array", "items": {"type": "string"},
+                      "description": "关键技术决策,含被否决的备选(如有)"},
+        "risks": {"type": "array", "items": {"type": "string"},
+                  "description": "该变更可能引入的 1-2 条风险,供日后验证"},
+        "open_loops": {"type": "array", "items": {"type": "string"},
+                       "description": "未闭环的 TODO / 未确认事项"},
+    },
+    "required": ["what", "why", "decisions", "risks", "open_loops"],
+    "additionalProperties": False,
+}
+
+
+class LLMError(Exception):
+    pass
+
+
+class LLMClient:
+    def __init__(self, cfg):
+        self.provider = cfg["provider"]
+        self.model = cfg["model"]
+        self.base_url = ((cfg["providers"].get(self.provider) or {})
+                         .get("base_url") or "").rstrip("/")
+        self.api_key = resolve_api_key(cfg, self.provider)
+        self.stats = {"calls": 0, "input_tokens": 0, "output_tokens": 0,
+                      "cache_hit_tokens": 0}
+        if not self.api_key:
+            raise LLMError(
+                f"未配置 {self.provider} 的 API key:写入 ~/.vibetrace/config.json "
+                f"的 providers.{self.provider}.api_key,或设置环境变量 "
+                f"{self.provider.upper()}_API_KEY")
+
+    def narrate(self, user_prompt, schema=NARRATIVE_SCHEMA):
+        """One structured-JSON completion. Raises LLMError on final failure."""
+        if self.provider == "anthropic":
+            return self._anthropic(user_prompt, schema)
+        return self._openai_compat(user_prompt, schema)
+
+    def _openai_compat(self, user_prompt, schema):
+        system = (SYSTEM_PROMPT + "\n\nJSON Schema:\n"
+                  + json.dumps(schema, ensure_ascii=False))
+        body = json.dumps({
+            "model": self.model,
+            "messages": [{"role": "system", "content": system},
+                         {"role": "user", "content": user_prompt}],
+            "response_format": {"type": "json_object"},
+            "max_tokens": MAX_OUTPUT_TOKENS,
+        }).encode("utf-8")
+        request = urllib.request.Request(
+            f"{self.base_url}/chat/completions", data=body, method="POST",
+            headers={"Content-Type": "application/json",
+                     "Authorization": f"Bearer {self.api_key}"})
+        last_err = None
+        for attempt in range(MAX_ATTEMPTS):
+            if attempt:
+                time.sleep(1.5 ** attempt)
+            try:
+                with urllib.request.urlopen(request, timeout=180) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                usage = data.get("usage") or {}
+                self.stats["calls"] += 1
+                self.stats["input_tokens"] += usage.get("prompt_tokens") or 0
+                self.stats["output_tokens"] += usage.get("completion_tokens") or 0
+                self.stats["cache_hit_tokens"] += usage.get("prompt_cache_hit_tokens") or 0
+                content = data["choices"][0]["message"]["content"]
+                return json.loads(content)
+            except urllib.error.HTTPError as exc:
+                detail = exc.read().decode("utf-8", "replace")[:200]
+                last_err = f"HTTP {exc.code}: {detail}"
+                if exc.code not in RETRYABLE_HTTP:
+                    break
+            except (urllib.error.URLError, TimeoutError, OSError) as exc:
+                last_err = f"网络错误:{exc}"
+            except (KeyError, IndexError, json.JSONDecodeError) as exc:
+                last_err = f"响应不符合预期:{exc}"  # 含非法 JSON 内容,重试一并覆盖
+            log.warning("LLM 调用失败(第 %d 次):%s", attempt + 1, last_err)
+        raise LLMError(f"{self.provider}/{self.model} 调用失败:{last_err}")
+
+    def _anthropic(self, user_prompt, schema):
+        import anthropic
+        client = anthropic.Anthropic(api_key=self.api_key, max_retries=3)
+        try:
+            resp = client.messages.create(
+                model=self.model, max_tokens=MAX_OUTPUT_TOKENS,
+                system=[{"type": "text", "text": SYSTEM_PROMPT,
+                         "cache_control": {"type": "ephemeral"}}],
+                output_config={"format": {"type": "json_schema", "schema": schema}},
+                messages=[{"role": "user", "content": user_prompt}])
+        except anthropic.APIError as exc:
+            raise LLMError(f"anthropic 调用失败:{exc}") from exc
+        self.stats["calls"] += 1
+        self.stats["input_tokens"] += resp.usage.input_tokens
+        self.stats["output_tokens"] += resp.usage.output_tokens
+        self.stats["cache_hit_tokens"] += resp.usage.cache_read_input_tokens or 0
+        text = next((b.text for b in resp.content if b.type == "text"), "")
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise LLMError(f"anthropic 返回非法 JSON:{exc}") from exc
