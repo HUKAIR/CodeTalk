@@ -146,7 +146,7 @@ def scan_sessions(project_path, since_dt, cache=None):
     sessions_dir = CLAUDE_PROJECTS / project_slug(project_path)
     if not sessions_dir.is_dir():
         return [], f"会话目录不存在:{sessions_dir}"
-    summaries, failures = [], 0
+    summaries, failed_files = [], 0
     for path in sorted(sessions_dir.glob("*.jsonl")):
         try:
             stat = path.stat()
@@ -163,6 +163,8 @@ def scan_sessions(project_path, since_dt, cache=None):
                 log.warning("%s:%d 行无法解析,已跳过", path.name,
                             summary["parse_failures"])
             if not summary["records"]:
+                if summary["parse_failures"]:
+                    failed_files += 1  # file existed but yielded nothing usable
                 continue
             summaries.append(summary)
             if cache:
@@ -170,8 +172,8 @@ def scan_sessions(project_path, since_dt, cache=None):
                                   if summary["end"] else "", stat.st_mtime,
                                   stat.st_size, _freeze(summary))
         except OSError as exc:
-            failures += 1
+            failed_files += 1
             log.warning("会话文件 %s 读取失败:%s", path.name, exc)
-    if not summaries and failures:
-        return [], f"全部 {failures} 个会话文件读取失败"
+    if not summaries and failed_files:
+        return [], f"{failed_files} 个会话文件损坏或不可读"
     return summaries, None
