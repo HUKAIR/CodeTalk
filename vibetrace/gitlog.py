@@ -38,10 +38,14 @@ def collect_commits(project_path, since, diff_token_budget):
             continue
         sha, date_iso, author, subject = parts[0], parts[1], parts[2], parts[3]
         body = parts[4].strip() if len(parts) > 4 else ""
+        try:
+            date = datetime.fromisoformat(date_iso)
+        except ValueError:
+            log.warning("commit %s 日期无法解析,已跳过", sha[:8])
+            continue
         commits.append({
             "sha": sha, "author": author, "subject": subject, "body": body,
-            "date": datetime.fromisoformat(date_iso),
-            "stat": "", "diff_excerpt": "", "files": [],
+            "date": date, "stat": "", "diff_excerpt": "", "files": [],
         })
 
     char_budget = diff_token_budget * CHARS_PER_TOKEN

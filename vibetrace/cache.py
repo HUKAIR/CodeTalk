@@ -3,6 +3,7 @@ update incrementally by (session_id, last_msg_ts)."""
 import json
 import sqlite3
 from datetime import datetime, timezone
+from pathlib import Path
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS commit_narratives (
@@ -17,6 +18,7 @@ CREATE TABLE IF NOT EXISTS session_enrichments (
 
 class Cache:
     def __init__(self, path):
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
         self.conn = sqlite3.connect(path)
         self.conn.executescript(SCHEMA)
 

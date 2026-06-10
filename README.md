@@ -38,8 +38,9 @@ python3 -m vibetrace digest --help      # 或 ./vibetrace-cli digest --help
 
 API key 也可用环境变量提供:`DEEPSEEK_API_KEY` / `OPENAI_API_KEY` /
 `QWEN_API_KEY` / `ANTHROPIC_API_KEY`。deepseek / openai / qwen 走 OpenAI
-兼容协议(标准库 urllib,零额外依赖);anthropic 走官方 SDK(json_schema
-结构化输出 + prompt caching)。
+兼容协议(标准库 urllib,零额外依赖;DeepSeek 上下文缓存自动生效);
+anthropic 走官方 SDK(json_schema 结构化输出;系统提示设有 cache_control,
+但低于模型最小可缓存前缀时缓存不生效——M0 的提示规模即属此类)。
 
 ## 用法
 
