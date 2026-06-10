@@ -10,6 +10,8 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .config import redact_secrets
+
 log = logging.getLogger("vibetrace")
 
 CLAUDE_PROJECTS = Path.home() / ".claude" / "projects"
@@ -51,7 +53,7 @@ def _human_text(obj):
     if not text or text.startswith(SYNTHETIC_PREFIXES) \
             or text.startswith("[Request interrupted"):
         return None
-    return text[:PROMPT_CAP]
+    return redact_secrets(text[:PROMPT_CAP])  # 隐私红线:入缓存前脱敏
 
 
 def _parse_file(path):
@@ -103,7 +105,8 @@ def _parse_file(path):
                     if block.get("type") == "text":
                         text = (block.get("text") or "").strip()
                         if len(text) > 80 and len(summary["excerpts"]) < MAX_EXCERPTS:
-                            summary["excerpts"].append(text[:EXCERPT_CAP])
+                            summary["excerpts"].append(
+                                redact_secrets(text[:EXCERPT_CAP]))
                     elif block.get("type") == "tool_use":
                         inp = block.get("input") or {}
                         target = inp.get("file_path") or inp.get("notebook_path")
@@ -171,9 +174,9 @@ def scan_sessions(project_path, since_dt, cache=None):
                 cache.put_session(path.stem, summary["end"].isoformat()
                                   if summary["end"] else "", stat.st_mtime,
                                   stat.st_size, _freeze(summary))
-        except OSError as exc:
+        except Exception as exc:  # 容错契约:单文件任何异常都不拖垮 digest
             failed_files += 1
-            log.warning("会话文件 %s 读取失败:%s", path.name, exc)
+            log.warning("会话文件 %s 处理失败:%r", path.name, exc)
     if not summaries and failed_files:
         return [], f"{failed_files} 个会话文件损坏或不可读"
     return summaries, None

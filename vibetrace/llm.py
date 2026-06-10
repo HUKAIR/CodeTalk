@@ -21,8 +21,15 @@ MAX_OUTPUT_TOKENS = 3000
 SYSTEM_PROMPT = (
     "你是 vibetrace 的代码变更叙事引擎。基于 git commit(message、stat、diff 节选)"
     "与关联的 Claude Code 会话摘录,为开发者本人生成中文叙事,帮他几天后快速回忆"
-    "“AI 替我做了什么、为什么”。只陈述材料中有依据的事实,禁止编造文件名、函数名、"
-    "数字或动机;材料不足以回答某字段时,直说“材料不足”。"
+    "“AI 替我做了什么、为什么”。\n"
+    "事实纪律(最高优先级):\n"
+    "- what/why/decisions 只能陈述材料中有直接依据的事实;每条 decision 必须能"
+    "对应 diff 中的具体改动或会话中的明确陈述,宁可少写、不可编造\n"
+    "- 禁止使用材料中不存在的专有名词、文件名、函数名、数字\n"
+    "- 禁止张冠李戴:不得把材料中 A 文件/A 角色/A 模块的行为说成 B 的"
+    "(例如把 user 消息解析逻辑说成 assistant 的)\n"
+    "- risks/open_loops 是你的推断,允许合理推测,但推断的前提必须与材料一致\n"
+    "- 材料不足以回答某字段时,直说“材料不足”\n"
     "输出必须是符合给定 JSON Schema 的单个 JSON 对象,不要输出任何其他文字。"
 )
 
@@ -109,7 +116,10 @@ class LLMClient:
         raise LLMError(f"{self.provider}/{self.model} 调用失败:{last_err}")
 
     def _anthropic(self, user_prompt, schema):
-        import anthropic
+        try:
+            import anthropic
+        except ImportError as exc:
+            raise LLMError("anthropic SDK 未安装:pip install anthropic") from exc
         client = anthropic.Anthropic(api_key=self.api_key, max_retries=3)
         try:
             resp = client.messages.create(
