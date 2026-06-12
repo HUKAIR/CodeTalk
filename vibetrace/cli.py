@@ -100,5 +100,15 @@ def main(argv=None):
     dig.add_argument("--vault", help="覆盖日报输出目录")
     dig.add_argument("--provider", help="覆盖 LLM provider")
     dig.add_argument("--model", help="覆盖模型 ID")
+    card = sub.add_parser("postcard", help="生成霓虹周明信片(实验)")
+    card.add_argument("--project", default=".", help="项目路径(默认当前目录)")
     args = parser.parse_args(argv)
+    if args.command == "postcard":
+        from .postcard import render_postcard
+        path, err = render_postcard(args.project)
+        if err:
+            print(f"错误:{err}", file=sys.stderr)
+            return 2
+        print(f"明信片已写入:{path}")
+        return 0
     return digest(args)
