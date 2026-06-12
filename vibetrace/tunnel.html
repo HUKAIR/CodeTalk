@@ -25,32 +25,40 @@
   body.dragging #viewport { cursor: grabbing; }
   #world { position: absolute; left: 50%; top: 50%;
     transform-style: preserve-3d; will-change: transform; }
-  .card { --c-bg: #000; --c-fg: var(--g1); --c-mut: var(--g2);
-    position: absolute; left: 0; top: 0; width: 256px;
-    background: var(--c-bg); border: 1px solid #fff;
-    box-shadow: 5px 5px 0 var(--g4); padding: 12px 14px 10px;
+  /* 漫游层级:默认只露标题;离相机最近的一张才点亮展开 */
+  .card { --c-bg: #000; --c-fg: var(--g2); --c-mut: var(--g3);
+    position: absolute; left: 0; top: 0; width: 208px;
+    background: var(--c-bg); border: 1px solid var(--g3);
+    box-shadow: 4px 4px 0 #121212; padding: 11px 13px 9px;
     cursor: pointer; }
+  .card p, .card .ft { display: none; }
+  .card.near { --c-fg: var(--g1); --c-mut: var(--g2); width: 256px;
+    border-color: #fff; box-shadow: 5px 5px 0 var(--g4); }
+  .card.near p { display: -webkit-box; }
+  .card.near .ft { display: flex; }
   .card:hover { --c-bg: #fff; --c-fg: #000; --c-mut: #3e3e3e;
-    box-shadow: 5px 5px 0 var(--g2); }
+    border-color: #fff; box-shadow: 5px 5px 0 var(--g2); }
   .card .m { font-size: 10px; letter-spacing: .08em;
     text-transform: uppercase; color: var(--c-mut); }
   .card h3 { font-size: 13px; font-weight: 400; color: var(--c-fg);
-    margin: 8px 0 6px; line-height: 1.4; }
+    margin: 7px 0 0; line-height: 1.4; }
+  .card.near h3 { margin-bottom: 6px; }
   .card p { font-size: 11px; line-height: 1.6; color: var(--c-mut); margin: 0;
-    display: -webkit-box; -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical; overflow: hidden; }
-  .card .ft { display: flex; justify-content: space-between; margin-top: 10px;
+    -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .card .ft { justify-content: space-between; margin-top: 10px;
     padding-top: 7px; border-top: 1px solid var(--c-mut); font-size: 10px;
     letter-spacing: .06em; text-transform: uppercase; color: var(--c-mut); }
   .card .ft .risk { color: var(--blue); }
   .card:hover .ft .risk { color: #0057c2; }
+  .card.visited::after { content: "✓"; position: absolute; top: -1px;
+    right: -1px; width: 18px; height: 18px; line-height: 18px;
+    text-align: center; font-size: 11px; background: #fff; color: #000; }
   .marker { position: absolute; left: 0; top: 0; white-space: nowrap;
     font-size: 13px; letter-spacing: .14em; text-transform: uppercase;
     color: var(--g1); }
   .marker::before { content: "▙ "; color: var(--g2); }
   .genesis { position: absolute; left: 0; top: 0; text-align: center;
-    font-size: 26px; letter-spacing: .28em; color: #fff;
-    white-space: nowrap; }
+    font-size: 26px; letter-spacing: .28em; color: #fff; white-space: nowrap; }
   .genesis::after { content: "▮"; animation: blink 1.1s steps(1) infinite; }
   .genesis span { display: block; margin-top: 12px; font-size: 11px;
     letter-spacing: .12em; color: var(--g2); }
@@ -72,11 +80,48 @@
   .hud.depth::after { content: " ▮"; animation: blink 1.1s steps(1) infinite; }
   .hud.hint { left: 18px; bottom: 16px; }
   .hud.hint b { color: var(--g1); font-weight: 400; }
+  .hud.prog { left: 50%; bottom: 16px; transform: translateX(-50%);
+    color: var(--g1); }
+  /* 终端遮罩:入站 BOOT / 胶囊问询 / GENESIS 终幕 共用骨架 */
+  .term { position: fixed; inset: 0; z-index: 20; background: #000;
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity .25s steps(5); }
+  .term.gone { opacity: 0; pointer-events: none; }
+  .term .inner { width: 560px; max-width: 92vw; }
+  .term .line { font-size: 14px; line-height: 2.1; color: var(--g1);
+    letter-spacing: .04em; white-space: pre-wrap; min-height: 29px; }
+  .term .line .dim { color: var(--g2); }
+  .term .line.cur::after { content: "▮"; animation: blink .9s steps(1) infinite; }
+  .term .enter { margin-top: 26px; font-size: 12px; color: var(--g2);
+    letter-spacing: .12em; text-transform: uppercase; opacity: 0; }
+  .term .enter.on { opacity: 1; animation: blink 1.4s steps(1) infinite; }
+  #capsule { z-index: 15; background: rgba(0,0,0,.78); }
+  #capsule .box { border: 1px solid #fff; background: #000;
+    box-shadow: 6px 6px 0 var(--g4); padding: 26px 28px; }
+  #capsule .m, #epi .m { font-size: 11px; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--g2); }
+  #capsule .m::before { content: "■ "; color: var(--blue); }
+  #capsule .q { font-size: 15px; line-height: 1.9; color: var(--g1);
+    margin: 14px 0 22px; }
+  .pxbtn { display: inline-block; border: 1px solid #fff; background: #000;
+    color: var(--g1); font-family: var(--px); font-size: 12.5px;
+    letter-spacing: .08em; padding: 9px 16px; margin: 0 10px 10px 0;
+    cursor: pointer; box-shadow: 3px 3px 0 var(--g4); }
+  .pxbtn:hover { background: #fff; color: #000; }
+  .pxbtn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--g4); }
+  .skip { font-size: 11px; color: var(--g2); letter-spacing: .1em;
+    text-transform: uppercase; cursor: pointer; margin-left: 6px;
+    text-decoration: underline; }
+  #epi { z-index: 18; background: rgba(0,0,0,.88); }
+  #epi .stat { font-size: 14px; line-height: 2.2; color: var(--g1); }
+  #epi .stat b { color: #fff; font-weight: 400; }
+  #epi .quote { margin: 20px 0 24px; padding: 12px 16px;
+    border-left: 1px solid var(--g3); color: var(--g2); font-size: 12.5px;
+    line-height: 1.9; }
   #focus { position: fixed; top: 0; right: 0; bottom: 0; width: 432px;
     max-width: 94vw; z-index: 8; background: #000;
-    border-left: 1px solid #fff; padding: 34px 30px; overflow-y: auto;
-    transform: translateX(103%);
-    transition: transform .3s steps(7); }
+    border-left: 1px solid #fff; padding: 34px 30px 80px; overflow-y: auto;
+    transform: translateX(103%); transition: transform .3s steps(7); }
   #focus.open { transform: translateX(0); }
   #focus .m { font-size: 10.5px; letter-spacing: .08em;
     text-transform: uppercase; color: var(--g2); }
@@ -96,7 +141,9 @@
   #focus ol li::before { content: "[" counter(n, decimal-leading-zero) "]";
     font-size: 10.5px; color: var(--g2); padding-top: 3px; }
   #focus ol.open li::before { color: var(--blue); }
-  #focus .close-hint { margin-top: 34px; }
+  #focus .nav { position: absolute; left: 0; right: 0; bottom: 0;
+    display: flex; justify-content: space-between; padding: 14px 30px;
+    background: #000; border-top: 1px solid var(--g4); }
 </style></head><body>
 <canvas id="stars"></canvas>
 <div id="viewport"><div id="world"></div></div>
@@ -107,9 +154,23 @@
   <span>LOCAL-FIRST · $generated</span>
 </div>
 <div class="hud depth" id="depth"></div>
+<div class="hud prog" id="prog"></div>
 <div class="hud hint"><b>[SCROLL]</b>穿行 <b>[SPACE]</b>漫游
-  <b>[CLICK]</b>读取 <b>[ESC]</b>返回</div>
+  <b>[CLICK]</b>读取 <b>[←→]</b>翻阅 <b>[ESC]</b>返回</div>
 <div id="focus"></div>
+<div class="term" id="capsule"><div class="inner"><div class="box">
+  <div class="m">时间胶囊 — Capsule</div>
+  <div class="q" id="capq"></div>
+  <div id="capbtns"></div>
+</div></div></div>
+<div class="term" id="epi"><div class="inner">
+  <div class="m">穿行完毕 — End of Line</div>
+  <div class="stat" id="epistat"></div>
+  <div class="quote" id="epiquote"></div>
+  <button class="pxbtn" id="epiback">◀ 回到入口</button>
+  <button class="pxbtn" id="epistay">原地漫游</button>
+</div></div>
+<div class="term" id="boot"><div class="inner" id="bootlines"></div></div>
 <script>
 var DATA = $data;
 var SPACING = 430, RADIUS = 240, CK = 0.0011, CA = 170, PIX = 3;
@@ -119,9 +180,19 @@ function el(cls, html){ var d = document.createElement('div');
   d.className = cls; d.innerHTML = html; return d; }
 function esc(s){ return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
 function quant(v, steps){ return Math.ceil(v * steps) / steps; }
+function store(key, val){
+  try {
+    if (val === undefined) return JSON.parse(localStorage.getItem(key));
+    localStorage.setItem(key, JSON.stringify(val));
+  } catch (e) { return null; }
+}
+
+var visited = store('vibetrace.visited.$project') || {};
+function visitedCount(){ return DATA.filter(function(c){
+  return visited[c.sha]; }).length; }
 
 var world = document.getElementById('world');
-var items = [];
+var items = [], cardEls = [];
 DATA.forEach(function(c, i){
   var z = -(i + 1) * SPACING;
   var ang = i * 2.39996323;
@@ -133,12 +204,13 @@ DATA.forEach(function(c, i){
     + '<div class="ft"><span>' + c.decisions.length + ' decisions</span>'
     + (c.risks.length ? '<span class="risk">' + c.risks.length + ' open</span>'
                       : '<span>settled</span>') + '</div>';
-  var d = el('card', body);
+  var d = el('card' + (visited[c.sha] ? ' visited' : ''), body);
   d.style.transform = 'translate(-50%,-50%) translate3d(' + x.toFixed(1)
     + 'px,' + y.toFixed(1) + 'px,' + z + 'px)';
-  d.addEventListener('click', function(ev){ ev.stopPropagation(); openFocus(c); });
+  d.addEventListener('click', function(ev){ ev.stopPropagation(); openFocus(i); });
   world.appendChild(d);
   items.push({ el: d, z: z });
+  cardEls.push(d);
 });
 
 var seenDay = {};
@@ -173,6 +245,7 @@ var MAX = (DATA.length + 1.4) * SPACING;
 var lookX = 0, lookY = 0, mX = 0, mY = 0;
 var mouseX = innerWidth / 2, mouseY = innerHeight / 2;
 function clampT(){ target = Math.max(0, Math.min(MAX, target)); }
+function flyTo(i){ target = (i + 1) * SPACING - 175; clampT(); }
 addEventListener('wheel', function(e){ target += e.deltaY * 1.5; clampT(); },
   { passive: true });
 var drag = false, lastY = 0;
@@ -187,13 +260,18 @@ addEventListener('pointermove', function(e){
 addEventListener('pointerup', function(){ drag = false;
   document.body.classList.remove('dragging'); });
 addEventListener('keydown', function(e){
+  if (bootAlive){ skipBoot(); return; }
+  if (e.code === 'Escape'){ closeFocus(); hideCapsule(); hideEpi(false); return; }
+  if (!capsuleDone) return;  // 胶囊问询时锁住飞行
   if (e.code === 'KeyW' || e.code === 'ArrowUp'){ target += 170; clampT(); }
   if (e.code === 'KeyS' || e.code === 'ArrowDown'){ target -= 170; clampT(); }
   if (e.code === 'Space'){ auto = !auto; e.preventDefault(); }
-  if (e.code === 'Escape') closeFocus();
+  if (focusIdx >= 0 && e.code === 'ArrowRight') stepFocus(1);
+  if (focusIdx >= 0 && e.code === 'ArrowLeft') stepFocus(-1);
 });
 
 var depthEl = document.getElementById('depth');
+var progEl = document.getElementById('prog');
 function hud(){
   var f = cam / SPACING - 1;
   var i0 = Math.max(0, Math.min(DATA.length - 1, Math.floor(f)));
@@ -205,10 +283,22 @@ function hud(){
   var n = Math.round(days);
   depthEl.innerHTML = '&gt; ' + (n < 10 ? '00' + n : n < 100 ? '0' + n : n)
     + (n === 1 ? ' day ago' : ' days ago') + '<br>' + near.day;
+  var v = visitedCount(), total = DATA.length, bars = '';
+  for (var k = 0; k < total; k++) bars += k < v ? '▓' : '░';
+  progEl.textContent = bars + ' ' + v + '/' + total + ' 已读';
 }
 
-// pixel canvases: rendered at 1/PIX resolution, upscaled with
-// image-rendering: pixelated — every 1px draw lands as a chunky block
+// 就近渐显:只有离相机最近的卡片展开正文
+var nearIdx = -1;
+function updateNear(){
+  var idx = Math.round(cam / SPACING - 1);
+  idx = Math.max(0, Math.min(DATA.length - 1, idx));
+  if (idx === nearIdx) return;
+  if (nearIdx >= 0) cardEls[nearIdx].classList.remove('near');
+  nearIdx = idx;
+  cardEls[nearIdx].classList.add('near');
+}
+
 var cv = document.getElementById('stars'), ctx = cv.getContext('2d');
 var sw = document.getElementById('swarm'), swx = sw.getContext('2d');
 function fit(){
@@ -229,7 +319,6 @@ function drawStars(now){
     s.y += 0.00002 + Math.abs(vel) * 0.000012 * s.d;
     if (s.y > 1) s.y -= 1;
     var px = (s.x * cv.width) | 0, py = (s.y * cv.height) | 0;
-    // binary twinkle, no smooth fades — pixels are either lit or dim
     ctx.globalAlpha = Math.sin(now * 0.0011 + s.tw) > 0 ? 1 : 0.45;
     ctx.fillStyle = s.c;
     if (warp > 1.2){
@@ -249,7 +338,6 @@ function drawStars(now){
   meteors = meteors.filter(function(m){ return m.life > 0; });
   meteors.forEach(function(m){
     m.x += m.vx; m.y += m.vy; m.life -= 0.012;
-    // stepped pixel trail instead of a gradient line
     for (var k = 0; k < 6; k++){
       ctx.globalAlpha = quant(Math.max(0, m.life - k * 0.13), 4);
       ctx.fillStyle = '#fff';
@@ -260,8 +348,6 @@ function drawStars(now){
   ctx.globalAlpha = 1;
 }
 
-// mouse pixel cluster: spring-tethered squares, blinking, mostly white
-// with the occasional kimi-blue pixel
 var SWARM_TINTS = ['#ffffff', '#e9e9e9', '#7a7a7a', '#1783ff'];
 var swarm = [];
 for (var i = 0; i < 22; i++) swarm.push({
@@ -286,7 +372,7 @@ function drawSwarm(now){
 }
 
 function tick(now){
-  if (auto){ target += 1.6; clampT(); }
+  if (auto && capsuleDone){ target += 1.6; clampT(); }
   var prev = cam;
   cam += (target - cam) * 0.075;
   vel = cam - prev;
@@ -302,10 +388,12 @@ function tick(now){
     var o;
     if (dz > -50) o = Math.max(0, 1 - (dz + 50) / 150);
     else o = Math.max(0, 1 - (-dz - 50) / 4200);
-    o = quant(o, 5);  // stepped fades: depth reads as dither bands
+    o = quant(o, 5);
     if (o <= 0){ it.el.style.visibility = 'hidden'; }
     else { it.el.style.visibility = 'visible'; it.el.style.opacity = o; }
   });
+  updateNear();
+  if (capsuleDone && !epiShown && cam > MAX - SPACING * 0.7) showEpi();
   hud();
   drawStars(now || 0);
   drawSwarm(now || 0);
@@ -313,10 +401,20 @@ function tick(now){
 }
 requestAnimationFrame(tick);
 
+// ---- 第四幕:停泊深读(链式翻阅) ----
 var focusEl = document.getElementById('focus');
-function openFocus(c){
+var focusIdx = -1;
+function openFocus(i){
+  focusIdx = i;
+  var c = DATA[i];
+  if (!visited[c.sha]){
+    visited[c.sha] = 1;
+    store('vibetrace.visited.$project', visited);
+    cardEls[i].classList.add('visited');
+  }
   var html = '<div class="m">' + c.sha + ' · ' + c.date + ' · '
-    + (c.days_ago === 0 ? 'today' : c.days_ago + ' days ago') + '</div>'
+    + (c.days_ago === 0 ? 'today' : c.days_ago + ' days ago')
+    + ' · 第 ' + (i + 1) + '/' + DATA.length + ' 枚</div>'
     + '<h2>' + esc(c.subject) + '</h2>';
   if (c.what) html += '<div class="lbl">改了什么 — What</div><p>'
     + esc(c.what) + '</p>';
@@ -334,12 +432,144 @@ function openFocus(c){
   }
   if (!c.what && !c.why)
     html += '<p class="dim">这枚 commit 尚未被叙事。回到终端执行 vibetrace digest。</p>';
-  html += '<div class="m close-hint">[ESC] / 点击隧道返回</div>';
+  html += '<div class="nav">'
+    + '<button class="pxbtn" id="fprev">◀ NEWER</button>'
+    + '<button class="pxbtn" id="fnext">OLDER ▶</button></div>';
   focusEl.innerHTML = html;
   focusEl.classList.add('open');
+  var bp = document.getElementById('fprev'), bn = document.getElementById('fnext');
+  bp.disabled = i === 0; bn.disabled = i === DATA.length - 1;
+  bp.style.opacity = i === 0 ? 0.3 : 1;
+  bn.style.opacity = i === DATA.length - 1 ? 0.3 : 1;
+  bp.addEventListener('click', function(){ stepFocus(-1); });
+  bn.addEventListener('click', function(){ stepFocus(1); });
 }
-function closeFocus(){ focusEl.classList.remove('open'); }
+function stepFocus(dir){
+  var next = focusIdx + dir;
+  if (next < 0 || next >= DATA.length) return;
+  openFocus(next);
+  flyTo(next);  // 阅读驱动飞行:翻到哪枚,相机就滑到哪枚
+}
+function closeFocus(){ focusEl.classList.remove('open'); focusIdx = -1; }
 document.getElementById('viewport').addEventListener('click', closeFocus);
 focusEl.addEventListener('click', function(e){ e.stopPropagation(); });
+
+// ---- 第二幕:时间胶囊问询 ----
+var capsuleEl = document.getElementById('capsule');
+var capsuleDone = false;
+var capsule = null;
+for (var ci = 0; ci < DATA.length; ci++){
+  if (DATA[ci].risks.length
+      && !store('vibetrace.capsule.' + DATA[ci].sha)){ capsule = DATA[ci]; break; }
+}
+function showCapsule(){
+  if (!capsule){ capsuleDone = true; capsuleEl.classList.add('gone'); return; }
+  var ago = capsule.days_ago === 0 ? '今天' : capsule.days_ago + ' 天前';
+  document.getElementById('capq').textContent =
+    ago + '你写下了一个担心:「' + capsule.risks[0] + '」——验证了吗?';
+  var btns = document.getElementById('capbtns');
+  [['还在担心', 'worried'], ['已解决', 'resolved'], ['想多了', 'overthought']]
+    .forEach(function(pair){
+      var b = document.createElement('button');
+      b.className = 'pxbtn'; b.textContent = pair[0];
+      b.addEventListener('click', function(){
+        store('vibetrace.capsule.' + capsule.sha,
+              { answer: pair[1], at: '$generated' });
+        hideCapsule();
+      });
+      btns.appendChild(b);
+    });
+  var skip = document.createElement('span');
+  skip.className = 'skip'; skip.textContent = '先逛逛,下次再答';
+  skip.addEventListener('click', hideCapsule);
+  btns.appendChild(skip);
+}
+function hideCapsule(){
+  if (capsuleDone) return;
+  capsuleDone = true;
+  capsuleEl.classList.add('gone');
+  flyTo(0);  // 第三幕开场:相机滑向最近一枚 commit
+}
+
+// ---- 第五幕:GENESIS 终幕 ----
+var epiEl = document.getElementById('epi');
+epiEl.classList.add('gone');
+var epiShown = false;
+function showEpi(){
+  epiShown = true;
+  var span = DATA[0].days_ago === DATA[DATA.length - 1].days_ago ? 1
+    : DATA[DATA.length - 1].days_ago - DATA[0].days_ago + 1;
+  var answered = DATA.filter(function(c){
+    return store('vibetrace.capsule.' + c.sha); }).length;
+  document.getElementById('epistat').innerHTML =
+    '你穿过了 <b>' + span + '</b> 天的记忆 · <b>' + DATA.length
+    + '</b> 枚 commit<br>读取 <b>' + visitedCount() + '</b> 段叙事 · 回答 <b>'
+    + answered + '</b> 个时间胶囊';
+  var first = DATA[DATA.length - 1];
+  document.getElementById('epiquote').textContent =
+    '「' + (first.what || first.subject) + '」 — ' + first.day + ',第一枚 commit';
+  epiEl.classList.remove('gone');
+}
+function hideEpi(back){
+  epiEl.classList.add('gone');
+  if (back){ target = 0; closeFocus(); }
+}
+document.getElementById('epiback').addEventListener('click',
+  function(){ hideEpi(true); });
+document.getElementById('epistay').addEventListener('click',
+  function(){ hideEpi(false); });
+
+// ---- 第一幕:入站 BOOT ----
+var bootEl = document.getElementById('boot');
+var bootAlive = true;
+var narrated = DATA.filter(function(c){ return c.what; }).length;
+var openCount = DATA.reduce(function(a, c){ return a + c.risks.length; }, 0);
+var vc = visitedCount();
+var BOOTLINES = [
+  'VIBETRACE OS — 时光隧道 v3',
+  '读取记忆 ..... <span class="dim">' + DATA.length + ' commits · '
+    + Object.keys(seenDay).length + ' days</span>',
+  '已有叙事 ..... <span class="dim">' + narrated + '/' + DATA.length + '</span>',
+  '未验证的担心 . <span class="dim">' + openCount + ' 处</span>',
+  vc ? '欢迎回来 ..... <span class="dim">上次已读 ' + vc + '/'
+    + DATA.length + '</span>' : '初次到访 ..... <span class="dim">入口在现在,深处是起点</span>',
+];
+var blWrap = document.getElementById('bootlines');
+var li = 0, chi = 0, lineEl = null;
+function typeBoot(){
+  if (!bootAlive) return;
+  if (li >= BOOTLINES.length){
+    var ent = document.createElement('div');
+    ent.className = 'enter on';
+    ent.textContent = '[ 任意键 进入隧道 ]';
+    blWrap.appendChild(ent);
+    return;
+  }
+  if (!lineEl){
+    lineEl = document.createElement('div');
+    lineEl.className = 'line cur';
+    blWrap.appendChild(lineEl);
+  }
+  var plain = BOOTLINES[li].replace(/<[^>]*>/g, '');
+  chi += 2;
+  if (chi >= plain.length){
+    lineEl.innerHTML = BOOTLINES[li];
+    lineEl.classList.remove('cur');
+    lineEl = null; chi = 0; li++;
+    setTimeout(typeBoot, 90);
+  } else {
+    lineEl.textContent = plain.slice(0, chi);
+    setTimeout(typeBoot, 14);
+  }
+}
+function skipBoot(){
+  if (!bootAlive) return;
+  bootAlive = false;
+  bootEl.classList.add('gone');
+  showCapsule();
+}
+bootEl.addEventListener('click', skipBoot);
+setTimeout(typeBoot, 250);
+setTimeout(skipBoot, 6500);  // 看完不动也自动进站
 </script>
 </body></html>
