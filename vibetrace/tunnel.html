@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>$project — 時光隧道</title>
+<style>
+  :root { --fg: #ededed; --mid: #a0a0a0; --dim: #6b6b6b;
+          --line: #232323; --red: #ff0000; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; overflow: hidden; background: #060608;
+    color: var(--fg);
+    font-family: "Helvetica Neue", "Neue Haas Grotesk", -apple-system,
+      "PingFang SC", "Noto Sans CJK SC", sans-serif;
+    -webkit-font-smoothing: antialiased; }
+  .mono { font-family: "SF Mono", ui-monospace, Menlo, monospace;
+    font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--dim); }
+  #stars { position: fixed; inset: 0; z-index: 0; }
+  .nebula { position: fixed; border-radius: 50%; filter: blur(70px);
+    pointer-events: none; z-index: 1; }
+  .nebula.a { width: 70vw; height: 70vh; left: -18vw; top: -22vh;
+    background: radial-gradient(closest-side, rgba(110,90,190,.14), transparent);
+    animation: drift 46s ease-in-out infinite alternate; }
+  .nebula.b { width: 64vw; height: 64vh; right: -16vw; bottom: -20vh;
+    background: radial-gradient(closest-side, rgba(70,110,150,.12), transparent);
+    animation: drift 38s ease-in-out infinite alternate-reverse; }
+  @keyframes drift { from { transform: translate(0, 0) scale(1); }
+    to { transform: translate(7vw, 5vh) scale(1.15); } }
+  .vignette { position: fixed; inset: 0; pointer-events: none; z-index: 3;
+    background: radial-gradient(ellipse at center, transparent 52%,
+      rgba(0,0,0,.82) 100%); }
+  #viewport { position: fixed; inset: 0; z-index: 2;
+    perspective: 950px; perspective-origin: 50% 50%; cursor: grab; }
+  body.dragging #viewport { cursor: grabbing; }
+  #world { position: absolute; left: 50%; top: 50%;
+    transform-style: preserve-3d; will-change: transform; }
+  .card { position: absolute; left: 0; top: 0; width: 252px;
+    background: rgba(13,13,16,.84); border: 1px solid #2a2a2c;
+    border-radius: 4px; padding: 13px 15px 11px; cursor: pointer;
+    transition: border-color .25s; }
+  .card:hover { border-color: #707074; }
+  .card .m { font-family: "SF Mono", ui-monospace, Menlo, monospace;
+    font-size: 9.5px; letter-spacing: .09em; text-transform: uppercase;
+    color: var(--dim); }
+  .card h3 { font-size: 13.5px; font-weight: 500; letter-spacing: -.01em;
+    color: var(--fg); margin: 7px 0 6px; line-height: 1.35; }
+  .card p { font-size: 11px; line-height: 1.55; color: #8a8a8a; margin: 0;
+    display: -webkit-box; -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical; overflow: hidden; }
+  .card .ft { display: flex; justify-content: space-between; margin-top: 10px;
+    padding-top: 8px; border-top: 1px solid var(--line);
+    font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 9.5px;
+    letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+  .card .ft .risk { color: var(--red); }
+  .marker { position: absolute; left: 0; top: 0; white-space: nowrap;
+    font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px;
+    letter-spacing: .16em; text-transform: uppercase; color: #b9b9bd;
+    text-shadow: 0 0 16px rgba(235,235,245,.5); }
+  .genesis { position: absolute; left: 0; top: 0; text-align: center;
+    font-size: 20px; letter-spacing: .3em; color: #c9c9ce;
+    text-shadow: 0 0 26px rgba(235,235,245,.45); white-space: nowrap; }
+  .genesis span { display: block; margin-top: 10px;
+    font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 10px;
+    letter-spacing: .14em; color: var(--dim); }
+  .endglow { position: absolute; left: 0; top: 0; width: 560px; height: 560px;
+    margin: -280px 0 0 -280px; border-radius: 50%; pointer-events: none;
+    background: radial-gradient(closest-side, rgba(225,225,240,.16),
+      transparent 70%); }
+  .hud { position: fixed; z-index: 5; pointer-events: none; }
+  .hud.top { top: 18px; left: 24px; right: 24px; display: flex;
+    justify-content: space-between; }
+  .hud.depth { right: 24px; bottom: 18px; text-align: right; color: var(--mid);
+    line-height: 1.7; }
+  .hud.hint { left: 24px; bottom: 18px; }
+  #focus { position: fixed; top: 0; right: 0; bottom: 0; width: 430px;
+    max-width: 92vw; z-index: 8; background: rgba(8,8,10,.97);
+    border-left: 1px solid var(--line); padding: 38px 34px;
+    overflow-y: auto; transform: translateX(103%);
+    transition: transform .35s cubic-bezier(.22,.8,.3,1); }
+  #focus.open { transform: translateX(0); }
+  #focus h2 { font-size: 21px; font-weight: 500; letter-spacing: -.015em;
+    line-height: 1.3; margin: 12px 0 4px; }
+  #focus .lbl { font-family: "SF Mono", ui-monospace, Menlo, monospace;
+    font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--dim); margin: 28px 0 0; padding-bottom: 9px;
+    border-bottom: 1px solid var(--line); }
+  #focus p { font-size: 14px; line-height: 1.75; color: var(--mid);
+    margin: 12px 0 0; }
+  #focus p.dim { color: var(--dim); }
+  #focus ol { list-style: none; margin: 0; padding: 0; counter-reset: n; }
+  #focus ol li { counter-increment: n; display: flex; gap: 18px;
+    padding: 13px 0; border-bottom: 1px solid var(--line); font-size: 13px;
+    line-height: 1.65; color: var(--mid); }
+  #focus ol li::before { content: counter(n, decimal-leading-zero);
+    font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 10.5px;
+    color: var(--dim); padding-top: 3px; }
+  #focus ol.open li::before { color: var(--red); }
+  #focus .close-hint { margin-top: 36px; }
+</style></head><body>
+<canvas id="stars"></canvas>
+<div class="nebula a"></div><div class="nebula b"></div>
+<div id="viewport"><div id="world"></div></div>
+<div class="vignette"></div>
+<div class="hud top">
+  <span class="mono">Vibetrace — 時光隧道 · $project</span>
+  <span class="mono">local-first · generated $generated</span>
+</div>
+<div class="hud depth mono" id="depth"></div>
+<div class="hud hint mono">scroll / drag 穿行 · space 漫遊 · click 讀取記憶 · esc 返回</div>
+<div id="focus"></div>
+<script>
+var DATA = $data;
+var SPACING = 430, RADIUS = 240, CK = 0.0011, CA = 170;
+function bendX(z){ return Math.sin(z * CK) * CA; }
+function bendY(z){ return Math.cos(z * 0.00073) * 64; }
+function el(cls, html){ var d = document.createElement('div');
+  d.className = cls; d.innerHTML = html; return d; }
+function esc(s){ return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+
+var world = document.getElementById('world');
+var items = [];
+DATA.forEach(function(c, i){
+  var z = -(i + 1) * SPACING;
+  var ang = i * 2.39996323;
+  var x = Math.cos(ang) * RADIUS + bendX(z);
+  var y = Math.sin(ang) * RADIUS * 0.72 + bendY(z);
+  var body = '<div class="m">' + c.sha + ' · ' + c.day + '</div>'
+    + '<h3>' + esc(c.subject) + '</h3>'
+    + '<p>' + esc(c.what || '尚未敘事 — 終端執行 vibetrace digest') + '</p>'
+    + '<div class="ft"><span>' + c.decisions.length + ' decisions</span>'
+    + (c.risks.length ? '<span class="risk">' + c.risks.length + ' open</span>'
+                      : '<span>settled</span>') + '</div>';
+  var d = el('card', body);
+  d.style.transform = 'translate(-50%,-50%) translate3d(' + x.toFixed(1)
+    + 'px,' + y.toFixed(1) + 'px,' + z + 'px)';
+  d.addEventListener('click', function(ev){ ev.stopPropagation(); openFocus(c); });
+  world.appendChild(d);
+  items.push({ el: d, z: z });
+});
+
+var seenDay = {};
+DATA.forEach(function(c, i){
+  if (seenDay[c.day]) return;
+  seenDay[c.day] = 1;
+  var z = -(i + 1) * SPACING + 185;
+  var label = c.day + (c.days_ago === 0 ? ' — today'
+    : ' — ' + c.days_ago + (c.days_ago === 1 ? ' day ago' : ' days ago'));
+  var d = el('marker', label);
+  d.style.transform = 'translate(-50%,-50%) translate3d(' + bendX(z).toFixed(1)
+    + 'px, 300px,' + z + 'px)';
+  world.appendChild(d);
+  items.push({ el: d, z: z });
+});
+
+var ENDZ = -(DATA.length + 1.7) * SPACING;
+var glow = el('endglow', '');
+glow.style.transform = 'translate3d(' + bendX(ENDZ - 220).toFixed(1) + 'px,'
+  + bendY(ENDZ - 220).toFixed(1) + 'px,' + (ENDZ - 220) + 'px)';
+world.appendChild(glow);
+items.push({ el: glow, z: ENDZ - 220 });
+var genesis = el('genesis', '起點 · GENESIS<span>'
+  + DATA[DATA.length - 1].day + ' — 一切由此開始</span>');
+genesis.style.transform = 'translate(-50%,-50%) translate3d('
+  + bendX(ENDZ).toFixed(1) + 'px,' + bendY(ENDZ).toFixed(1) + 'px,' + ENDZ + 'px)';
+world.appendChild(genesis);
+items.push({ el: genesis, z: ENDZ });
+
+var cam = 0, target = 0, vel = 0, auto = false;
+var MAX = (DATA.length + 1.4) * SPACING;
+var lookX = 0, lookY = 0, mX = 0, mY = 0;
+function clampT(){ target = Math.max(0, Math.min(MAX, target)); }
+addEventListener('wheel', function(e){ target += e.deltaY * 1.5; clampT(); },
+  { passive: true });
+var drag = false, lastY = 0;
+addEventListener('pointerdown', function(e){ drag = true; lastY = e.clientY;
+  document.body.classList.add('dragging'); });
+addEventListener('pointermove', function(e){
+  mX = e.clientX / innerWidth - 0.5;
+  mY = e.clientY / innerHeight - 0.5;
+  if (drag){ target += (lastY - e.clientY) * 4.2; lastY = e.clientY; clampT(); }
+});
+addEventListener('pointerup', function(){ drag = false;
+  document.body.classList.remove('dragging'); });
+addEventListener('keydown', function(e){
+  if (e.code === 'KeyW' || e.code === 'ArrowUp'){ target += 170; clampT(); }
+  if (e.code === 'KeyS' || e.code === 'ArrowDown'){ target -= 170; clampT(); }
+  if (e.code === 'Space'){ auto = !auto; e.preventDefault(); }
+  if (e.code === 'Escape') closeFocus();
+});
+
+var depthEl = document.getElementById('depth');
+function hud(){
+  var f = cam / SPACING - 1;
+  var i0 = Math.max(0, Math.min(DATA.length - 1, Math.floor(f)));
+  var i1 = Math.max(0, Math.min(DATA.length - 1, Math.ceil(f)));
+  var t = Math.max(0, Math.min(1, f - i0));
+  var days = DATA[i0].days_ago + (DATA[i1].days_ago - DATA[i0].days_ago) * t;
+  if (f < 0) days = 0;
+  var near = DATA[Math.max(0, Math.min(DATA.length - 1, Math.round(f)))];
+  depthEl.innerHTML = Math.round(days) + (Math.round(days) === 1
+    ? ' day ago' : ' days ago') + '<br>' + near.day;
+}
+
+var cv = document.getElementById('stars'), ctx = cv.getContext('2d');
+function fit(){ cv.width = innerWidth; cv.height = innerHeight; }
+addEventListener('resize', fit); fit();
+var stars = [], meteors = [];
+for (var i = 0; i < 230; i++) stars.push({ x: Math.random(), y: Math.random(),
+  d: 0.25 + Math.random() * 0.75, tw: Math.random() * 6.28 });
+function drawStars(now){
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  var warp = Math.min(18, Math.abs(vel) * 0.55);
+  var hw = cv.width / 2, hh = cv.height / 2;
+  stars.forEach(function(s){
+    s.y += 0.00002 + Math.abs(vel) * 0.000012 * s.d;
+    if (s.y > 1) s.y -= 1;
+    var px = s.x * cv.width, py = s.y * cv.height;
+    ctx.globalAlpha = (0.35 + 0.3 * Math.sin(now * 0.001 + s.tw)) * s.d;
+    if (warp > 2.5){
+      var dx = (px - hw) / cv.width, dy = (py - hh) / cv.height;
+      ctx.strokeStyle = '#cfcfd4';
+      ctx.beginPath(); ctx.moveTo(px, py);
+      ctx.lineTo(px + dx * warp * 6 * s.d, py + dy * warp * 6 * s.d);
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = '#cfcfd4';
+      ctx.fillRect(px, py, 1.3 * s.d + 0.4, 1.3 * s.d + 0.4);
+    }
+  });
+  if (Math.random() < 0.004 && meteors.length < 2)
+    meteors.push({ x: Math.random() * 0.8 + 0.1, y: Math.random() * 0.3,
+      vx: 0.004 + Math.random() * 0.004, vy: 0.002 + Math.random() * 0.003,
+      life: 1 });
+  meteors = meteors.filter(function(m){ return m.life > 0; });
+  meteors.forEach(function(m){
+    m.x += m.vx; m.y += m.vy; m.life -= 0.012;
+    var px = m.x * cv.width, py = m.y * cv.height;
+    var tx = px - m.vx * cv.width * 14, ty = py - m.vy * cv.height * 14;
+    var grad = ctx.createLinearGradient(px, py, tx, ty);
+    grad.addColorStop(0, 'rgba(240,240,245,' + (0.7 * m.life).toFixed(3) + ')');
+    grad.addColorStop(1, 'rgba(240,240,245,0)');
+    ctx.strokeStyle = grad; ctx.globalAlpha = 1;
+    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(tx, ty); ctx.stroke();
+  });
+  ctx.globalAlpha = 1;
+}
+
+function tick(now){
+  if (auto){ target += 1.6; clampT(); }
+  var prev = cam;
+  cam += (target - cam) * 0.075;
+  vel = cam - prev;
+  lookX += (-mX * 8 - lookX) * 0.05;
+  lookY += (mY * 6 - lookY) * 0.05;
+  var roll = Math.cos(-cam * CK) * CA * CK * 26;
+  world.style.transform = 'rotateX(' + lookY.toFixed(2) + 'deg) rotateY('
+    + lookX.toFixed(2) + 'deg) rotateZ(' + roll.toFixed(2)
+    + 'deg) translate3d(' + (-bendX(-cam)).toFixed(1) + 'px,'
+    + (-bendY(-cam)).toFixed(1) + 'px,' + cam.toFixed(1) + 'px)';
+  items.forEach(function(it){
+    var dz = it.z + cam;
+    var o;
+    if (dz > -50) o = Math.max(0, 1 - (dz + 50) / 150);
+    else o = Math.max(0, 1 - (-dz - 50) / 4200);
+    if (o < 0.012){ it.el.style.visibility = 'hidden'; }
+    else { it.el.style.visibility = 'visible'; it.el.style.opacity = o.toFixed(3); }
+  });
+  hud();
+  drawStars(now || 0);
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+var focusEl = document.getElementById('focus');
+function openFocus(c){
+  var html = '<div class="mono">' + c.sha + ' · ' + c.date + ' · '
+    + (c.days_ago === 0 ? 'today' : c.days_ago + ' days ago') + '</div>'
+    + '<h2>' + esc(c.subject) + '</h2>';
+  if (c.what) html += '<div class="lbl">改了什麼 — What</div><p>'
+    + esc(c.what) + '</p>';
+  if (c.why) html += '<div class="lbl">為什麼 — Why</div><p>'
+    + esc(c.why) + '</p>';
+  if (c.decisions.length){
+    html += '<div class="lbl">決定 — Decisions</div><ol>';
+    c.decisions.forEach(function(d){ html += '<li>' + esc(d) + '</li>'; });
+    html += '</ol>';
+  }
+  if (c.risks.length){
+    html += '<div class="lbl">未驗證 — Open</div><ol class="open">';
+    c.risks.forEach(function(r){ html += '<li>' + esc(r) + '</li>'; });
+    html += '</ol>';
+  }
+  if (!c.what && !c.why)
+    html += '<p class="dim">這枚 commit 尚未被敘事。回到終端執行 vibetrace digest。</p>';
+  html += '<div class="mono close-hint">esc / 點擊隧道返回</div>';
+  focusEl.innerHTML = html;
+  focusEl.classList.add('open');
+}
+function closeFocus(){ focusEl.classList.remove('open'); }
+document.getElementById('viewport').addEventListener('click', closeFocus);
+focusEl.addEventListener('click', function(e){ e.stopPropagation(); });
+</script>
+</body></html>
