@@ -5,7 +5,9 @@ is now, deeper is older; you scroll through your own history with
 inertia, starfield and date waypoints. TimeChannel uses Three.js; this
 stays inside vibetrace red lines (single file, zero deps, offline) by
 doing the tunnel with native CSS 3D transforms + a Canvas 2D starfield.
-Card typography keeps the v2 monochrome editorial language.
+Visual language follows careers.kimi.com: pure black/white pixel terminal,
+Fusion Pixel font (CDN with font-display swap — degrades to system mono
+offline), chunky low-res canvases, hard borders, quantized fades.
 
 Markup/JS live in tunnel.html next to this module; this file only
 assembles data and substitutes it in.

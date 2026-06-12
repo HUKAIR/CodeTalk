@@ -1,130 +1,124 @@
 <!DOCTYPE html>
 <html lang="zh"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>$project — 時光隧道</title>
+<title>$project — 时光隧道</title>
+<link rel="stylesheet"
+  href="https://cdn.jsdelivr.net/fontsource/css/fusion-pixel-12px-monospaced-sc@latest/index.css">
 <style>
-  :root { --fg: #ededed; --mid: #a0a0a0; --dim: #6b6b6b;
-          --line: #232323; --red: #ff0000; }
-  * { box-sizing: border-box; }
-  html, body { height: 100%; margin: 0; overflow: hidden;
-    background: radial-gradient(ellipse at 50% 38%, #141428 0%, #0c0c18 55%,
-      #08080e 100%) fixed #08080e;
-    color: var(--fg);
-    font-family: "Helvetica Neue", "Neue Haas Grotesk", -apple-system,
-      "PingFang SC", "Noto Sans CJK SC", sans-serif;
-    -webkit-font-smoothing: antialiased; }
-  .mono { font-family: "SF Mono", ui-monospace, Menlo, monospace;
-    font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
-    color: var(--dim); }
-  #stars { position: fixed; inset: 0; z-index: 0; }
-  #sky { position: fixed; inset: -14vh -14vw; z-index: 1;
-    pointer-events: none; will-change: transform; }
-  .nebula { position: absolute; border-radius: 50%; filter: blur(62px);
-    pointer-events: none; }
-  .nebula.a { width: 80vw; height: 76vh; left: -14vw; top: -16vh;
-    background: radial-gradient(closest-side, rgba(128,102,238,.32), transparent);
-    animation: drift 46s ease-in-out infinite alternate; }
-  .nebula.b { width: 74vw; height: 72vh; right: -12vw; bottom: -14vh;
-    background: radial-gradient(closest-side, rgba(82,165,228,.27), transparent);
-    animation: drift 38s ease-in-out infinite alternate-reverse; }
-  .nebula.c { width: 54vw; height: 58vh; left: 30vw; top: 28vh;
-    background: radial-gradient(closest-side, rgba(236,132,184,.17), transparent);
-    animation: drift 54s ease-in-out infinite alternate; }
-  @keyframes drift { from { transform: translate(0, 0) scale(1); }
-    to { transform: translate(7vw, 5vh) scale(1.15); } }
+  :root { --fg: #fff; --g1: #e9e9e9; --g2: #7a7a7a; --g3: #3e3e3e;
+          --g4: #292929; --blue: #1783ff;
+          --px: "Fusion Pixel 12px Monospaced SC", "SF Mono", ui-monospace,
+                Menlo, monospace; }
+  * { box-sizing: border-box; border-radius: 0 !important; }
+  ::selection { background: #fff; color: #000; }
+  html, body { height: 100%; margin: 0; overflow: hidden; background: #000;
+    color: var(--fg); font-family: var(--px); }
+  canvas { position: fixed; inset: 0; width: 100vw; height: 100vh;
+    image-rendering: pixelated; }
+  #stars { z-index: 0; }
+  #swarm { z-index: 6; pointer-events: none; }
   .vignette { position: fixed; inset: 0; pointer-events: none; z-index: 3;
-    background: radial-gradient(ellipse at center, transparent 60%,
-      rgba(0,0,0,.52) 100%); }
-  #swarm { position: fixed; inset: 0; z-index: 6; pointer-events: none; }
-  #viewport { position: fixed; inset: 0; z-index: 2;
-    perspective: 950px; perspective-origin: 50% 50%; cursor: grab; }
+    background: radial-gradient(ellipse at center, transparent 0 58%,
+      rgba(0,0,0,.3) 58% 78%, rgba(0,0,0,.55) 78% 92%, rgba(0,0,0,.8) 92%); }
+  #viewport { position: fixed; inset: 0; z-index: 2; perspective: 950px;
+    perspective-origin: 50% 50%; cursor: crosshair; }
   body.dragging #viewport { cursor: grabbing; }
   #world { position: absolute; left: 50%; top: 50%;
     transform-style: preserve-3d; will-change: transform; }
-  .card { position: absolute; left: 0; top: 0; width: 252px;
-    background: rgba(13,13,16,.84); border: 1px solid #2a2a2c;
-    border-radius: 4px; padding: 13px 15px 11px; cursor: pointer;
-    transition: border-color .25s; }
-  .card:hover { border-color: #707074; }
-  .card .m { font-family: "SF Mono", ui-monospace, Menlo, monospace;
-    font-size: 9.5px; letter-spacing: .09em; text-transform: uppercase;
-    color: var(--dim); }
-  .card h3 { font-size: 13.5px; font-weight: 500; letter-spacing: -.01em;
-    color: var(--fg); margin: 7px 0 6px; line-height: 1.35; }
-  .card p { font-size: 11px; line-height: 1.55; color: #8a8a8a; margin: 0;
+  .card { --c-bg: #000; --c-fg: var(--g1); --c-mut: var(--g2);
+    position: absolute; left: 0; top: 0; width: 256px;
+    background: var(--c-bg); border: 1px solid #fff;
+    box-shadow: 5px 5px 0 var(--g4); padding: 12px 14px 10px;
+    cursor: pointer; }
+  .card:hover { --c-bg: #fff; --c-fg: #000; --c-mut: #3e3e3e;
+    box-shadow: 5px 5px 0 var(--g2); }
+  .card .m { font-size: 10px; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--c-mut); }
+  .card h3 { font-size: 13px; font-weight: 400; color: var(--c-fg);
+    margin: 8px 0 6px; line-height: 1.4; }
+  .card p { font-size: 11px; line-height: 1.6; color: var(--c-mut); margin: 0;
     display: -webkit-box; -webkit-line-clamp: 3;
     -webkit-box-orient: vertical; overflow: hidden; }
   .card .ft { display: flex; justify-content: space-between; margin-top: 10px;
-    padding-top: 8px; border-top: 1px solid var(--line);
-    font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 9.5px;
-    letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
-  .card .ft .risk { color: var(--red); }
+    padding-top: 7px; border-top: 1px solid var(--c-mut); font-size: 10px;
+    letter-spacing: .06em; text-transform: uppercase; color: var(--c-mut); }
+  .card .ft .risk { color: var(--blue); }
+  .card:hover .ft .risk { color: #0057c2; }
   .marker { position: absolute; left: 0; top: 0; white-space: nowrap;
-    font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px;
-    letter-spacing: .16em; text-transform: uppercase; color: #b9b9bd;
-    text-shadow: 0 0 16px rgba(235,235,245,.5); }
+    font-size: 13px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--g1); }
+  .marker::before { content: "▙ "; color: var(--g2); }
   .genesis { position: absolute; left: 0; top: 0; text-align: center;
-    font-size: 20px; letter-spacing: .3em; color: #c9c9ce;
-    text-shadow: 0 0 26px rgba(235,235,245,.45); white-space: nowrap; }
-  .genesis span { display: block; margin-top: 10px;
-    font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 10px;
-    letter-spacing: .14em; color: var(--dim); }
-  .endglow { position: absolute; left: 0; top: 0; width: 560px; height: 560px;
-    margin: -280px 0 0 -280px; border-radius: 50%; pointer-events: none;
-    background: radial-gradient(closest-side, rgba(225,225,240,.16),
-      transparent 70%); }
-  .hud { position: fixed; z-index: 5; pointer-events: none; }
-  .hud.top { top: 18px; left: 24px; right: 24px; display: flex;
-    justify-content: space-between; }
-  .hud.depth { right: 24px; bottom: 18px; text-align: right; color: var(--mid);
-    line-height: 1.7; }
-  .hud.hint { left: 24px; bottom: 18px; }
-  #focus { position: fixed; top: 0; right: 0; bottom: 0; width: 430px;
-    max-width: 92vw; z-index: 8; background: rgba(8,8,10,.97);
-    border-left: 1px solid var(--line); padding: 38px 34px;
-    overflow-y: auto; transform: translateX(103%);
-    transition: transform .35s cubic-bezier(.22,.8,.3,1); }
+    font-size: 26px; letter-spacing: .28em; color: #fff;
+    white-space: nowrap; }
+  .genesis::after { content: "▮"; animation: blink 1.1s steps(1) infinite; }
+  .genesis span { display: block; margin-top: 12px; font-size: 11px;
+    letter-spacing: .12em; color: var(--g2); }
+  @keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+  .endpix { position: absolute; left: 0; top: 0; width: 480px; height: 480px;
+    margin: -240px 0 0 -240px; pointer-events: none; opacity: .14;
+    background: repeating-conic-gradient(#fff 0 25%, transparent 0 50%)
+      0 0 / 10px 10px;
+    -webkit-mask-image: radial-gradient(closest-side, #000, transparent 72%);
+    mask-image: radial-gradient(closest-side, #000, transparent 72%); }
+  .hud { position: fixed; z-index: 5; pointer-events: none; font-size: 12px;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--g2); }
+  .hud.top { top: 0; left: 0; right: 0; display: flex;
+    justify-content: space-between; padding: 12px 18px;
+    border-bottom: 1px solid var(--g4); background: #000; }
+  .hud.top .t { color: var(--g1); }
+  .hud.depth { right: 18px; bottom: 16px; text-align: right; line-height: 1.8;
+    color: var(--g1); }
+  .hud.depth::after { content: " ▮"; animation: blink 1.1s steps(1) infinite; }
+  .hud.hint { left: 18px; bottom: 16px; }
+  .hud.hint b { color: var(--g1); font-weight: 400; }
+  #focus { position: fixed; top: 0; right: 0; bottom: 0; width: 432px;
+    max-width: 94vw; z-index: 8; background: #000;
+    border-left: 1px solid #fff; padding: 34px 30px; overflow-y: auto;
+    transform: translateX(103%);
+    transition: transform .3s steps(7); }
   #focus.open { transform: translateX(0); }
-  #focus h2 { font-size: 21px; font-weight: 500; letter-spacing: -.015em;
-    line-height: 1.3; margin: 12px 0 4px; }
-  #focus .lbl { font-family: "SF Mono", ui-monospace, Menlo, monospace;
-    font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
-    color: var(--dim); margin: 28px 0 0; padding-bottom: 9px;
-    border-bottom: 1px solid var(--line); }
-  #focus p { font-size: 14px; line-height: 1.75; color: var(--mid);
+  #focus .m { font-size: 10.5px; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--g2); }
+  #focus h2 { font-size: 19px; font-weight: 400; line-height: 1.45;
+    margin: 14px 0 4px; color: #fff; }
+  #focus .lbl { font-size: 11px; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--g2); margin: 30px 0 0;
+    padding-bottom: 8px; border-bottom: 1px solid var(--g4); }
+  #focus .lbl::before { content: "■ "; color: var(--g3); }
+  #focus p { font-size: 13px; line-height: 1.85; color: var(--g1);
     margin: 12px 0 0; }
-  #focus p.dim { color: var(--dim); }
+  #focus p.dim { color: var(--g2); }
   #focus ol { list-style: none; margin: 0; padding: 0; counter-reset: n; }
-  #focus ol li { counter-increment: n; display: flex; gap: 18px;
-    padding: 13px 0; border-bottom: 1px solid var(--line); font-size: 13px;
-    line-height: 1.65; color: var(--mid); }
-  #focus ol li::before { content: counter(n, decimal-leading-zero);
-    font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 10.5px;
-    color: var(--dim); padding-top: 3px; }
-  #focus ol.open li::before { color: var(--red); }
-  #focus .close-hint { margin-top: 36px; }
+  #focus ol li { counter-increment: n; display: flex; gap: 16px;
+    padding: 12px 0; border-bottom: 1px solid var(--g4); font-size: 12.5px;
+    line-height: 1.7; color: var(--g1); }
+  #focus ol li::before { content: "[" counter(n, decimal-leading-zero) "]";
+    font-size: 10.5px; color: var(--g2); padding-top: 3px; }
+  #focus ol.open li::before { color: var(--blue); }
+  #focus .close-hint { margin-top: 34px; }
 </style></head><body>
 <canvas id="stars"></canvas>
-<div id="sky"><div class="nebula a"></div><div class="nebula b"></div>
-  <div class="nebula c"></div></div>
 <div id="viewport"><div id="world"></div></div>
 <div class="vignette"></div>
 <canvas id="swarm"></canvas>
 <div class="hud top">
-  <span class="mono">Vibetrace — 時光隧道 · $project</span>
-  <span class="mono">local-first · generated $generated</span>
+  <span><span class="t">VIBETRACE</span>//时光隧道 · $project</span>
+  <span>LOCAL-FIRST · $generated</span>
 </div>
-<div class="hud depth mono" id="depth"></div>
-<div class="hud hint mono">scroll / drag 穿行 · space 漫遊 · click 讀取記憶 · esc 返回</div>
+<div class="hud depth" id="depth"></div>
+<div class="hud hint"><b>[SCROLL]</b>穿行 <b>[SPACE]</b>漫游
+  <b>[CLICK]</b>读取 <b>[ESC]</b>返回</div>
 <div id="focus"></div>
 <script>
 var DATA = $data;
-var SPACING = 430, RADIUS = 240, CK = 0.0011, CA = 170;
+var SPACING = 430, RADIUS = 240, CK = 0.0011, CA = 170, PIX = 3;
 function bendX(z){ return Math.sin(z * CK) * CA; }
 function bendY(z){ return Math.cos(z * 0.00073) * 64; }
 function el(cls, html){ var d = document.createElement('div');
   d.className = cls; d.innerHTML = html; return d; }
 function esc(s){ return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+function quant(v, steps){ return Math.ceil(v * steps) / steps; }
 
 var world = document.getElementById('world');
 var items = [];
@@ -135,7 +129,7 @@ DATA.forEach(function(c, i){
   var y = Math.sin(ang) * RADIUS * 0.72 + bendY(z);
   var body = '<div class="m">' + c.sha + ' · ' + c.day + '</div>'
     + '<h3>' + esc(c.subject) + '</h3>'
-    + '<p>' + esc(c.what || '尚未敘事 — 終端執行 vibetrace digest') + '</p>'
+    + '<p>' + esc(c.what || '尚未叙事 — 终端执行 vibetrace digest') + '</p>'
     + '<div class="ft"><span>' + c.decisions.length + ' decisions</span>'
     + (c.risks.length ? '<span class="risk">' + c.risks.length + ' open</span>'
                       : '<span>settled</span>') + '</div>';
@@ -162,13 +156,13 @@ DATA.forEach(function(c, i){
 });
 
 var ENDZ = -(DATA.length + 1.7) * SPACING;
-var glow = el('endglow', '');
-glow.style.transform = 'translate3d(' + bendX(ENDZ - 220).toFixed(1) + 'px,'
+var pix = el('endpix', '');
+pix.style.transform = 'translate3d(' + bendX(ENDZ - 220).toFixed(1) + 'px,'
   + bendY(ENDZ - 220).toFixed(1) + 'px,' + (ENDZ - 220) + 'px)';
-world.appendChild(glow);
-items.push({ el: glow, z: ENDZ - 220 });
-var genesis = el('genesis', '起點 · GENESIS<span>'
-  + DATA[DATA.length - 1].day + ' — 一切由此開始</span>');
+world.appendChild(pix);
+items.push({ el: pix, z: ENDZ - 220 });
+var genesis = el('genesis', 'GENESIS<span>'
+  + DATA[DATA.length - 1].day + ' — 起点,一切由此开始</span>');
 genesis.style.transform = 'translate(-50%,-50%) translate3d('
   + bendX(ENDZ).toFixed(1) + 'px,' + bendY(ENDZ).toFixed(1) + 'px,' + ENDZ + 'px)';
 world.appendChild(genesis);
@@ -208,38 +202,44 @@ function hud(){
   var days = DATA[i0].days_ago + (DATA[i1].days_ago - DATA[i0].days_ago) * t;
   if (f < 0) days = 0;
   var near = DATA[Math.max(0, Math.min(DATA.length - 1, Math.round(f)))];
-  depthEl.innerHTML = Math.round(days) + (Math.round(days) === 1
-    ? ' day ago' : ' days ago') + '<br>' + near.day;
+  var n = Math.round(days);
+  depthEl.innerHTML = '&gt; ' + (n < 10 ? '00' + n : n < 100 ? '0' + n : n)
+    + (n === 1 ? ' day ago' : ' days ago') + '<br>' + near.day;
 }
 
+// pixel canvases: rendered at 1/PIX resolution, upscaled with
+// image-rendering: pixelated — every 1px draw lands as a chunky block
 var cv = document.getElementById('stars'), ctx = cv.getContext('2d');
 var sw = document.getElementById('swarm'), swx = sw.getContext('2d');
-function fit(){ cv.width = sw.width = innerWidth;
-  cv.height = sw.height = innerHeight; }
+function fit(){
+  cv.width = sw.width = Math.ceil(innerWidth / PIX);
+  cv.height = sw.height = Math.ceil(innerHeight / PIX);
+}
 addEventListener('resize', fit); fit();
-var STAR_TINTS = ['#d3d9ff', '#ffe6f1', '#d6fff5', '#ffffff'];
+var STAR_TINTS = ['#ffffff', '#e9e9e9', '#7a7a7a', '#3e3e3e'];
 var stars = [], meteors = [];
-for (var i = 0; i < 290; i++) stars.push({ x: Math.random(), y: Math.random(),
+for (var i = 0; i < 240; i++) stars.push({ x: Math.random(), y: Math.random(),
   d: 0.25 + Math.random() * 0.75, tw: Math.random() * 6.28,
   c: STAR_TINTS[i % 4] });
 function drawStars(now){
   ctx.clearRect(0, 0, cv.width, cv.height);
-  var warp = Math.min(18, Math.abs(vel) * 0.55);
+  var warp = Math.min(7, Math.abs(vel) * 0.2);
   var hw = cv.width / 2, hh = cv.height / 2;
   stars.forEach(function(s){
     s.y += 0.00002 + Math.abs(vel) * 0.000012 * s.d;
     if (s.y > 1) s.y -= 1;
-    var px = s.x * cv.width, py = s.y * cv.height;
-    ctx.globalAlpha = (0.5 + 0.34 * Math.sin(now * 0.001 + s.tw)) * s.d;
-    if (warp > 2.5){
+    var px = (s.x * cv.width) | 0, py = (s.y * cv.height) | 0;
+    // binary twinkle, no smooth fades — pixels are either lit or dim
+    ctx.globalAlpha = Math.sin(now * 0.0011 + s.tw) > 0 ? 1 : 0.45;
+    ctx.fillStyle = s.c;
+    if (warp > 1.2){
       var dx = (px - hw) / cv.width, dy = (py - hh) / cv.height;
-      ctx.strokeStyle = s.c;
-      ctx.beginPath(); ctx.moveTo(px, py);
-      ctx.lineTo(px + dx * warp * 6 * s.d, py + dy * warp * 6 * s.d);
-      ctx.stroke();
+      var len = 1 + (warp * 4 * s.d | 0);
+      for (var k = 0; k < len; k++)
+        ctx.fillRect((px + dx * k * 2) | 0, (py + dy * k * 2) | 0, 1, 1);
     } else {
-      ctx.fillStyle = s.c;
-      ctx.fillRect(px, py, 1.4 * s.d + 0.5, 1.4 * s.d + 0.5);
+      var size = s.d > 0.72 ? 2 : 1;
+      ctx.fillRect(px, py, size, size);
     }
   });
   if (Math.random() < 0.004 && meteors.length < 2)
@@ -249,48 +249,42 @@ function drawStars(now){
   meteors = meteors.filter(function(m){ return m.life > 0; });
   meteors.forEach(function(m){
     m.x += m.vx; m.y += m.vy; m.life -= 0.012;
-    var px = m.x * cv.width, py = m.y * cv.height;
-    var tx = px - m.vx * cv.width * 14, ty = py - m.vy * cv.height * 14;
-    var grad = ctx.createLinearGradient(px, py, tx, ty);
-    grad.addColorStop(0, 'rgba(240,240,245,' + (0.7 * m.life).toFixed(3) + ')');
-    grad.addColorStop(1, 'rgba(240,240,245,0)');
-    ctx.strokeStyle = grad; ctx.globalAlpha = 1;
-    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(tx, ty); ctx.stroke();
+    // stepped pixel trail instead of a gradient line
+    for (var k = 0; k < 6; k++){
+      ctx.globalAlpha = quant(Math.max(0, m.life - k * 0.13), 4);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(((m.x - m.vx * k * 2.4) * cv.width) | 0,
+                   ((m.y - m.vy * k * 2.4) * cv.height) | 0, 1, 1);
+    }
   });
   ctx.globalAlpha = 1;
 }
 
-// mouse star cluster: spring-tethered glowing particles, each with its own
-// stiffness and orbit phase — chases the cursor, idles in slow revolution
-var SWARM_TINTS = ['rgba(172,150,255,', 'rgba(142,212,255,',
-                   'rgba(255,188,222,', 'rgba(238,238,250,'];
+// mouse pixel cluster: spring-tethered squares, blinking, mostly white
+// with the occasional kimi-blue pixel
+var SWARM_TINTS = ['#ffffff', '#e9e9e9', '#7a7a7a', '#1783ff'];
 var swarm = [];
-for (var i = 0; i < 26; i++) swarm.push({
+for (var i = 0; i < 22; i++) swarm.push({
   x: innerWidth / 2, y: innerHeight / 2, vx: 0, vy: 0,
   k: 0.02 + Math.random() * 0.06, damp: 0.82 + Math.random() * 0.08,
-  r: 0.8 + Math.random() * 2.2, c: SWARM_TINTS[i % 4],
+  s: Math.random() < 0.25 ? 2 : 1, c: SWARM_TINTS[i % 4],
   ph: Math.random() * 6.28, orb: 7 + Math.random() * 30 });
 function drawSwarm(now){
   swx.clearRect(0, 0, sw.width, sw.height);
-  swx.globalCompositeOperation = 'lighter';
-  swarm.forEach(function(p){
+  swarm.forEach(function(p, i){
     var spin = now * 0.001 * (0.5 + p.k * 9) + p.ph;
     var tx = mouseX + Math.cos(spin) * p.orb;
     var ty = mouseY + Math.sin(spin * 1.13) * p.orb * 0.8;
     p.vx = (p.vx + (tx - p.x) * p.k) * p.damp;
     p.vy = (p.vy + (ty - p.y) * p.k) * p.damp;
     p.x += p.vx; p.y += p.vy;
-    var halo = p.r * 6;
-    var g = swx.createRadialGradient(p.x, p.y, 0, p.x, p.y, halo);
-    g.addColorStop(0, p.c + '0.5)');
-    g.addColorStop(1, p.c + '0)');
-    swx.fillStyle = g;
-    swx.beginPath(); swx.arc(p.x, p.y, halo, 0, 6.2832); swx.fill();
+    swx.globalAlpha = Math.sin(now * 0.004 + i) > -0.6 ? 1 : 0;
+    swx.fillStyle = p.c;
+    swx.fillRect((p.x / PIX) | 0, (p.y / PIX) | 0, p.s, p.s);
   });
-  swx.globalCompositeOperation = 'source-over';
+  swx.globalAlpha = 1;
 }
 
-var sky = document.getElementById('sky');
 function tick(now){
   if (auto){ target += 1.6; clampT(); }
   var prev = cam;
@@ -308,11 +302,10 @@ function tick(now){
     var o;
     if (dz > -50) o = Math.max(0, 1 - (dz + 50) / 150);
     else o = Math.max(0, 1 - (-dz - 50) / 4200);
-    if (o < 0.012){ it.el.style.visibility = 'hidden'; }
-    else { it.el.style.visibility = 'visible'; it.el.style.opacity = o.toFixed(3); }
+    o = quant(o, 5);  // stepped fades: depth reads as dither bands
+    if (o <= 0){ it.el.style.visibility = 'hidden'; }
+    else { it.el.style.visibility = 'visible'; it.el.style.opacity = o; }
   });
-  sky.style.transform = 'translate(' + (lookX * 5).toFixed(1) + 'px,'
-    + (-lookY * 6).toFixed(1) + 'px)';
   hud();
   drawStars(now || 0);
   drawSwarm(now || 0);
@@ -322,26 +315,26 @@ requestAnimationFrame(tick);
 
 var focusEl = document.getElementById('focus');
 function openFocus(c){
-  var html = '<div class="mono">' + c.sha + ' · ' + c.date + ' · '
+  var html = '<div class="m">' + c.sha + ' · ' + c.date + ' · '
     + (c.days_ago === 0 ? 'today' : c.days_ago + ' days ago') + '</div>'
     + '<h2>' + esc(c.subject) + '</h2>';
-  if (c.what) html += '<div class="lbl">改了什麼 — What</div><p>'
+  if (c.what) html += '<div class="lbl">改了什么 — What</div><p>'
     + esc(c.what) + '</p>';
-  if (c.why) html += '<div class="lbl">為什麼 — Why</div><p>'
+  if (c.why) html += '<div class="lbl">为什么 — Why</div><p>'
     + esc(c.why) + '</p>';
   if (c.decisions.length){
-    html += '<div class="lbl">決定 — Decisions</div><ol>';
+    html += '<div class="lbl">决定 — Decisions</div><ol>';
     c.decisions.forEach(function(d){ html += '<li>' + esc(d) + '</li>'; });
     html += '</ol>';
   }
   if (c.risks.length){
-    html += '<div class="lbl">未驗證 — Open</div><ol class="open">';
+    html += '<div class="lbl">未验证 — Open</div><ol class="open">';
     c.risks.forEach(function(r){ html += '<li>' + esc(r) + '</li>'; });
     html += '</ol>';
   }
   if (!c.what && !c.why)
-    html += '<p class="dim">這枚 commit 尚未被敘事。回到終端執行 vibetrace digest。</p>';
-  html += '<div class="mono close-hint">esc / 點擊隧道返回</div>';
+    html += '<p class="dim">这枚 commit 尚未被叙事。回到终端执行 vibetrace digest。</p>';
+  html += '<div class="m close-hint">[ESC] / 点击隧道返回</div>';
   focusEl.innerHTML = html;
   focusEl.classList.add('open');
 }
