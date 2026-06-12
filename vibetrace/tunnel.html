@@ -6,7 +6,9 @@
   :root { --fg: #ededed; --mid: #a0a0a0; --dim: #6b6b6b;
           --line: #232323; --red: #ff0000; }
   * { box-sizing: border-box; }
-  html, body { height: 100%; margin: 0; overflow: hidden; background: #060608;
+  html, body { height: 100%; margin: 0; overflow: hidden;
+    background: radial-gradient(ellipse at 50% 38%, #141428 0%, #0c0c18 55%,
+      #08080e 100%) fixed #08080e;
     color: var(--fg);
     font-family: "Helvetica Neue", "Neue Haas Grotesk", -apple-system,
       "PingFang SC", "Noto Sans CJK SC", sans-serif;
@@ -15,19 +17,25 @@
     font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
     color: var(--dim); }
   #stars { position: fixed; inset: 0; z-index: 0; }
-  .nebula { position: fixed; border-radius: 50%; filter: blur(70px);
-    pointer-events: none; z-index: 1; }
-  .nebula.a { width: 70vw; height: 70vh; left: -18vw; top: -22vh;
-    background: radial-gradient(closest-side, rgba(110,90,190,.14), transparent);
+  #sky { position: fixed; inset: -14vh -14vw; z-index: 1;
+    pointer-events: none; will-change: transform; }
+  .nebula { position: absolute; border-radius: 50%; filter: blur(62px);
+    pointer-events: none; }
+  .nebula.a { width: 80vw; height: 76vh; left: -14vw; top: -16vh;
+    background: radial-gradient(closest-side, rgba(128,102,238,.32), transparent);
     animation: drift 46s ease-in-out infinite alternate; }
-  .nebula.b { width: 64vw; height: 64vh; right: -16vw; bottom: -20vh;
-    background: radial-gradient(closest-side, rgba(70,110,150,.12), transparent);
+  .nebula.b { width: 74vw; height: 72vh; right: -12vw; bottom: -14vh;
+    background: radial-gradient(closest-side, rgba(82,165,228,.27), transparent);
     animation: drift 38s ease-in-out infinite alternate-reverse; }
+  .nebula.c { width: 54vw; height: 58vh; left: 30vw; top: 28vh;
+    background: radial-gradient(closest-side, rgba(236,132,184,.17), transparent);
+    animation: drift 54s ease-in-out infinite alternate; }
   @keyframes drift { from { transform: translate(0, 0) scale(1); }
     to { transform: translate(7vw, 5vh) scale(1.15); } }
   .vignette { position: fixed; inset: 0; pointer-events: none; z-index: 3;
-    background: radial-gradient(ellipse at center, transparent 52%,
-      rgba(0,0,0,.82) 100%); }
+    background: radial-gradient(ellipse at center, transparent 60%,
+      rgba(0,0,0,.52) 100%); }
+  #swarm { position: fixed; inset: 0; z-index: 6; pointer-events: none; }
   #viewport { position: fixed; inset: 0; z-index: 2;
     perspective: 950px; perspective-origin: 50% 50%; cursor: grab; }
   body.dragging #viewport { cursor: grabbing; }
@@ -97,9 +105,11 @@
   #focus .close-hint { margin-top: 36px; }
 </style></head><body>
 <canvas id="stars"></canvas>
-<div class="nebula a"></div><div class="nebula b"></div>
+<div id="sky"><div class="nebula a"></div><div class="nebula b"></div>
+  <div class="nebula c"></div></div>
 <div id="viewport"><div id="world"></div></div>
 <div class="vignette"></div>
+<canvas id="swarm"></canvas>
 <div class="hud top">
   <span class="mono">Vibetrace — 時光隧道 · $project</span>
   <span class="mono">local-first · generated $generated</span>
@@ -167,6 +177,7 @@ items.push({ el: genesis, z: ENDZ });
 var cam = 0, target = 0, vel = 0, auto = false;
 var MAX = (DATA.length + 1.4) * SPACING;
 var lookX = 0, lookY = 0, mX = 0, mY = 0;
+var mouseX = innerWidth / 2, mouseY = innerHeight / 2;
 function clampT(){ target = Math.max(0, Math.min(MAX, target)); }
 addEventListener('wheel', function(e){ target += e.deltaY * 1.5; clampT(); },
   { passive: true });
@@ -176,6 +187,7 @@ addEventListener('pointerdown', function(e){ drag = true; lastY = e.clientY;
 addEventListener('pointermove', function(e){
   mX = e.clientX / innerWidth - 0.5;
   mY = e.clientY / innerHeight - 0.5;
+  mouseX = e.clientX; mouseY = e.clientY;
   if (drag){ target += (lastY - e.clientY) * 4.2; lastY = e.clientY; clampT(); }
 });
 addEventListener('pointerup', function(){ drag = false;
@@ -201,11 +213,15 @@ function hud(){
 }
 
 var cv = document.getElementById('stars'), ctx = cv.getContext('2d');
-function fit(){ cv.width = innerWidth; cv.height = innerHeight; }
+var sw = document.getElementById('swarm'), swx = sw.getContext('2d');
+function fit(){ cv.width = sw.width = innerWidth;
+  cv.height = sw.height = innerHeight; }
 addEventListener('resize', fit); fit();
+var STAR_TINTS = ['#d3d9ff', '#ffe6f1', '#d6fff5', '#ffffff'];
 var stars = [], meteors = [];
-for (var i = 0; i < 230; i++) stars.push({ x: Math.random(), y: Math.random(),
-  d: 0.25 + Math.random() * 0.75, tw: Math.random() * 6.28 });
+for (var i = 0; i < 290; i++) stars.push({ x: Math.random(), y: Math.random(),
+  d: 0.25 + Math.random() * 0.75, tw: Math.random() * 6.28,
+  c: STAR_TINTS[i % 4] });
 function drawStars(now){
   ctx.clearRect(0, 0, cv.width, cv.height);
   var warp = Math.min(18, Math.abs(vel) * 0.55);
@@ -214,16 +230,16 @@ function drawStars(now){
     s.y += 0.00002 + Math.abs(vel) * 0.000012 * s.d;
     if (s.y > 1) s.y -= 1;
     var px = s.x * cv.width, py = s.y * cv.height;
-    ctx.globalAlpha = (0.35 + 0.3 * Math.sin(now * 0.001 + s.tw)) * s.d;
+    ctx.globalAlpha = (0.5 + 0.34 * Math.sin(now * 0.001 + s.tw)) * s.d;
     if (warp > 2.5){
       var dx = (px - hw) / cv.width, dy = (py - hh) / cv.height;
-      ctx.strokeStyle = '#cfcfd4';
+      ctx.strokeStyle = s.c;
       ctx.beginPath(); ctx.moveTo(px, py);
       ctx.lineTo(px + dx * warp * 6 * s.d, py + dy * warp * 6 * s.d);
       ctx.stroke();
     } else {
-      ctx.fillStyle = '#cfcfd4';
-      ctx.fillRect(px, py, 1.3 * s.d + 0.4, 1.3 * s.d + 0.4);
+      ctx.fillStyle = s.c;
+      ctx.fillRect(px, py, 1.4 * s.d + 0.5, 1.4 * s.d + 0.5);
     }
   });
   if (Math.random() < 0.004 && meteors.length < 2)
@@ -244,6 +260,37 @@ function drawStars(now){
   ctx.globalAlpha = 1;
 }
 
+// mouse star cluster: spring-tethered glowing particles, each with its own
+// stiffness and orbit phase — chases the cursor, idles in slow revolution
+var SWARM_TINTS = ['rgba(172,150,255,', 'rgba(142,212,255,',
+                   'rgba(255,188,222,', 'rgba(238,238,250,'];
+var swarm = [];
+for (var i = 0; i < 26; i++) swarm.push({
+  x: innerWidth / 2, y: innerHeight / 2, vx: 0, vy: 0,
+  k: 0.02 + Math.random() * 0.06, damp: 0.82 + Math.random() * 0.08,
+  r: 0.8 + Math.random() * 2.2, c: SWARM_TINTS[i % 4],
+  ph: Math.random() * 6.28, orb: 7 + Math.random() * 30 });
+function drawSwarm(now){
+  swx.clearRect(0, 0, sw.width, sw.height);
+  swx.globalCompositeOperation = 'lighter';
+  swarm.forEach(function(p){
+    var spin = now * 0.001 * (0.5 + p.k * 9) + p.ph;
+    var tx = mouseX + Math.cos(spin) * p.orb;
+    var ty = mouseY + Math.sin(spin * 1.13) * p.orb * 0.8;
+    p.vx = (p.vx + (tx - p.x) * p.k) * p.damp;
+    p.vy = (p.vy + (ty - p.y) * p.k) * p.damp;
+    p.x += p.vx; p.y += p.vy;
+    var halo = p.r * 6;
+    var g = swx.createRadialGradient(p.x, p.y, 0, p.x, p.y, halo);
+    g.addColorStop(0, p.c + '0.5)');
+    g.addColorStop(1, p.c + '0)');
+    swx.fillStyle = g;
+    swx.beginPath(); swx.arc(p.x, p.y, halo, 0, 6.2832); swx.fill();
+  });
+  swx.globalCompositeOperation = 'source-over';
+}
+
+var sky = document.getElementById('sky');
 function tick(now){
   if (auto){ target += 1.6; clampT(); }
   var prev = cam;
@@ -264,8 +311,11 @@ function tick(now){
     if (o < 0.012){ it.el.style.visibility = 'hidden'; }
     else { it.el.style.visibility = 'visible'; it.el.style.opacity = o.toFixed(3); }
   });
+  sky.style.transform = 'translate(' + (lookX * 5).toFixed(1) + 'px,'
+    + (-lookY * 6).toFixed(1) + 'px)';
   hud();
   drawStars(now || 0);
+  drawSwarm(now || 0);
   requestAnimationFrame(tick);
 }
 requestAnimationFrame(tick);
