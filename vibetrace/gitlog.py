@@ -68,3 +68,39 @@ def collect_commits(project_path, since, diff_token_budget):
 
     commits.reverse()  # git log is newest-first; report reads oldest-first
     return commits, None
+
+
+def collect_commit_files(project_path, since="30 years ago"):
+    """轻量:一次 git log --name-only 取 (sha, date, files),不碰 diff/stat。
+    供理解债量化——它只要文件清单,不该为此每 commit 跑 3 次 git show。
+    返回 (commits oldest-first, error_or_None);文件以 \\x00 分隔避免空格路径问题。"""
+    fmt = RECORD_SEP + FIELD_SEP.join(["%H", "%aI"])
+    try:
+        raw = _git(["log", f"--since={since}", "--name-only", "-z",
+                    f"--pretty=format:{fmt}"], project_path)
+    except (RuntimeError, OSError, subprocess.TimeoutExpired) as exc:
+        return [], f"git log 失败:{exc}"
+    commits = []
+    for rec in raw.split(RECORD_SEP):
+        if not rec.strip("\x00\n"):
+            continue
+        head, _, files_blob = rec.partition("\n")
+        parts = head.split(FIELD_SEP)
+        if len(parts) < 2:
+            continue
+        try:
+            date = datetime.fromisoformat(parts[1])
+        except ValueError:
+            continue
+        files = [f for f in files_blob.split("\x00") if f.strip()]
+        commits.append({"sha": parts[0], "date": date, "files": files})
+    commits.reverse()
+    return commits, None
+
+
+def tracked_files(project_path):
+    """当前工作树仍跟踪的文件集(git ls-files)。失败返回 None(调用方据此降级不过滤)。"""
+    try:
+        return {f for f in _git(["ls-files"], project_path).splitlines() if f}
+    except (RuntimeError, OSError, subprocess.TimeoutExpired):
+        return None

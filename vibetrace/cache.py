@@ -19,6 +19,9 @@ CREATE TABLE IF NOT EXISTS daily_digests (
 CREATE TABLE IF NOT EXISTS capsules (
     capsule_id TEXT PRIMARY KEY, project TEXT, sha TEXT, risk TEXT,
     sealed_date TEXT, open_date TEXT, opened_date TEXT, outcome TEXT);
+CREATE TABLE IF NOT EXISTS reviewed (
+    project TEXT, sha TEXT, reviewed_at TEXT,
+    PRIMARY KEY (project, sha));
 """
 
 
@@ -182,6 +185,18 @@ class Cache:
             "project=? ORDER BY date DESC LIMIT 1", (project,)).fetchone()
         return ({"date": row[0], "overview": row[1], "decision": row[2]}
                 if row else None)
+
+    # ---- reviewed: 你回看了哪些 commit(理解债的『还债』信号)----
+    def mark_reviewed(self, project, sha):
+        """隧道 serve 模式点开某 commit 叙事时回写。全新表,无旧库迁移问题。"""
+        self.conn.execute("INSERT OR REPLACE INTO reviewed VALUES (?,?,?)",
+                          (project, sha, self._now()))
+        self.conn.commit()
+
+    def reviewed_shas(self, project):
+        """{sha: reviewed_at} —— 供理解债算『回看行为』与时间衰减。"""
+        return {r[0]: r[1] for r in self.conn.execute(
+            "SELECT sha, reviewed_at FROM reviewed WHERE project=?", (project,))}
 
     def close(self):
         self.conn.close()
