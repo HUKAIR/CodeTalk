@@ -176,11 +176,21 @@ def main(argv=None):
     dig.add_argument("--model", help="覆盖模型 ID")
     tun = sub.add_parser("tunnel", help="生成时光隧道(实验)")
     tun.add_argument("--project", default=".", help="项目路径(默认当前目录)")
+    tun.add_argument("--serve", action="store_true",
+                     help="起本地服务,胶囊回答即时写回 cache(否则只读)")
+    tun.add_argument("--no-open", action="store_true", help="--serve 时不自动开浏览器")
     bri = sub.add_parser("brief", help="开工简报:你上次停在哪(纯本地,无 LLM)")
     bri.add_argument("--project", default=".", help="项目路径(默认当前目录)")
     bri.add_argument("--vault", help="同时写入该目录(默认仅打印)")
     args = parser.parse_args(argv)
     if args.command == "tunnel":
+        if args.serve:
+            from .tunnel import serve_tunnel
+            err = serve_tunnel(args.project, open_browser=not args.no_open)
+            if err:
+                print(f"错误:{err}", file=sys.stderr)
+                return 2
+            return 0
         from .tunnel import render_tunnel
         path, err = render_tunnel(args.project)
         if err:

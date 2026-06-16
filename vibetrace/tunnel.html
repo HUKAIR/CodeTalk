@@ -173,6 +173,7 @@
 <div class="term" id="boot"><div class="inner" id="bootlines"></div></div>
 <script>
 var DATA = $data;
+var SERVE = $serve;  // --serve 模式:胶囊回答 fetch 回写 cache;file:// 为只读
 var SPACING = 430, RADIUS = 240, CK = 0.0011, CA = 170, PIX = 3;
 function bendX(z){ return Math.sin(z * CK) * CA; }
 function bendY(z){ return Math.cos(z * 0.00073) * 64; }
@@ -430,6 +431,17 @@ function openFocus(i){
     c.risks.forEach(function(r){ html += '<li>' + esc(r) + '</li>'; });
     html += '</ol>';
   }
+  var caps = c.capsules || [];
+  if (caps.length){  // 时间胶囊回填状态(cache 单一真相源)
+    html += '<div class="lbl">时间胶囊 — Capsule</div><ol>';
+    caps.forEach(function(cap){
+      var tag = cap.outcome ? '✓ ' + esc(cap.outcome)
+        : (cap.opened ? '待验证' : '未到期');
+      html += '<li><span style="color:var(--blue)">[' + tag + ']</span> '
+        + esc(cap.risk) + '</li>';
+    });
+    html += '</ol>';
+  }
   if (!c.what && !c.why)
     html += '<p class="dim">这枚 commit 尚未被叙事。回到终端执行 vibetrace digest。</p>';
   html += '<div class="nav">'
@@ -454,33 +466,56 @@ function closeFocus(){ focusEl.classList.remove('open'); focusIdx = -1; }
 document.getElementById('viewport').addEventListener('click', closeFocus);
 focusEl.addEventListener('click', function(e){ e.stopPropagation(); });
 
-// ---- 第二幕:时间胶囊问询 ----
+// ---- 第二幕:时间胶囊问询(cache.db 单一真相源)----
 var capsuleEl = document.getElementById('capsule');
 var capsuleDone = false;
-var capsule = null;
-for (var ci = 0; ci < DATA.length; ci++){
-  if (DATA[ci].risks.length
-      && !store('vibetrace.capsule.' + DATA[ci].sha)){ capsule = DATA[ci]; break; }
+// 找第一个「已开启且未回填」的真实胶囊(outcome 由 cache 注入)
+var capsule = null, capsuleHost = null;
+for (var ci = 0; ci < DATA.length && !capsule; ci++){
+  var cs = DATA[ci].capsules || [];
+  for (var k = 0; k < cs.length; k++){
+    if (cs[k].opened && !cs[k].outcome){
+      capsule = cs[k]; capsuleHost = DATA[ci]; break;
+    }
+  }
+}
+function answerCapsule(cap, outcome){
+  cap.outcome = outcome;  // 乐观更新:UI 立即反映
+  if (SERVE){
+    fetch('/capsule', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ capsule_id: cap.id, outcome: outcome })
+    }).catch(function(){});  // 失败静默,乐观更新已生效
+  }
+  hideCapsule();
 }
 function showCapsule(){
   if (!capsule){ capsuleDone = true; capsuleEl.classList.add('gone'); return; }
-  var ago = capsule.days_ago === 0 ? '今天' : capsule.days_ago + ' 天前';
+  var ago = capsuleHost.days_ago === 0 ? '今天' : capsuleHost.days_ago + ' 天前';
   document.getElementById('capq').textContent =
-    ago + '你写下了一个担心:「' + capsule.risks[0] + '」——验证了吗?';
+    ago + '你写下了一个担心:「' + capsule.risk + '」——验证了吗?';
   var btns = document.getElementById('capbtns');
-  [['还在担心', 'worried'], ['已解决', 'resolved'], ['想多了', 'overthought']]
-    .forEach(function(pair){
-      var b = document.createElement('button');
-      b.className = 'pxbtn'; b.textContent = pair[0];
-      b.addEventListener('click', function(){
-        store('vibetrace.capsule.' + capsule.sha,
-              { answer: pair[1], at: '$generated' });
-        hideCapsule();
-      });
-      btns.appendChild(b);
-    });
+  btns.innerHTML = '';
+  ['想多了', '已解决', '还在担心'].forEach(function(label){
+    var b = document.createElement('button');
+    b.className = 'pxbtn'; b.textContent = label;
+    if (SERVE){
+      b.addEventListener('click', function(){ answerCapsule(capsule, label); });
+    } else {  // file:// 只读降级:按钮变灰,不假装能写
+      b.disabled = true; b.style.opacity = 0.4; b.style.cursor = 'not-allowed';
+    }
+    btns.appendChild(b);
+  });
+  if (!SERVE){
+    var note = document.createElement('div');
+    note.className = 'skip';
+    note.style.cursor = 'default'; note.style.textDecoration = 'none';
+    note.textContent = '只读 · 运行 vibetrace tunnel --serve 可回写答案';
+    btns.appendChild(note);
+  }
   var skip = document.createElement('span');
-  skip.className = 'skip'; skip.textContent = '先逛逛,下次再答';
+  skip.className = 'skip';
+  skip.textContent = SERVE ? '先逛逛,下次再答' : '继续回看';
   skip.addEventListener('click', hideCapsule);
   btns.appendChild(skip);
 }
@@ -499,12 +534,17 @@ function showEpi(){
   epiShown = true;
   var span = DATA[0].days_ago === DATA[DATA.length - 1].days_ago ? 1
     : DATA[DATA.length - 1].days_ago - DATA[0].days_ago + 1;
-  var answered = DATA.filter(function(c){
-    return store('vibetrace.capsule.' + c.sha); }).length;
+  var answered = 0, openedCaps = 0;  // 数 cache 注入的 outcome,非 localStorage
+  DATA.forEach(function(c){
+    (c.capsules || []).forEach(function(cap){
+      if (cap.opened) openedCaps++;
+      if (cap.outcome) answered++;
+    });
+  });
   document.getElementById('epistat').innerHTML =
     '你穿过了 <b>' + span + '</b> 天的记忆 · <b>' + DATA.length
-    + '</b> 枚 commit<br>读取 <b>' + visitedCount() + '</b> 段叙事 · 回答 <b>'
-    + answered + '</b> 个时间胶囊';
+    + '</b> 枚 commit<br>读取 <b>' + visitedCount() + '</b> 段叙事 · 回填 <b>'
+    + answered + '/' + openedCaps + '</b> 个时间胶囊';
   var first = DATA[DATA.length - 1];
   document.getElementById('epiquote').textContent =
     '「' + (first.what || first.subject) + '」 — ' + first.day + ',第一枚 commit';
