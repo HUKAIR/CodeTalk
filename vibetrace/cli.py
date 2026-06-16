@@ -182,7 +182,17 @@ def main(argv=None):
     bri = sub.add_parser("brief", help="开工简报:你上次停在哪(纯本地,无 LLM)")
     bri.add_argument("--project", default=".", help="项目路径(默认当前目录)")
     bri.add_argument("--vault", help="同时写入该目录(默认仅打印)")
+    crs = sub.add_parser("course", help="生成演进课程(项目怎么长成的,实验)")
+    crs.add_argument("--project", default=".", help="项目路径(默认当前目录)")
     args = parser.parse_args(argv)
+    if args.command == "course":
+        from .course import build_course
+        path, err = build_course(args.project)
+        if err:
+            print(f"错误:{err}", file=sys.stderr)
+            return 2
+        print(f"课程已写入:{path}")
+        return 0
     if args.command == "tunnel":
         if args.serve:
             from .tunnel import serve_tunnel
