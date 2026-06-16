@@ -10,9 +10,15 @@ log = logging.getLogger("vibetrace")
 
 OVERVIEW_SCHEMA = {
     "type": "object",
-    "properties": {"overview": {
-        "type": "string", "description": "今日开发概览,中文,不超过 3 句"}},
-    "required": ["overview"], "additionalProperties": False,
+    "properties": {
+        "overview": {
+            "type": "string",
+            "description": "今日开发概览,第二人称信件体,不超过 3 句"},
+        "decision": {
+            "type": "string",
+            "description": "今日最重要的一个决定,从各 commit 的 decisions 里挑一句或综合一句"},
+    },
+    "required": ["overview", "decision"], "additionalProperties": False,
 }
 
 
@@ -77,23 +83,32 @@ def enrich_commits(commits, llm, cache, project):
 
 
 def make_overview(commits, llm, cache, project, date_str):
-    """≤3 句日报概览;以 (日期+全部 SHA) 哈希为缓存键,重跑零调用。"""
+    """≤3 句信件体概览 + 今日决定;以 (日期+全部 SHA) 哈希为缓存键,重跑零调用。"""
     fallback = f"今日 {len(commits)} 个 commit:" + ";".join(
         c["subject"] for c in commits[:3])
+    fb_decision = next(
+        (c["narrative"]["decisions"][0] for c in commits
+         if c["narrative"].get("decisions")), "")
     key = "digest:" + hashlib.sha256(
         (date_str + "".join(c["sha"] for c in commits)).encode()).hexdigest()[:40]
     cached = cache.get_narrative(key)
     if cached:
-        return cached.get("overview", fallback), 0
+        return (cached.get("overview", fallback),
+                cached.get("decision", fb_decision), 0)
     listing = "\n".join(
         f"- {c['sha'][:8]} {c['subject']}|what: {c['narrative']['what'][:150]}"
+        f"|decisions: {'; '.join(c['narrative'].get('decisions', []))[:200]}"
         for c in commits)
     try:
-        raw = llm.narrate("为以下一天的 commit 写不超过 3 句的中文概览:\n" + listing,
-                          schema=OVERVIEW_SCHEMA)
-        overview = str(raw.get("overview", "")).strip() or fallback
-        cache.put_narrative(key, project, llm.model, {"overview": overview})
-        return overview, 1
+        raw = llm.narrate(
+            "为以下一天的 commit 写概览:用第二人称『你』、像结对同事帮你回忆"
+            "今天写了什么,不超过 3 句;再挑出今天最重要的一个决定。\n" + listing,
+            schema=OVERVIEW_SCHEMA)
+        overview = redact_secrets(str(raw.get("overview", "")).strip() or fallback)
+        decision = redact_secrets(str(raw.get("decision", "")).strip() or fb_decision)
+        cache.put_narrative(key, project, llm.model,
+                            {"overview": overview, "decision": decision})
+        return overview, decision, 1
     except LLMError as exc:
         log.warning("概览生成失败,使用降级文本:%s", exc)
-        return fallback, 0
+        return fallback, fb_decision, 0
