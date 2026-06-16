@@ -125,20 +125,31 @@ def serve_tunnel(project_path, open_browser=True):
             self.wfile.write(body)
 
         def do_POST(self):
-            if self.path != "/capsule":
-                self.send_response(404); self.end_headers(); return
             try:
                 n = int(self.headers.get("Content-Length", 0))
                 req = json.loads(self.rfile.read(n))
-                cid, outcome = req["capsule_id"], req["outcome"]
-            except (ValueError, KeyError, TypeError):
-                self.send_response(400); self.end_headers(); return
-            # 安全:outcome 必须是已知枚举,防任意字符串写入缓存
-            if outcome not in _OUTCOMES:
+            except (ValueError, TypeError):
                 self.send_response(400); self.end_headers(); return
             cache = Cache(CACHE_DB_PATH)
-            cache.set_capsule_outcome(cid, outcome, project)
-            cache.close()
+            try:
+                if self.path == "/capsule":
+                    cid, outcome = req["capsule_id"], req["outcome"]
+                    # 安全:outcome 必须是已知枚举,防任意字符串写入缓存
+                    if outcome not in _OUTCOMES:
+                        self.send_response(400); self.end_headers(); return
+                    cache.set_capsule_outcome(cid, outcome, project)
+                elif self.path == "/reviewed":
+                    # 还债信号:你回看了哪个 commit 叙事 → 喂理解债量化
+                    sha = req["sha"]
+                    if not isinstance(sha, str) or not sha:
+                        self.send_response(400); self.end_headers(); return
+                    cache.mark_reviewed(project, sha)
+                else:
+                    self.send_response(404); self.end_headers(); return
+            except KeyError:
+                self.send_response(400); self.end_headers(); return
+            finally:
+                cache.close()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()

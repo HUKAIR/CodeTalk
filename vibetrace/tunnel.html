@@ -412,6 +412,11 @@ function openFocus(i){
     visited[c.sha] = 1;
     store('vibetrace.visited.$project', visited);
     cardEls[i].classList.add('visited');
+    if (SERVE){  // 收敛回看信号进 cache,喂理解债量化(file:// 仅留 localStorage)
+      fetch('/reviewed', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sha: c.sha }) }).catch(function(){});
+    }
   }
   var html = '<div class="m">' + c.sha + ' · ' + c.date + ' · '
     + (c.days_ago === 0 ? 'today' : c.days_ago + ' days ago')
