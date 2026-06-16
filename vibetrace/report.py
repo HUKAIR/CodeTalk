@@ -1,7 +1,7 @@
 """Render the daily digest markdown, write it to the vault, log the run."""
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 from .config import USAGE_LOG_PATH, redact_secrets
@@ -15,12 +15,47 @@ def _section(title, items):
     return f"\n**{title}**\n" + "\n".join("- " + i for i in items) + "\n"
 
 
+def _on_this_day_block(entries):
+    """头部回流:把过去同一天的概览首句端到面前。两条都无则整块省略。"""
+    rows = []
+    for label, (date, overview) in entries.items():
+        first = (overview or "").split("。")[0].strip("。 \n")
+        if not first:  # 跨时间读到旧行 overview 为空/NULL → 跳过,不崩
+            continue
+        rows.append(f"> 📮 **{label}** · {date}:「{first}。」")
+    return ("\n".join(rows) + "\n") if rows else ""
+
+
+def _capsule_block(capsules, today):
+    """今日开启的时间胶囊:旧 risk 到期,作为反思 checkbox 端回面前。"""
+    if not capsules:
+        return ""
+    lines = ["## 🕰 今日开启的时间胶囊", ""]
+    for cap in capsules:
+        sealed = date.fromisoformat(cap["sealed_date"])
+        n = (today - sealed).days
+        lines.append(f"- **{n} 天前**(`{cap['sha'][:7]}`)你担心:"
+                     f"「{cap['risk']}」")
+        lines.append("  - [ ] 想多了　[ ] 已解决　[ ] 还在担心")
+    return "\n".join(lines) + "\n"
+
+
 def render(project, date_str, overview, commits, sessions, session_error,
-           run_stats):
+           run_stats, decision="", on_this_day=None, capsules=None, today=None):
+    today = today or date.today()
     lines = [f"# {date_str} {project} 开发日报", ""]
+    otd = _on_this_day_block(on_this_day or {})
+    if otd:
+        lines += [otd]
     if session_error:
         lines += [f"> ⚠️ 会话数据不可用,本日报为纯 git 模式({session_error})", ""]
-    lines += ["## 今日概览", "", overview, "", "## 变更叙事", ""]
+    lines += ["## 今日概览", "", overview, ""]
+    if decision:
+        lines += [f"> **今日决定** — {decision}", ""]
+    cap = _capsule_block(capsules or [], today)
+    if cap:
+        lines += [cap]
+    lines += ["## 变更叙事", ""]
     for commit in commits:
         n = commit["narrative"]
         when = commit["date"].strftime("%H:%M")
