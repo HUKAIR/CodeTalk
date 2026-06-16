@@ -49,8 +49,10 @@ python3 -m vibetrace digest --project ~/Github/MyApp --since "3 days ago"
 # 覆盖项:--vault DIR --provider NAME --model ID
 ```
 
-产物:`<vault>/YYYY-MM-DD-<project>.md` —— 今日概览 → 按 commit 的叙事
-(改了什么 / 为什么 / 关键决策 / 风险 / 未闭环)→ 未闭环汇总 → 运行统计页脚。
+产物:`<vault>/YYYY-MM-DD-<project>.md` —— 去年今日 / 上月今日回流(若有)
+→ 今日概览(信件体)+ 今日决定 → 今日开启的时间胶囊(到期的旧 risk,供回填)
+→ 按 commit 的叙事(改了什么 / 为什么 / 关键决策 / 风险 / 未闭环)→ 未闭环汇总
+→ 运行统计页脚。时间胶囊把每条 risk 密封 21 天,到期在日报里端回面前。
 
 ## 缓存与隐私
 
