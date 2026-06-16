@@ -71,10 +71,10 @@ def collect_commits(project_path, since, diff_token_budget):
 
 
 def collect_commit_files(project_path, since="30 years ago"):
-    """轻量:一次 git log --name-only 取 (sha, date, files),不碰 diff/stat。
-    供理解债量化——它只要文件清单,不该为此每 commit 跑 3 次 git show。
+    """轻量:一次 git log --name-only 取 (sha, date, subject, files),不碰 diff/stat。
+    供理解债量化与课程——只要文件清单+主题,不该为此每 commit 跑 3 次 git show。
     返回 (commits oldest-first, error_or_None);文件以 \\x00 分隔避免空格路径问题。"""
-    fmt = RECORD_SEP + FIELD_SEP.join(["%H", "%aI"])
+    fmt = RECORD_SEP + FIELD_SEP.join(["%H", "%aI", "%s"])
     try:
         raw = _git(["log", f"--since={since}", "--name-only", "-z",
                     f"--pretty=format:{fmt}"], project_path)
@@ -86,14 +86,15 @@ def collect_commit_files(project_path, since="30 years ago"):
             continue
         head, _, files_blob = rec.partition("\n")
         parts = head.split(FIELD_SEP)
-        if len(parts) < 2:
+        if len(parts) < 3:
             continue
         try:
             date = datetime.fromisoformat(parts[1])
         except ValueError:
             continue
         files = [f for f in files_blob.split("\x00") if f.strip()]
-        commits.append({"sha": parts[0], "date": date, "files": files})
+        commits.append({"sha": parts[0], "date": date,
+                        "subject": parts[2], "files": files})
     commits.reverse()
     return commits, None
 

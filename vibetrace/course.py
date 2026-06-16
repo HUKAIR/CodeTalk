@@ -16,7 +16,7 @@ from pathlib import Path
 from string import Template
 
 from .cache import Cache
-from .config import CACHE_DB_PATH, load_config
+from .config import CACHE_DB_PATH, load_config, redact_secrets
 from .debt import debt_board
 from .gitlog import collect_commit_files, commit_diff
 from .llm import LLMClient, LLMError
@@ -78,13 +78,26 @@ def _naive_chapters(commits, narr_by_short):
     return chapters
 
 
+_TYPES = ("feat", "fix", "docs", "refactor", "chore", "test", "style",
+          "perf", "build", "ci", "revert")
+
+
+def _parse_type(subject):
+    """从 conventional commit 前缀解析类型徽标(feat/fix/...);无则空。"""
+    head = (subject or "").split(":", 1)[0].split("(", 1)[0].strip().lower()
+    return head if head in _TYPES else ""
+
+
 def _chapter_blocks(chapter, project_path, narr_by_short, subj_by_short):
-    """每章代码↔讲解:取前 2 个 commit 的 diff 片段 + 叙事 what。"""
+    """每章代码↔讲解:取前 2 个 commit 的 diff 片段 + 叙事 what + 类型徽标。"""
     blocks = []
-    for sha in (chapter.get("commit_shas") or [])[:2]:
+    for raw_sha in (chapter.get("commit_shas") or [])[:2]:
+        sha = raw_sha[:7]  # LLM 可能返回全 sha,归一到短 7 位再查
         n = narr_by_short.get(sha, {})
-        blocks.append({"sha": sha, "subject": subj_by_short.get(sha, ""),
-                       "diff": commit_diff(project_path, sha),
+        subject = subj_by_short.get(sha, "")
+        # 隐私红线:原始 diff 可能含 API key/token,写盘进 vault 前必须脱敏
+        blocks.append({"sha": sha, "subject": subject, "type": _parse_type(subject),
+                       "diff": redact_secrets(commit_diff(project_path, sha)),
                        "what": (n.get("what") or "")[:EXCERPT]})
     return blocks
 
@@ -120,6 +133,14 @@ def build_course(project_path):
     for ch in chapters:
         ch["blocks"] = _chapter_blocks(ch, project_path, narr_by_short,
                                        subj_by_short)
+        # 聚合本章 commit 的潜在风险/未闭环(M0 已有数据,enrich 已脱敏)
+        risks, loops = [], []
+        for raw_sha in (ch.get("commit_shas") or []):
+            n = narr_by_short.get(raw_sha[:7], {})
+            risks += n.get("risks") or []
+            loops += n.get("open_loops") or []
+        ch["risks"] = list(dict.fromkeys(risks))[:5]
+        ch["open_loops"] = list(dict.fromkeys(loops))[:5]
     data = {"chapters": chapters, "degraded": degraded}
     template = Template((Path(__file__).parent / "course.html")
                         .read_text(encoding="utf-8"))

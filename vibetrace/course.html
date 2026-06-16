@@ -8,11 +8,15 @@
   :root { --fg: #ededed; --g1: #e9e9e9; --g2: #7a7a7a; --g3: #3e3e3e;
           --g4: #292929; --blue: #1783ff; --ok: #2ea043; --bad: #f0506e;
           --px: "Fusion Pixel 12px Monospaced SC", "SF Mono", ui-monospace,
-                Menlo, monospace; }
+                Menlo, monospace;
+          /* 标题/标签/徽标 → 像素体(身份);正文/讲解 → 可读无衬线;代码 → 等宽 */
+          --sans: -apple-system, "PingFang SC", "Noto Sans CJK SC",
+                "Helvetica Neue", system-ui, sans-serif;
+          --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace; }
   * { box-sizing: border-box; border-radius: 0 !important; }
   ::selection { background: #fff; color: #000; }
   html { scroll-behavior: smooth; }
-  body { background: #0a0a0a; color: var(--fg); margin: 0; font-family: var(--px);
+  body { background: #0a0a0a; color: var(--fg); margin: 0; font-family: var(--sans);
     -webkit-font-smoothing: antialiased; line-height: 1.7; }
   #bar { position: fixed; top: 0; left: 0; height: 2px; background: var(--blue);
     z-index: 30; width: 0; }
@@ -62,7 +66,7 @@
     color: var(--blue); margin-bottom: 12px; }
   .quiz .q { font-size: 14.5px; color: #fff; margin: 0 0 12px; }
   .quiz .opt { display: block; width: 100%; text-align: left; border: 1px solid var(--g4);
-    background: #000; color: var(--g1); font-family: var(--px); font-size: 13px;
+    background: #000; color: var(--g1); font-family: var(--sans); font-size: 13px;
     padding: 9px 13px; margin: 0 0 8px; cursor: pointer; box-shadow: 3px 3px 0 #141414; }
   .quiz .opt:hover { border-color: var(--g2); }
   .quiz .opt.ok { border-color: var(--ok); color: var(--ok); box-shadow: 3px 3px 0 #0c1f12; }
@@ -73,6 +77,34 @@
   footer { max-width: 1080px; margin: 0 auto; padding: 0 24px 60px;
     font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
     color: var(--g2); border-top: 1px solid var(--g4); padding-top: 14px; }
+  /* 字体混排:标题/标签/章号/徽标用像素体作身份,正文/讲解已是可读体 */
+  header, nav .lbl, .ch .num, .ch h2, .ch .intro .k, .pair .ph,
+  .quiz .qh, footer, .badge, .lapse .lh { font-family: var(--px); }
+  .pair pre { font-family: var(--mono); }
+  /* 代码块类型徽标 */
+  .badge { display: inline-block; font-size: 9.5px; letter-spacing: .06em;
+    text-transform: uppercase; border: 1px solid var(--g3); color: var(--g2);
+    padding: 1px 6px; margin-right: 8px; }
+  .badge.feat { color: var(--ok); border-color: var(--ok); }
+  .badge.fix, .badge.revert { color: var(--bad); border-color: var(--bad); }
+  /* 大白话折叠:决定/讲解默认收起,点开看详细 */
+  details.bdh { margin: 16px 0 0; border-left: 2px solid var(--g3); padding-left: 16px; }
+  details.bdh > summary { cursor: pointer; list-style: none; font-size: 12px;
+    letter-spacing: .06em; color: var(--blue); padding: 4px 0; }
+  details.bdh > summary::-webkit-details-marker { display: none; }
+  details.bdh > summary::before { content: "💬 展开大白话 ▸ "; }
+  details.bdh[open] > summary::before { content: "💬 大白话 ▾ "; }
+  details.bdh .body { color: var(--g1); font-size: 14px; line-height: 1.8;
+    padding: 6px 0 2px; }
+  /* 潜在风险 / 未闭环(已有叙事数据,可折叠)*/
+  details.lapse { margin: 24px 0 0; border: 1px solid var(--g4); padding: 10px 16px; }
+  details.lapse > summary { cursor: pointer; list-style: none; font-size: 10.5px;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--bad); }
+  details.lapse > summary::-webkit-details-marker { display: none; }
+  details.lapse > summary::before { content: "⚠ "; }
+  details.lapse ul { margin: 10px 0 2px; padding-left: 18px; }
+  details.lapse li { font-size: 13px; line-height: 1.7; color: var(--g1); margin: 4px 0; }
+  details.lapse li.loop { color: var(--g2); }
   @media (max-width: 760px) { .wrap { grid-template-columns: 1fr; }
     nav { position: static; } .pair .cols { grid-template-columns: 1fr; }
     .pair pre { border-right: none; border-bottom: 1px solid var(--g4); } }
@@ -106,19 +138,35 @@ if (DATA.degraded){
   sec.className = "ch"; sec.id = "ch" + ci;
   var html = '<div class="num">第 ' + (ci + 1) + ' 章 / 共 '
     + DATA.chapters.length + '</div><h2>' + esc(ch.title) + '</h2>';
-  if (ch.intro)
+  if (ch.intro)  // 当时的决定:大白话默认折叠,点开看详细
     html += '<div class="intro"><span class="k">当时的决定 — Decision</span>'
-      + esc(ch.intro) + '</div>';
+      + '<details class="bdh"><summary></summary><div class="body">'
+      + esc(ch.intro) + '</div></details></div>';
   (ch.blocks || []).forEach(function(b){
-    html += '<div class="pair"><div class="ph"><b>' + esc(b.sha) + '</b> · '
-      + esc(b.subject) + '</div><div class="cols"><pre>'
-      + (b.diff ? esc(b.diff) : '(diff 不可用)') + '</pre><div class="say"><div class="e">'
-      + esc(b.what || '尚未叙事 — 跑 vibetrace digest') + '</div></div></div></div>';
+    var badge = b.type ? '<span class="badge ' + esc(b.type) + '">'
+      + esc(b.type) + '</span>' : '';
+    html += '<div class="pair"><div class="ph">' + badge + '<b>' + esc(b.sha)
+      + '</b> · ' + esc(b.subject) + '</div><div class="cols"><pre>'
+      + (b.diff ? esc(b.diff) : '(diff 不可用)')
+      + '</pre><div class="say"><details class="bdh"><summary></summary>'
+      + '<div class="body">' + esc(b.what || '尚未叙事 — 跑 vibetrace digest')
+      + '</div></details></div></div></div>';
   });
+  var risks = ch.risks || [], loops = ch.open_loops || [];
+  if (risks.length || loops.length){
+    html += '<details class="lapse"><summary>潜在风险 / 未闭环</summary><ul>';
+    risks.forEach(function(r){ html += '<li>' + esc(r) + '</li>'; });
+    loops.forEach(function(l){ html += '<li class="loop">' + esc(l) + '</li>'; });
+    html += '</ul></details>';
+  }
   (ch.quiz || []).forEach(function(qz, qi){
-    html += '<div class="quiz" data-ans="' + qz.answer + '"><div class="qh">场景测验 — Quiz '
+    var opts = qz.options || [];
+    // quiz answer 越界校验:LLM 给错索引时钳到范围,避免该题永远答不对
+    var ans = Number.isInteger(qz.answer) ? qz.answer : 0;
+    if (ans < 0 || ans >= opts.length) ans = 0;
+    html += '<div class="quiz" data-ans="' + ans + '"><div class="qh">场景测验 — Quiz '
       + (qi + 1) + '</div><p class="q">' + esc(qz.q) + '</p>';
-    (qz.options || []).forEach(function(o, oi){
+    opts.forEach(function(o, oi){
       html += '<button class="opt" data-i="' + oi + '">' + esc(o) + '</button>';
     });
     html += '<div class="hint">提示:' + esc(qz.hint) + '</div></div>';
