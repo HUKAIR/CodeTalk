@@ -1,6 +1,7 @@
 """Render the daily digest markdown, write it to the vault, log the run."""
 import json
 import logging
+import re
 from datetime import date, datetime, timezone
 from pathlib import Path
 
@@ -38,7 +39,11 @@ def _capsule_block(capsules, today):
         lines.append(f"<!-- vt-capsule:{cap['capsule_id']} -->")
         lines.append(f"- **{n} 天前**(`{cap['sha'][:7]}`)你担心:"
                      f"「{cap['risk']}」")
-        lines.append("  - [ ] 想多了　[ ] 已解决　[ ] 还在担心")
+        # 已回填的胶囊预勾选 [x],不擦回空框、不重复催问(回填环不被自身擦除)
+        answered = cap.get("outcome")
+        boxes = "　".join(f"[{'x' if o == answered else ' '}] {o}"
+                          for o in _OUTCOMES)
+        lines.append("  - " + boxes)
     return "\n".join(lines) + "\n"
 
 
@@ -108,7 +113,11 @@ def read_capsule_answers(vault_path, project, cache):
     vault = Path(vault_path).expanduser()
     if not vault.is_dir():
         return
+    # 严格匹配 <ISO 日期>-<project>.md:glob 的 *-api.md 会误吞 …-legacy-api.md
+    name_re = re.compile(r"\d{4}-\d{2}-\d{2}-" + re.escape(project) + r"\.md$")
     for md in vault.glob(f"*-{project}.md"):
+        if not name_re.fullmatch(md.name):
+            continue
         try:
             lines = md.read_text(encoding="utf-8").splitlines()
         except (OSError, UnicodeError) as exc:
@@ -124,7 +133,7 @@ def read_capsule_answers(vault_path, project, cache):
                 ticked = next((o for o in _OUTCOMES if f"[x] {o}" in checked),
                               None)
                 if ticked:
-                    cache.set_capsule_outcome(pending_id, ticked)
+                    cache.set_capsule_outcome(pending_id, ticked, project)
                 pending_id = None
 
 

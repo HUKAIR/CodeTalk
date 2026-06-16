@@ -20,9 +20,13 @@ def build_brief(cache, project, project_full):
     pending = cache.pending_capsules(project)
     if pending:
         lines += ["## 待验证的预测", ""]
-        for cap in pending:
+        # 只端出最该验证的几枚(按 open_date 最久未答优先),其余折叠,
+        # 防止久不回填时简报自己堆成新信息墙
+        for cap in pending[:5]:
             lines.append(f"- (`{cap['sha'][:7]}`)你曾担心:「{cap['risk']}」"
                          "——现在验证了吗?")
+        if len(pending) > 5:
+            lines.append(f"- 另有 {len(pending) - 5} 枚待验证(暂折叠)")
         lines.append("")
 
     loops = cache.recent_open_loops(project_full)

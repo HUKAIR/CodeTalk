@@ -97,7 +97,9 @@ def digest(args):
             for idx, risk in enumerate(commit["narrative"]["risks"]):
                 cache.seal_capsule(project, commit["sha"], idx, risk,
                                    sealed, opens)
-        capsules = cache.open_due_capsules(project, date_str)
+        # 仅对真正的「今日」削峰(留次日);历史回放当天全开,天数不失真
+        cap_limit = 3 if day == date.today() else None
+        capsules = cache.open_due_capsules(project, date_str, cap_limit)
         on_this_day = {}
         for label, shifted in (("上月今日", _shift(day, months=1)),
                                ("去年今日", _shift(day, years=1))):
@@ -149,6 +151,8 @@ def brief_cmd(args):
     project_path = Path(args.project).resolve()
     project = project_path.name
     cache = Cache(CACHE_DB_PATH)
+    # 与 digest 对齐:先回读 Obsidian 里勾选的答案,否则简报会反复催问已答胶囊
+    report.read_capsule_answers(cfg["vault_path"], project, cache)
     content = brief.build_brief(cache, project, str(project_path))
     cache.close()
     print(content)

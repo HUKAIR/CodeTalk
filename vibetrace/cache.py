@@ -94,35 +94,44 @@ class Cache:
              None, None))
         self.conn.commit()
 
-    def open_due_capsules(self, project, today, limit=3):
-        """同日幂等:当天开启的胶囊盖 opened_date=today,该日报告稳定复现同一组;
-        额度 limit 内分页(5 枚到期 → 今日 3、次日 2),不丢不洪流。"""
-        already = self.conn.execute(
-            "SELECT COUNT(*) FROM capsules WHERE project=? AND opened_date=?",
-            (project, today)).fetchone()[0]
-        budget = max(0, limit - already)
-        if budget:
+    def open_due_capsules(self, project, today, limit=None):
+        """当天开启的胶囊盖 opened_date=today,该日报告稳定复现同一组。
+        limit=None:把当日所有到期(open_date<=today)的胶囊一次全开——多日回放
+        用此,避免 3 枚硬上限把溢出胶囊错算到下一个『有 commit 的』历史日;
+        limit=N:实时单日削峰,溢出留次日,不丢不洪流。"""
+        if limit is None:
+            ids = [r[0] for r in self.conn.execute(
+                "SELECT capsule_id FROM capsules WHERE project=? "
+                "AND opened_date IS NULL AND open_date<=? ORDER BY open_date",
+                (project, today))]
+        else:
+            already = self.conn.execute(
+                "SELECT COUNT(*) FROM capsules WHERE project=? AND opened_date=?",
+                (project, today)).fetchone()[0]
+            budget = max(0, limit - already)
             ids = [r[0] for r in self.conn.execute(
                 "SELECT capsule_id FROM capsules WHERE project=? "
                 "AND opened_date IS NULL AND open_date<=? "
-                "ORDER BY open_date LIMIT ?", (project, today, budget))]
-            if ids:
-                self.conn.executemany(
-                    "UPDATE capsules SET opened_date=? WHERE capsule_id=?",
-                    [(today, i) for i in ids])
-                self.conn.commit()
+                "ORDER BY open_date LIMIT ?",
+                (project, today, budget))] if budget else []
+        if ids:
+            self.conn.executemany(
+                "UPDATE capsules SET opened_date=? WHERE capsule_id=?",
+                [(today, i) for i in ids])
+            self.conn.commit()
         rows = self.conn.execute(
-            "SELECT capsule_id, sha, risk, sealed_date FROM capsules "
+            "SELECT capsule_id, sha, risk, sealed_date, outcome FROM capsules "
             "WHERE project=? AND opened_date=? ORDER BY open_date",
             (project, today)).fetchall()
         return [{"capsule_id": r[0], "sha": r[1], "risk": r[2],
-                 "sealed_date": r[3]} for r in rows]
+                 "sealed_date": r[3], "outcome": r[4]} for r in rows]
 
-    def set_capsule_outcome(self, capsule_id, outcome):
-        """把用户在日报里勾选的回填答案写回缓存,闭合预测-验证环。"""
+    def set_capsule_outcome(self, capsule_id, outcome, project):
+        """把用户在日报里勾选的回填答案写回缓存,闭合预测-验证环。
+        加 project 条件:capsule_id=sha:idx 是全表主键,无项目过滤会跨项目串写。"""
         self.conn.execute(
-            "UPDATE capsules SET outcome=? WHERE capsule_id=?",
-            (outcome, capsule_id))
+            "UPDATE capsules SET outcome=? WHERE capsule_id=? AND project=?",
+            (outcome, capsule_id, project))
         self.conn.commit()
 
     def capsule_fill_stats(self, project):
@@ -144,9 +153,11 @@ class Cache:
         return [{"sha": r[0], "risk": r[1], "sealed_date": r[2]} for r in rows]
 
     def recent_open_loops(self, project, limit=10):
-        """最近若干条 commit 叙事里的未闭环项,去重(供开工简报『悬而未决』)。"""
+        """最近若干条 commit 叙事里的未闭环项,去重(供开工简报『悬而未决』)。
+        排除 digest: 概览行——它们与 commit 叙事同表却无 open_loops,会挤占名额。"""
         rows = self.conn.execute(
             "SELECT narrative_json FROM commit_narratives WHERE project=? "
+            "AND sha NOT LIKE 'digest:%' "
             "ORDER BY created_at DESC LIMIT ?", (project, limit)).fetchall()
         loops = []
         for (raw,) in rows:
