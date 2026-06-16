@@ -77,12 +77,15 @@ def digest(args):
 
     cache.put_daily(project, date_str, overview, decision)
     today = date.today()
+    today_iso = today.isoformat()
     for commit in commits:
         sealed = commit["date"].date().isoformat()
         opens = (commit["date"].date() + timedelta(days=21)).isoformat()
+        if opens <= today_iso:
+            continue  # 历史 commit:从未在面前密封过,不补密封(免首跑信息墙)
         for idx, risk in enumerate(commit["narrative"]["risks"]):
             cache.seal_capsule(project, commit["sha"], idx, risk, sealed, opens)
-    capsules = cache.open_due_capsules(project, today.isoformat())
+    capsules = cache.open_due_capsules(project, today_iso)
     on_this_day = {}
     for label, shifted in (("上月今日", _shift(today, months=1)),
                            ("去年今日", _shift(today, years=1))):

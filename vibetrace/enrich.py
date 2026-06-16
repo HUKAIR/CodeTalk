@@ -104,8 +104,8 @@ def make_overview(commits, llm, cache, project, date_str):
             "为以下一天的 commit 写概览:用第二人称『你』、像结对同事帮你回忆"
             "今天写了什么,不超过 3 句;再挑出今天最重要的一个决定。\n" + listing,
             schema=OVERVIEW_SCHEMA)
-        overview = str(raw.get("overview", "")).strip() or fallback
-        decision = str(raw.get("decision", "")).strip() or fb_decision
+        overview = redact_secrets(str(raw.get("overview", "")).strip() or fallback)
+        decision = redact_secrets(str(raw.get("decision", "")).strip() or fb_decision)
         cache.put_narrative(key, project, llm.model,
                             {"overview": overview, "decision": decision})
         return overview, decision, 1

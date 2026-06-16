@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS daily_digests (
     PRIMARY KEY (project, date));
 CREATE TABLE IF NOT EXISTS capsules (
     capsule_id TEXT PRIMARY KEY, project TEXT, sha TEXT, risk TEXT,
-    sealed_date TEXT, open_date TEXT, status TEXT);
+    sealed_date TEXT, open_date TEXT, opened_date TEXT);
 """
 
 
@@ -76,24 +76,35 @@ class Cache:
 
     # ---- time capsules: risk 密封 → 到期开启,闭合预测-验证环 ----
     def seal_capsule(self, project, sha, risk_idx, risk, sealed_date, open_date):
-        # INSERT OR IGNORE: 同日重跑不重置已有胶囊状态,不复制
+        # INSERT OR IGNORE: 同日重跑不重置已有胶囊(opened_date 保持),不复制
         self.conn.execute(
             "INSERT OR IGNORE INTO capsules VALUES (?,?,?,?,?,?,?)",
             (f"{sha}:{risk_idx}", project, sha, risk, sealed_date, open_date,
-             "sealed"))
+             None))
         self.conn.commit()
 
     def open_due_capsules(self, project, today, limit=3):
+        """同日幂等:当天开启的胶囊盖 opened_date=today,该日报告稳定复现同一组;
+        额度 limit 内分页(5 枚到期 → 今日 3、次日 2),不丢不洪流。"""
+        already = self.conn.execute(
+            "SELECT COUNT(*) FROM capsules WHERE project=? AND opened_date=?",
+            (project, today)).fetchone()[0]
+        budget = max(0, limit - already)
+        if budget:
+            ids = [r[0] for r in self.conn.execute(
+                "SELECT capsule_id FROM capsules WHERE project=? "
+                "AND opened_date IS NULL AND open_date<=? "
+                "ORDER BY open_date LIMIT ?", (project, today, budget))]
+            if ids:
+                self.conn.executemany(
+                    "UPDATE capsules SET opened_date=? WHERE capsule_id=?",
+                    [(today, i) for i in ids])
+                self.conn.commit()
         rows = self.conn.execute(
-            "SELECT capsule_id, sha, risk, sealed_date FROM capsules "
-            "WHERE project=? AND status='sealed' AND open_date<=? "
-            "ORDER BY open_date LIMIT ?", (project, today, limit)).fetchall()
-        if rows:
-            self.conn.executemany(
-                "UPDATE capsules SET status='opened' WHERE capsule_id=?",
-                [(r[0],) for r in rows])
-            self.conn.commit()
-        return [{"sha": r[1], "risk": r[2], "sealed_date": r[3]} for r in rows]
+            "SELECT sha, risk, sealed_date FROM capsules "
+            "WHERE project=? AND opened_date=? ORDER BY open_date",
+            (project, today)).fetchall()
+        return [{"sha": r[0], "risk": r[1], "sealed_date": r[2]} for r in rows]
 
     def close(self):
         self.conn.close()
