@@ -28,7 +28,9 @@ COURSE_SCHEMA = {
     "properties": {
         "chapters": {"type": "array", "items": {"type": "object", "properties": {
             "title": {"type": "string", "description": "章名:这一阶段做了什么(人话)"},
-            "intro": {"type": "string", "description": "章导言:当时的决定与被否决的备选"},
+            "intro": {"type": "string", "description": "章导言:当时的决定与被否决的备选(专业)"},
+            "plain": {"type": "string", "description": "这一章用最通俗的大白话再讲一遍,"
+                      "像跟完全不懂代码的朋友解释,不用任何术语"},
             "commit_shas": {"type": "array", "items": {"type": "string"},
                             "description": "本章涵盖的短 sha(7 位)"},
             "quiz": {"type": "array", "items": {"type": "object", "properties": {
@@ -37,7 +39,7 @@ COURSE_SCHEMA = {
                 "answer": {"type": "integer", "description": "正确选项索引(从 0)"},
                 "hint": {"type": "string", "description": "答错时的提示"},
             }, "required": ["q", "options", "answer", "hint"]}},
-        }, "required": ["title", "intro", "commit_shas", "quiz"]}},
+        }, "required": ["title", "intro", "plain", "commit_shas", "quiz"]}},
     },
     "required": ["chapters"],
 }
@@ -46,7 +48,8 @@ COURSE_SCHEMA = {
 def _course_prompt(commits, narr_by_short, debt):
     lines = ["把下面这个项目的完整提交历史,编排成一门『这个项目怎么一步步长成这样的』"
              "演进课程。要求:把相关 commit 聚成 5 章左右(不是一 commit 一章);"
-             "每章讲清当时的决定与被否决的备选;每章出 1-2 道场景应用题(考『要做 X "
+             "每章讲清当时的决定与被否决的备选;每章再用最通俗的大白话(plain,不用术语、"
+             "像跟外行解释)把这章重讲一遍;每章出 1-2 道场景应用题(考『要做 X "
              "会改哪些文件/为何这么设计』,而非记忆)。"]
     if debt:
         hot = "、".join(r["file"] for r in debt[:3])
@@ -74,7 +77,7 @@ def _naive_chapters(commits, narr_by_short):
         intro = next((narr_by_short.get(s, {}).get("why", "") for s in shas
                       if narr_by_short.get(s, {}).get("why")), "(未智能编排)")
         chapters.append({"title": f"第 {len(chapters) + 1} 阶段:{group[0].get('subject', '')[:40]}",
-                         "intro": intro, "commit_shas": shas, "quiz": []})
+                         "intro": intro, "plain": "", "commit_shas": shas, "quiz": []})
     return chapters
 
 
@@ -119,7 +122,8 @@ def build_course(project_path):
     today = datetime.now(timezone.utc).astimezone().date()
     debt = debt_board(project_path, project, cache, today, top=5)
 
-    key = "course:" + hashlib.sha256(
+    # v2:schema 加了 plain 大白话字段,旧缓存无此字段 → 换版本前缀自然失效重算
+    key = "course:v2:" + hashlib.sha256(
         "".join(c["sha"] for c in commits).encode()).hexdigest()[:40]
     cached = cache.get_narrative(key)
     degraded = False

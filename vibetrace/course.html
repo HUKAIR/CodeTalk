@@ -138,19 +138,21 @@ if (DATA.degraded){
   sec.className = "ch"; sec.id = "ch" + ci;
   var html = '<div class="num">第 ' + (ci + 1) + ' 章 / 共 '
     + DATA.chapters.length + '</div><h2>' + esc(ch.title) + '</h2>';
-  if (ch.intro)  // 当时的决定:大白话默认折叠,点开看详细
+  if (ch.intro)  // 当时的决定:原分析直接显示(保留)
     html += '<div class="intro"><span class="k">当时的决定 — Decision</span>'
-      + '<details class="bdh"><summary></summary><div class="body">'
-      + esc(ch.intro) + '</div></details></div>';
+      + esc(ch.intro) + '</div>';
+  if (ch.plain)  // 大白话:另加的可展开层,不藏原分析
+    html += '<details class="bdh"><summary></summary><div class="body">'
+      + esc(ch.plain) + '</div></details>';
   (ch.blocks || []).forEach(function(b){
     var badge = b.type ? '<span class="badge ' + esc(b.type) + '">'
       + esc(b.type) + '</span>' : '';
     html += '<div class="pair"><div class="ph">' + badge + '<b>' + esc(b.sha)
       + '</b> · ' + esc(b.subject) + '</div><div class="cols"><pre>'
       + (b.diff ? esc(b.diff) : '(diff 不可用)')
-      + '</pre><div class="say"><details class="bdh"><summary></summary>'
-      + '<div class="body">' + esc(b.what || '尚未叙事 — 跑 vibetrace digest')
-      + '</div></details></div></div></div>';
+      + '</pre><div class="say"><div class="e">'  // 代码讲解直接显示(保留)
+      + esc(b.what || '尚未叙事 — 跑 vibetrace digest')
+      + '</div></div></div></div>';
   });
   var risks = ch.risks || [], loops = ch.open_loops || [];
   if (risks.length || loops.length){
