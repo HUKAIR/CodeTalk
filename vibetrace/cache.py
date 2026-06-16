@@ -152,6 +152,14 @@ class Cache:
             "ORDER BY open_date", (project,)).fetchall()
         return [{"sha": r[0], "risk": r[1], "sealed_date": r[2]} for r in rows]
 
+    def all_capsules(self, project):
+        """项目全部已密封胶囊(供时光隧道注入已答状态、即时回写)。"""
+        rows = self.conn.execute(
+            "SELECT capsule_id, sha, risk, outcome, opened_date FROM capsules "
+            "WHERE project=?", (project,)).fetchall()
+        return [{"capsule_id": r[0], "sha": r[1], "risk": r[2],
+                 "outcome": r[3], "opened": bool(r[4])} for r in rows]
+
     def recent_open_loops(self, project, limit=10):
         """最近若干条 commit 叙事里的未闭环项,去重(供开工简报『悬而未决』)。
         排除 digest: 概览行——它们与 commit 叙事同表却无 open_loops,会挤占名额。"""
