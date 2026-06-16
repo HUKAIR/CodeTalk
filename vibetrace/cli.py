@@ -1,9 +1,10 @@
 """vibetrace CLI — single command: digest."""
 import argparse
+import calendar
 import logging
 import sys
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from . import align, enrich, gitlog, report, sessions
@@ -26,6 +27,14 @@ def _since_to_dt(since):
         return datetime.fromisoformat(since).astimezone(timezone.utc)
     except ValueError:
         return None  # git understands it; we just skip mtime pre-filtering
+
+
+def _shift(d, *, years=0, months=0):
+    """同一日历日往前推 N 月/年;溢出日(如 3/31→2/28)夹紧到月末。"""
+    m = d.month - 1 - months
+    y = d.year - years + m // 12
+    m = m % 12 + 1
+    return date(y, m, min(d.day, calendar.monthrange(y, m)[1]))
 
 
 def digest(args):
@@ -63,8 +72,23 @@ def digest(args):
         print(f"错误:{exc}", file=sys.stderr)
         return 2
     stats = enrich.enrich_commits(commits, llm, cache, str(project_path))
-    overview, extra_calls = enrich.make_overview(
+    overview, decision, extra_calls = enrich.make_overview(
         commits, llm, cache, str(project_path), date_str)
+
+    cache.put_daily(project, date_str, overview, decision)
+    today = date.today()
+    for commit in commits:
+        sealed = commit["date"].date().isoformat()
+        opens = (commit["date"].date() + timedelta(days=21)).isoformat()
+        for idx, risk in enumerate(commit["narrative"]["risks"]):
+            cache.seal_capsule(project, commit["sha"], idx, risk, sealed, opens)
+    capsules = cache.open_due_capsules(project, today.isoformat())
+    on_this_day = {}
+    for label, shifted in (("上月今日", _shift(today, months=1)),
+                           ("去年今日", _shift(today, years=1))):
+        past = cache.get_daily(project, shifted.isoformat())
+        if past:
+            on_this_day[label] = (shifted.isoformat(), past["overview"])
 
     run_stats = {
         "commits": len(commits), "sessions": len(session_list),
@@ -77,7 +101,9 @@ def digest(args):
         "elapsed_s": round(time.time() - started, 1),
     }
     content = report.render(project, date_str, overview, commits,
-                            session_list, session_err, run_stats)
+                            session_list, session_err, run_stats,
+                            decision=decision, on_this_day=on_this_day,
+                            capsules=capsules, today=today)
     path = report.write_report(cfg["vault_path"], project, date_str, content)
     report.append_usage({"command": "digest", "project": str(project_path),
                          "since": args.since, "report": str(path), **run_stats})
