@@ -26,7 +26,18 @@ class Cache:
     def __init__(self, path):
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         self.conn = sqlite3.connect(path)
+        self._migrate()
         self.conn.executescript(SCHEMA)
+
+    def _migrate(self):
+        # 旧版 capsules 用 status 列,本版改 opened_date。CREATE IF NOT EXISTS 不
+        # 改已存在的表 → 旧库缺列会在 digest 时崩溃。胶囊是可由 risks 重新密封的
+        # 反思数据,直接丢弃旧表让 SCHEMA 重建;seal-guard(只密封未来到期的)保证
+        # open_date≤today 的陈年 commit 不被补密封,旧胶囊不会复活成洪流。
+        cols = [r[1] for r in self.conn.execute("PRAGMA table_info(capsules)")]
+        if cols and "opened_date" not in cols:
+            self.conn.execute("DROP TABLE capsules")
+            self.conn.commit()
 
     @staticmethod
     def _now():
