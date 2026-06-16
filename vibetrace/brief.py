@@ -1,5 +1,5 @@
 """开工简报(Boot Brief):开工前把『你上次停在哪』端到面前。
-纯本地缓存读,不调 LLM、不出网——补『日常化』最大短板。"""
+读本地 cache + git log(理解债),不调 LLM、不出网——补『日常化』最大短板。"""
 from datetime import datetime, timezone
 
 from . import debt as debt_mod

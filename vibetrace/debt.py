@@ -12,7 +12,7 @@ SHA 统一短 7 位:隧道注入即短 sha,reviewed 表也存短 sha。
 """
 from datetime import datetime, timezone
 
-from .gitlog import collect_commits
+from .gitlog import collect_commit_files, tracked_files
 
 DECAY_DAYS = 30
 
@@ -31,19 +31,23 @@ def _to_date(iso):
 
 def debt_board(project_path, project, cache, today, top=None):
     """每个文件的理解债,高→低。容错:无 commit/无叙事/无信号均不崩,返回 []。"""
-    commits, err = collect_commits(project_path, "30 years ago", 50)
+    commits, err = collect_commit_files(project_path)  # 轻量:只取 sha/date/files
     if err or not commits:
         return []
     reviewed = cache.reviewed_shas(project)             # {short_sha: iso_ts}
     caps_by_sha = {}
     for cap in cache.all_capsules(project):
         caps_by_sha.setdefault(_short(cap["sha"]), []).append(cap)
+    tracked = tracked_files(project_path)  # None=git 失败 → 容错降级:不过滤
 
     mods = {}  # file -> churn / 相关 commit / 最近改动 / 最近决定
     for commit in commits:
         sha = _short(commit["sha"])
         decisions = (cache.get_narrative(commit["sha"]) or {}).get("decisions") or []
         for f in commit["files"]:
+            # 已删除/未跟踪文件不计入:无法回看、无债可还,否则会挤占 top 名额
+            if tracked is not None and f not in tracked:
+                continue
             m = mods.setdefault(f, {"churn": 0, "shas": set(),
                                     "last_touch": None, "last_decision": None})
             m["churn"] += len(decisions) + 1
