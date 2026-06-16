@@ -98,6 +98,16 @@ def collect_commit_files(project_path, since="30 years ago"):
     return commits, None
 
 
+def commit_diff(project_path, sha, char_budget=2000):
+    """单 commit 的截断 diff 片段(供课程『代码↔讲解』)。失败返回 ''。"""
+    try:
+        diff = _git(["show", "--patch", "--no-color", "--pretty=format:", sha],
+                    project_path).strip()
+    except (RuntimeError, OSError, subprocess.TimeoutExpired):
+        return ""
+    return diff[:char_budget] + ("\n... [diff 已截断]" if len(diff) > char_budget else "")
+
+
 def tracked_files(project_path):
     """当前工作树仍跟踪的文件集(git ls-files)。失败返回 None(调用方据此降级不过滤)。"""
     try:

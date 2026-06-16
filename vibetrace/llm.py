@@ -69,13 +69,15 @@ class LLMClient:
                 f"的 providers.{self.provider}.api_key,或设置环境变量 "
                 f"{self.provider.upper()}_API_KEY")
 
-    def narrate(self, user_prompt, schema=NARRATIVE_SCHEMA):
-        """One structured-JSON completion. Raises LLMError on final failure."""
+    def narrate(self, user_prompt, schema=NARRATIVE_SCHEMA, max_tokens=MAX_OUTPUT_TOKENS):
+        """One structured-JSON completion. Raises LLMError on final failure.
+        max_tokens 须覆盖『推理 + 输出』:推理模型(如 deepseek-v4-pro)会先花大量
+        reasoning token,默认 3000 对复杂 schema(如课程分章)不够,调用方按需调大。"""
         if self.provider == "anthropic":
-            return self._anthropic(user_prompt, schema)
-        return self._openai_compat(user_prompt, schema)
+            return self._anthropic(user_prompt, schema, max_tokens)
+        return self._openai_compat(user_prompt, schema, max_tokens)
 
-    def _openai_compat(self, user_prompt, schema):
+    def _openai_compat(self, user_prompt, schema, max_tokens):
         system = (SYSTEM_PROMPT + "\n\nJSON Schema:\n"
                   + json.dumps(schema, ensure_ascii=False))
         body = json.dumps({
@@ -83,7 +85,7 @@ class LLMClient:
             "messages": [{"role": "system", "content": system},
                          {"role": "user", "content": user_prompt}],
             "response_format": {"type": "json_object"},
-            "max_tokens": MAX_OUTPUT_TOKENS,
+            "max_tokens": max_tokens,
         }).encode("utf-8")
         request = urllib.request.Request(
             f"{self.base_url}/chat/completions", data=body, method="POST",
@@ -115,7 +117,7 @@ class LLMClient:
             log.warning("LLM 调用失败(第 %d 次):%s", attempt + 1, last_err)
         raise LLMError(f"{self.provider}/{self.model} 调用失败:{last_err}")
 
-    def _anthropic(self, user_prompt, schema):
+    def _anthropic(self, user_prompt, schema, max_tokens):
         try:
             import anthropic
         except ImportError as exc:
@@ -123,7 +125,7 @@ class LLMClient:
         client = anthropic.Anthropic(api_key=self.api_key, max_retries=3)
         try:
             resp = client.messages.create(
-                model=self.model, max_tokens=MAX_OUTPUT_TOKENS,
+                model=self.model, max_tokens=max_tokens,
                 system=[{"type": "text", "text": SYSTEM_PROMPT,
                          "cache_control": {"type": "ephemeral"}}],
                 output_config={"format": {"type": "json_schema", "schema": schema}},

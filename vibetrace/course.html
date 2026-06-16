@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>$project — 演进课程</title>
+<link rel="stylesheet"
+  href="https://cdn.jsdelivr.net/fontsource/css/fusion-pixel-12px-monospaced-sc@latest/index.css">
+<style>
+  :root { --fg: #ededed; --g1: #e9e9e9; --g2: #7a7a7a; --g3: #3e3e3e;
+          --g4: #292929; --blue: #1783ff; --ok: #2ea043; --bad: #f0506e;
+          --px: "Fusion Pixel 12px Monospaced SC", "SF Mono", ui-monospace,
+                Menlo, monospace; }
+  * { box-sizing: border-box; border-radius: 0 !important; }
+  ::selection { background: #fff; color: #000; }
+  html { scroll-behavior: smooth; }
+  body { background: #0a0a0a; color: var(--fg); margin: 0; font-family: var(--px);
+    -webkit-font-smoothing: antialiased; line-height: 1.7; }
+  #bar { position: fixed; top: 0; left: 0; height: 2px; background: var(--blue);
+    z-index: 30; width: 0; }
+  header { position: sticky; top: 0; z-index: 20; background: #0a0a0a;
+    border-bottom: 1px solid var(--g4); display: flex;
+    justify-content: space-between; padding: 12px 22px; font-size: 11px;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--g2); }
+  header .t { color: var(--g1); }
+  .wrap { max-width: 1080px; margin: 0 auto; display: grid;
+    grid-template-columns: 220px 1fr; gap: 40px; padding: 40px 24px 120px; }
+  nav { position: sticky; top: 70px; align-self: start; font-size: 12.5px; }
+  nav .lbl { font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--g2); border-bottom: 1px solid var(--g4); padding-bottom: 8px;
+    margin-bottom: 12px; }
+  nav a { display: block; color: var(--g2); text-decoration: none;
+    padding: 7px 0; border-bottom: 1px solid #161616; line-height: 1.4; }
+  nav a:hover, nav a.on { color: var(--fg); }
+  nav a .n { color: var(--g3); margin-right: 8px; }
+  nav a.on .n { color: var(--blue); }
+  .degraded { grid-column: 1/-1; border: 1px solid var(--g4); color: var(--g2);
+    padding: 12px 16px; font-size: 12.5px; margin-bottom: 8px; }
+  .degraded b { color: var(--g1); font-weight: 400; }
+  main { min-width: 0; }
+  .ch { margin-bottom: 80px; scroll-margin-top: 64px; }
+  .ch .num { font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--blue); }
+  .ch h2 { font-size: 26px; font-weight: 500; letter-spacing: -.015em;
+    line-height: 1.25; margin: 8px 0 0; color: #fff; }
+  .ch .intro { border-left: 2px solid var(--g3); padding: 6px 0 6px 16px;
+    margin: 20px 0 0; color: var(--g1); font-size: 14.5px; }
+  .ch .intro .k { font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--g2); display: block; margin-bottom: 6px; }
+  .pair { margin: 26px 0 0; border: 1px solid var(--g4); }
+  .pair .ph { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--g2); padding: 8px 12px; border-bottom: 1px solid var(--g4); }
+  .pair .ph b { color: var(--g1); font-weight: 400; }
+  .pair .cols { display: grid; grid-template-columns: 1fr 1fr; }
+  .pair pre { margin: 0; padding: 12px; font-size: 11px; line-height: 1.55;
+    color: var(--g1); overflow-x: auto; white-space: pre;
+    border-right: 1px solid var(--g4); max-height: 360px; }
+  .pair .say { padding: 14px 16px; font-size: 13.5px; color: var(--g1);
+    line-height: 1.75; }
+  .pair .say .e { display: -webkit-box; -webkit-line-clamp: 99;
+    -webkit-box-orient: vertical; }
+  .quiz { margin: 26px 0 0; border: 1px solid var(--blue); padding: 16px 18px; }
+  .quiz .qh { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--blue); margin-bottom: 12px; }
+  .quiz .q { font-size: 14.5px; color: #fff; margin: 0 0 12px; }
+  .quiz .opt { display: block; width: 100%; text-align: left; border: 1px solid var(--g4);
+    background: #000; color: var(--g1); font-family: var(--px); font-size: 13px;
+    padding: 9px 13px; margin: 0 0 8px; cursor: pointer; box-shadow: 3px 3px 0 #141414; }
+  .quiz .opt:hover { border-color: var(--g2); }
+  .quiz .opt.ok { border-color: var(--ok); color: var(--ok); box-shadow: 3px 3px 0 #0c1f12; }
+  .quiz .opt.bad { border-color: var(--bad); color: var(--bad); box-shadow: 3px 3px 0 #24121a; }
+  .quiz .hint { font-size: 12.5px; color: var(--g2); margin-top: 10px;
+    border-left: 2px solid var(--bad); padding-left: 12px; display: none; }
+  .quiz .hint.show { display: block; }
+  footer { max-width: 1080px; margin: 0 auto; padding: 0 24px 60px;
+    font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--g2); border-top: 1px solid var(--g4); padding-top: 14px; }
+  @media (max-width: 760px) { .wrap { grid-template-columns: 1fr; }
+    nav { position: static; } .pair .cols { grid-template-columns: 1fr; }
+    .pair pre { border-right: none; border-bottom: 1px solid var(--g4); } }
+</style></head><body>
+<div id="bar"></div>
+<header>
+  <span><span class="t">VIBETRACE</span>//演进课程 · $project</span>
+  <span>这个项目怎么长成的 · $generated</span>
+</header>
+<div class="wrap">
+  <nav><div class="lbl">章节 · Chapters</div><div id="toc"></div></nav>
+  <main id="main"></main>
+</div>
+<footer id="foot"></footer>
+<script>
+var DATA = $data;
+function esc(s){ return String(s == null ? "" : s)
+  .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+var main = document.getElementById("main"), toc = document.getElementById("toc");
+if (DATA.degraded){
+  var d = document.createElement("div");
+  d.className = "degraded";
+  d.innerHTML = "<b>未智能编排</b> · 未设置 API key 或调用失败,本课程按时间顺序"
+    + "朴素分章、无测验。设置 key 后重跑可得完整课程。";
+  document.querySelector(".wrap").insertBefore(d, document.querySelector("nav"));
+}
+
+(DATA.chapters || []).forEach(function(ch, ci){
+  var sec = document.createElement("section");
+  sec.className = "ch"; sec.id = "ch" + ci;
+  var html = '<div class="num">第 ' + (ci + 1) + ' 章 / 共 '
+    + DATA.chapters.length + '</div><h2>' + esc(ch.title) + '</h2>';
+  if (ch.intro)
+    html += '<div class="intro"><span class="k">当时的决定 — Decision</span>'
+      + esc(ch.intro) + '</div>';
+  (ch.blocks || []).forEach(function(b){
+    html += '<div class="pair"><div class="ph"><b>' + esc(b.sha) + '</b> · '
+      + esc(b.subject) + '</div><div class="cols"><pre>'
+      + (b.diff ? esc(b.diff) : '(diff 不可用)') + '</pre><div class="say"><div class="e">'
+      + esc(b.what || '尚未叙事 — 跑 vibetrace digest') + '</div></div></div></div>';
+  });
+  (ch.quiz || []).forEach(function(qz, qi){
+    html += '<div class="quiz" data-ans="' + qz.answer + '"><div class="qh">场景测验 — Quiz '
+      + (qi + 1) + '</div><p class="q">' + esc(qz.q) + '</p>';
+    (qz.options || []).forEach(function(o, oi){
+      html += '<button class="opt" data-i="' + oi + '">' + esc(o) + '</button>';
+    });
+    html += '<div class="hint">提示:' + esc(qz.hint) + '</div></div>';
+  });
+  sec.innerHTML = html;
+  main.appendChild(sec);
+  var a = document.createElement("a");
+  a.href = "#ch" + ci; a.id = "toc" + ci;
+  a.innerHTML = '<span class="n">' + (ci + 1 < 10 ? "0" : "") + (ci + 1)
+    + '</span>' + esc(ch.title);
+  toc.appendChild(a);
+});
+
+// 测验交互:点选项判对错,错给提示;答对锁定
+main.addEventListener("click", function(e){
+  var btn = e.target.closest(".opt");
+  if (!btn) return;
+  var quiz = btn.closest(".quiz");
+  if (quiz.dataset.done) return;
+  var ans = parseInt(quiz.dataset.ans, 10);
+  if (parseInt(btn.dataset.i, 10) === ans){
+    btn.classList.add("ok"); quiz.dataset.done = "1";
+  } else {
+    btn.classList.add("bad");
+    quiz.querySelector(".hint").classList.add("show");
+  }
+});
+
+// 进度条 + 目录高亮
+var tocLinks = [].slice.call(toc.children);
+var secs = [].slice.call(main.children);
+function onScroll(){
+  var h = document.documentElement;
+  var p = h.scrollTop / (h.scrollHeight - h.clientHeight || 1);
+  document.getElementById("bar").style.width = (p * 100).toFixed(1) + "%";
+  var cur = 0;
+  secs.forEach(function(s, i){ if (s.getBoundingClientRect().top < 120) cur = i; });
+  tocLinks.forEach(function(a, i){ a.classList.toggle("on", i === cur); });
+}
+addEventListener("scroll", onScroll, { passive: true }); onScroll();
+
+document.getElementById("foot").textContent =
+  "Local-first · 数据未离开这台机器 · " + (DATA.chapters || []).length
+  + " 章 · 生成 $generated";
+</script>
+</body></html>
