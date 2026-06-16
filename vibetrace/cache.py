@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS daily_digests (
     PRIMARY KEY (project, date));
 CREATE TABLE IF NOT EXISTS capsules (
     capsule_id TEXT PRIMARY KEY, project TEXT, sha TEXT, risk TEXT,
-    sealed_date TEXT, open_date TEXT, opened_date TEXT);
+    sealed_date TEXT, open_date TEXT, opened_date TEXT, outcome TEXT);
 """
 
 
@@ -30,12 +30,12 @@ class Cache:
         self.conn.executescript(SCHEMA)
 
     def _migrate(self):
-        # 旧版 capsules 用 status 列,本版改 opened_date。CREATE IF NOT EXISTS 不
+        # 旧版 capsules 缺 opened_date / outcome 列。CREATE IF NOT EXISTS 不
         # 改已存在的表 → 旧库缺列会在 digest 时崩溃。胶囊是可由 risks 重新密封的
         # 反思数据,直接丢弃旧表让 SCHEMA 重建;seal-guard(只密封未来到期的)保证
         # open_date≤today 的陈年 commit 不被补密封,旧胶囊不会复活成洪流。
         cols = [r[1] for r in self.conn.execute("PRAGMA table_info(capsules)")]
-        if cols and "opened_date" not in cols:
+        if cols and ("opened_date" not in cols or "outcome" not in cols):
             self.conn.execute("DROP TABLE capsules")
             self.conn.commit()
 
@@ -89,33 +89,91 @@ class Cache:
     def seal_capsule(self, project, sha, risk_idx, risk, sealed_date, open_date):
         # INSERT OR IGNORE: 同日重跑不重置已有胶囊(opened_date 保持),不复制
         self.conn.execute(
-            "INSERT OR IGNORE INTO capsules VALUES (?,?,?,?,?,?,?)",
+            "INSERT OR IGNORE INTO capsules VALUES (?,?,?,?,?,?,?,?)",
             (f"{sha}:{risk_idx}", project, sha, risk, sealed_date, open_date,
-             None))
+             None, None))
         self.conn.commit()
 
-    def open_due_capsules(self, project, today, limit=3):
-        """同日幂等:当天开启的胶囊盖 opened_date=today,该日报告稳定复现同一组;
-        额度 limit 内分页(5 枚到期 → 今日 3、次日 2),不丢不洪流。"""
-        already = self.conn.execute(
-            "SELECT COUNT(*) FROM capsules WHERE project=? AND opened_date=?",
-            (project, today)).fetchone()[0]
-        budget = max(0, limit - already)
-        if budget:
+    def open_due_capsules(self, project, today, limit=None):
+        """当天开启的胶囊盖 opened_date=today,该日报告稳定复现同一组。
+        limit=None:把当日所有到期(open_date<=today)的胶囊一次全开——多日回放
+        用此,避免 3 枚硬上限把溢出胶囊错算到下一个『有 commit 的』历史日;
+        limit=N:实时单日削峰,溢出留次日,不丢不洪流。"""
+        if limit is None:
+            ids = [r[0] for r in self.conn.execute(
+                "SELECT capsule_id FROM capsules WHERE project=? "
+                "AND opened_date IS NULL AND open_date<=? ORDER BY open_date",
+                (project, today))]
+        else:
+            already = self.conn.execute(
+                "SELECT COUNT(*) FROM capsules WHERE project=? AND opened_date=?",
+                (project, today)).fetchone()[0]
+            budget = max(0, limit - already)
             ids = [r[0] for r in self.conn.execute(
                 "SELECT capsule_id FROM capsules WHERE project=? "
                 "AND opened_date IS NULL AND open_date<=? "
-                "ORDER BY open_date LIMIT ?", (project, today, budget))]
-            if ids:
-                self.conn.executemany(
-                    "UPDATE capsules SET opened_date=? WHERE capsule_id=?",
-                    [(today, i) for i in ids])
-                self.conn.commit()
+                "ORDER BY open_date LIMIT ?",
+                (project, today, budget))] if budget else []
+        if ids:
+            self.conn.executemany(
+                "UPDATE capsules SET opened_date=? WHERE capsule_id=?",
+                [(today, i) for i in ids])
+            self.conn.commit()
         rows = self.conn.execute(
-            "SELECT sha, risk, sealed_date FROM capsules "
+            "SELECT capsule_id, sha, risk, sealed_date, outcome FROM capsules "
             "WHERE project=? AND opened_date=? ORDER BY open_date",
             (project, today)).fetchall()
+        return [{"capsule_id": r[0], "sha": r[1], "risk": r[2],
+                 "sealed_date": r[3], "outcome": r[4]} for r in rows]
+
+    def set_capsule_outcome(self, capsule_id, outcome, project):
+        """把用户在日报里勾选的回填答案写回缓存,闭合预测-验证环。
+        加 project 条件:capsule_id=sha:idx 是全表主键,无项目过滤会跨项目串写。"""
+        self.conn.execute(
+            "UPDATE capsules SET outcome=? WHERE capsule_id=? AND project=?",
+            (outcome, capsule_id, project))
+        self.conn.commit()
+
+    def capsule_fill_stats(self, project):
+        """(已开启数, 已回填数) —— 设计文档点名的北极星指标『回填率』。"""
+        opened = self.conn.execute(
+            "SELECT COUNT(*) FROM capsules WHERE project=? AND opened_date "
+            "IS NOT NULL", (project,)).fetchone()[0]
+        filled = self.conn.execute(
+            "SELECT COUNT(*) FROM capsules WHERE project=? AND opened_date "
+            "IS NOT NULL AND outcome IS NOT NULL", (project,)).fetchone()[0]
+        return opened, filled
+
+    def pending_capsules(self, project):
+        """已到期开启、但用户还没回填的胶囊(供开工简报『待验证的预测』)。"""
+        rows = self.conn.execute(
+            "SELECT sha, risk, sealed_date FROM capsules WHERE project=? "
+            "AND opened_date IS NOT NULL AND outcome IS NULL "
+            "ORDER BY open_date", (project,)).fetchall()
         return [{"sha": r[0], "risk": r[1], "sealed_date": r[2]} for r in rows]
+
+    def recent_open_loops(self, project, limit=10):
+        """最近若干条 commit 叙事里的未闭环项,去重(供开工简报『悬而未决』)。
+        排除 digest: 概览行——它们与 commit 叙事同表却无 open_loops,会挤占名额。"""
+        rows = self.conn.execute(
+            "SELECT narrative_json FROM commit_narratives WHERE project=? "
+            "AND sha NOT LIKE 'digest:%' "
+            "ORDER BY created_at DESC LIMIT ?", (project, limit)).fetchall()
+        loops = []
+        for (raw,) in rows:
+            try:
+                loops += json.loads(raw).get("open_loops", []) or []
+            except (ValueError, AttributeError):
+                continue
+        return list(dict.fromkeys(loops))
+
+    def latest_daily(self, project):
+        """最近一天的概览+决定(供开工简报『你上次停在哪』)。"""
+        row = self.conn.execute(
+            "SELECT date, overview, decision FROM daily_digests WHERE "
+            "project=? ORDER BY date DESC LIMIT 1", (project,)).fetchone()
+        return ({"date": row[0], "overview": row[1], "decision": row[2]}
+                if row else None)
 
     def close(self):
         self.conn.close()
