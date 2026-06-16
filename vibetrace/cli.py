@@ -7,7 +7,7 @@ import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from . import align, enrich, gitlog, report, sessions
+from . import align, brief, enrich, gitlog, report, sessions
 from .cache import Cache
 from .config import CACHE_DB_PATH, load_config
 from .llm import LLMClient, LLMError
@@ -48,7 +48,6 @@ def digest(args):
         cfg["vault_path"] = args.vault
     project_path = Path(args.project).resolve()
     project = project_path.name
-    date_str = datetime.now().strftime("%Y-%m-%d")
 
     commits, git_err = gitlog.collect_commits(
         project_path, args.since, cfg["diff_token_budget"])
@@ -71,49 +70,91 @@ def digest(args):
     except LLMError as exc:
         print(f"错误:{exc}", file=sys.stderr)
         return 2
-    stats = enrich.enrich_commits(commits, llm, cache, str(project_path))
-    overview, decision, extra_calls = enrich.make_overview(
-        commits, llm, cache, str(project_path), date_str)
+    # 回读上次运行后用户在 Obsidian 里勾选的胶囊答案,闭合预测-验证环
+    report.read_capsule_answers(cfg["vault_path"], project, cache)
+    # 运行前已缓存的 SHA:用于区分每天的缓存命中 vs 新算(按日页脚统计)
+    pre_cached = {c["sha"] for c in commits if cache.get_narrative(c["sha"])}
+    enrich.enrich_commits(commits, llm, cache, str(project_path))
 
-    cache.put_daily(project, date_str, overview, decision)
-    today = date.today()
-    today_iso = today.isoformat()
+    # 按 commit 日期分桶,一天一份日报:bound 住报告长度与概览输入,
+    # 并让历史各天都进 daily_digests 缓存(修复回补时 On This Day 查不到)。
+    by_day = {}
     for commit in commits:
-        sealed = commit["date"].date().isoformat()
-        opens = (commit["date"].date() + timedelta(days=21)).isoformat()
-        if opens <= today_iso:
-            continue  # 历史 commit:从未在面前密封过,不补密封(免首跑信息墙)
-        for idx, risk in enumerate(commit["narrative"]["risks"]):
-            cache.seal_capsule(project, commit["sha"], idx, risk, sealed, opens)
-    capsules = cache.open_due_capsules(project, today_iso)
-    on_this_day = {}
-    for label, shifted in (("上月今日", _shift(today, months=1)),
-                           ("去年今日", _shift(today, years=1))):
-        past = cache.get_daily(project, shifted.isoformat())
-        if past:
-            on_this_day[label] = (shifted.isoformat(), past["overview"])
+        by_day.setdefault(commit["date"].date(), []).append(commit)
 
-    run_stats = {
-        "commits": len(commits), "sessions": len(session_list),
-        "cache_hits": stats["cache_hits"],
-        "llm_calls": stats["llm_calls"] + extra_calls,
-        "enrich_failures": stats["failures"],
-        "tokens_in": llm.stats["input_tokens"],
-        "tokens_out": llm.stats["output_tokens"],
-        "model": f"{cfg['provider']}/{cfg['model']}",
-        "elapsed_s": round(time.time() - started, 1),
-    }
-    content = report.render(project, date_str, overview, commits,
-                            session_list, session_err, run_stats,
-                            decision=decision, on_this_day=on_this_day,
-                            capsules=capsules, today=today)
-    path = report.write_report(cfg["vault_path"], project, date_str, content)
-    report.append_usage({"command": "digest", "project": str(project_path),
-                         "since": args.since, "report": str(path), **run_stats})
+    days = []  # 先按日生成概览/胶囊,等 LLM 统计齐了再统一渲染
+    for day in sorted(by_day):
+        day_commits = by_day[day]
+        date_str = day.isoformat()
+        overview, decision, calls = enrich.make_overview(
+            day_commits, llm, cache, str(project_path), date_str)
+        cache.put_daily(project, date_str, overview, decision)
+        for commit in day_commits:  # 以该天为「今日」封存,忠实重放胶囊时间线
+            sealed = commit["date"].date().isoformat()
+            opens = (commit["date"].date() + timedelta(days=21)).isoformat()
+            if opens <= date_str:
+                continue  # 该天视角下已到期的不补密封,不复活成洪流
+            for idx, risk in enumerate(commit["narrative"]["risks"]):
+                cache.seal_capsule(project, commit["sha"], idx, risk,
+                                   sealed, opens)
+        capsules = cache.open_due_capsules(project, date_str)
+        on_this_day = {}
+        for label, shifted in (("上月今日", _shift(day, months=1)),
+                               ("去年今日", _shift(day, years=1))):
+            past = cache.get_daily(project, shifted.isoformat())
+            if past:
+                on_this_day[label] = (shifted.isoformat(), past["overview"])
+        hits = sum(1 for c in day_commits if c["sha"] in pre_cached)
+        days.append({
+            "date_str": date_str, "commits": day_commits, "overview": overview,
+            "decision": decision, "capsules": capsules, "today": day,
+            "on_this_day": on_this_day, "llm_calls": len(day_commits) - hits + calls,
+            "cache_hits": hits,
+        })
+
+    opened, filled = cache.capsule_fill_stats(project)
+    paths = []
+    for d in days:
+        run_stats = {
+            "commits": len(d["commits"]), "sessions": len(session_list),
+            "cache_hits": d["cache_hits"], "llm_calls": d["llm_calls"],
+            "tokens_in": llm.stats["input_tokens"],
+            "tokens_out": llm.stats["output_tokens"],
+            "model": f"{cfg['provider']}/{cfg['model']}",
+            "elapsed_s": round(time.time() - started, 1),
+            "capsule_opened": opened, "capsule_filled": filled,
+        }
+        content = report.render(project, d["date_str"], d["overview"],
+                                d["commits"], session_list, session_err,
+                                run_stats, decision=d["decision"],
+                                on_this_day=d["on_this_day"],
+                                capsules=d["capsules"], today=d["today"])
+        path = report.write_report(cfg["vault_path"], project, d["date_str"],
+                                   content)
+        paths.append(path)
+        report.append_usage({"command": "digest", "project": str(project_path),
+                             "since": args.since, "report": str(path),
+                             **run_stats})
     cache.close()
-    print(f"日报已写入:{path}")
-    print(f"commits {run_stats['commits']} | 缓存命中 {stats['cache_hits']} | "
-          f"LLM 调用 {run_stats['llm_calls']} | 用时 {run_stats['elapsed_s']}s")
+    print(f"生成 {len(paths)} 份日报:")
+    for p in paths:
+        print(f"  {p}")
+    return 0
+
+
+def brief_cmd(args):
+    cfg = load_config()
+    if args.vault:
+        cfg["vault_path"] = args.vault
+    project_path = Path(args.project).resolve()
+    project = project_path.name
+    cache = Cache(CACHE_DB_PATH)
+    content = brief.build_brief(cache, project, str(project_path))
+    cache.close()
+    print(content)
+    if args.vault:
+        path = report.write_report(cfg["vault_path"], project, "brief", content)
+        print(f"简报已写入:{path}")
     return 0
 
 
@@ -131,6 +172,9 @@ def main(argv=None):
     dig.add_argument("--model", help="覆盖模型 ID")
     tun = sub.add_parser("tunnel", help="生成时光隧道(实验)")
     tun.add_argument("--project", default=".", help="项目路径(默认当前目录)")
+    bri = sub.add_parser("brief", help="开工简报:你上次停在哪(纯本地,无 LLM)")
+    bri.add_argument("--project", default=".", help="项目路径(默认当前目录)")
+    bri.add_argument("--vault", help="同时写入该目录(默认仅打印)")
     args = parser.parse_args(argv)
     if args.command == "tunnel":
         from .tunnel import render_tunnel
@@ -140,4 +184,6 @@ def main(argv=None):
             return 2
         print(f"隧道已写入:{path}")
         return 0
+    if args.command == "brief":
+        return brief_cmd(args)
     return digest(args)
