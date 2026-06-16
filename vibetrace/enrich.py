@@ -8,6 +8,9 @@ from .llm import LLMError
 
 log = logging.getLogger("vibetrace")
 
+# 单天 commit 过多时的兜底:概览输入字符上限,超出截断,概览 token 不爆。
+OVERVIEW_LISTING_BUDGET = 6000
+
 OVERVIEW_SCHEMA = {
     "type": "object",
     "properties": {
@@ -95,10 +98,20 @@ def make_overview(commits, llm, cache, project, date_str):
     if cached:
         return (cached.get("overview", fallback),
                 cached.get("decision", fb_decision), 0)
-    listing = "\n".join(
+    rows = [
         f"- {c['sha'][:8]} {c['subject']}|what: {c['narrative']['what'][:150]}"
         f"|decisions: {'; '.join(c['narrative'].get('decisions', []))[:200]}"
-        for c in commits)
+        for c in commits]
+    listing = "\n".join(rows)
+    if len(listing) > OVERVIEW_LISTING_BUDGET:
+        kept, used = 0, 0
+        for row in rows:
+            if used + len(row) > OVERVIEW_LISTING_BUDGET:
+                break
+            used += len(row) + 1
+            kept += 1
+        listing = ("\n".join(rows[:kept])
+                   + f"\n… [另有 {len(rows) - kept} 个 commit 未计入当日概览]")
     try:
         raw = llm.narrate(
             "为以下一天的 commit 写概览:用第二人称『你』、像结对同事帮你回忆"
