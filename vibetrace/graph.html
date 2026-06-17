@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>$project · 决策影响图</title>
+<style>
+:root{--bg:#0e0e0e;--fg:#e8e8e8;--mut:#8a8a8a;--accent:#1783ff;--line:#2c2c2c;--px:ui-monospace,Menlo,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--px);image-rendering:pixelated}
+header{padding:14px 20px;border-bottom:2px solid var(--line)}
+h1{margin:0;font-size:15px;letter-spacing:1px}
+.sub{color:var(--mut);font-size:11px;margin-top:4px;line-height:1.5}
+#wrap{display:flex;height:calc(100vh - 64px)}
+#graph{flex:1;overflow:auto}
+#panel{width:330px;padding:16px;overflow:auto;border-left:2px solid var(--line)}
+.empty{padding:48px;color:var(--mut);text-align:center;line-height:1.8}
+svg text{font-family:var(--px);fill:var(--fg)}
+.node rect{cursor:pointer}
+.dec-b{fill:var(--accent);stroke:#0d4f99;stroke-width:2}
+.dec-n{fill:#242424;stroke:var(--accent);stroke-width:2;stroke-dasharray:3 2}
+.chg{fill:#161616;stroke:#4a4a4a;stroke-width:2}
+.edge{stroke:#4a4a4a;stroke-width:1.5;fill:none;marker-end:url(#a)}
+.sel{stroke:#fff !important;stroke-width:3 !important}
+#panel h2{font-size:13px;color:var(--accent);margin:0 0 10px}
+#panel .txt{font-size:12px;line-height:1.6;margin:0 0 12px;white-space:pre-wrap;word-break:break-word}
+#panel ul{padding:0;margin:0}
+#panel li{font-size:11px;color:var(--mut);margin:4px 0;list-style:none}
+#panel li b{color:var(--fg)}
+</style>
+</head>
+<body>
+<header>
+  <h1>$project · 决策影响图</h1>
+  <div class="sub">决策 → 沿时间向前牵动的改动 · 点蓝色决策节点看下游 · $generated · 纯本地零 LLM</div>
+</header>
+<div id="wrap">
+  <div id="graph"><svg id="svg"></svg><div id="empty" class="empty" hidden>还没有可画的决策。<br>去关键 commit 留 <b>Vibe-Decision:</b> trailer,或先跑 <b>vibetrace digest</b>。</div></div>
+  <div id="panel"><div class="sub">点左侧蓝色(实线=面包屑,虚线=叙事)决策节点,查看它牵动了哪些后续改动。</div></div>
+</div>
+<script>
+var DATA = $data;
+var NW = 150, NH = 26, GAPX = 64, GAPY = 44, PAD = 30;
+var svg = document.getElementById('svg'), panel = document.getElementById('panel');
+function esc(t){ return (t || '').replace(/[&<>]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]; }); }
+function render(){
+  var nodes = DATA.nodes, edges = DATA.edges;
+  if(!nodes.length){ document.getElementById('empty').hidden = false; return; }
+  var xsArr = []; for(var i=0;i<nodes.length;i++){ if(xsArr.indexOf(nodes[i].ts)<0) xsArr.push(nodes[i].ts); }
+  xsArr.sort(function(a,b){ return a-b; });
+  var xi = {}; for(var j=0;j<xsArr.length;j++){ xi[xsArr[j]] = j; }
+  var dl = 0, cl = 0, byId = {};
+  for(var k=0;k<nodes.length;k++){
+    var n = nodes[k];
+    n.x = PAD + xi[n.ts] * (NW + GAPX);
+    n.y = (n.kind === 'change') ? (PAD + (6 + (cl++ % 4)) * GAPY) : (PAD + (dl++ % 5) * GAPY);
+    byId[n.id] = n;
+  }
+  var W = PAD * 2 + xsArr.length * (NW + GAPX), H = PAD * 2 + 11 * GAPY;
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+  svg.setAttribute('width', W); svg.setAttribute('height', H);
+  var s = '<defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#4a4a4a"/></marker></defs>';
+  for(var e=0;e<edges.length;e++){
+    var a = byId[edges[e].from], b = byId[edges[e].to];
+    if(!a || !b) continue;
+    var x1 = a.x + NW, y1 = a.y + NH/2, x2 = b.x, y2 = b.y + NH/2;
+    s += '<path class="edge" d="M' + x1 + ',' + y1 + ' C' + (x1+30) + ',' + y1 + ' ' + (x2-30) + ',' + y2 + ' ' + x2 + ',' + y2 + '"/>';
+  }
+  for(var m=0;m<nodes.length;m++){
+    var nd = nodes[m];
+    var cls = nd.kind === 'breadcrumb' ? 'dec-b' : (nd.kind === 'narrative' ? 'dec-n' : 'chg');
+    var lbl = esc((nd.text || nd.subject || '').slice(0, 22));
+    s += '<g class="node" data-id="' + nd.id + '">';
+    s += '<rect class="' + cls + '" x="' + nd.x + '" y="' + nd.y + '" width="' + NW + '" height="' + NH + '" rx="3"/>';
+    s += '<text x="' + (nd.x + 6) + '" y="' + (nd.y + 17) + '" font-size="10">' + lbl + '</text>';
+    if(nd.badge){ s += '<text x="' + (nd.x + NW - 8) + '" y="' + (nd.y - 4) + '" font-size="11" fill="#1783ff">●</text>'; }
+    s += '</g>';
+  }
+  svg.innerHTML = s;
+  var gs = svg.querySelectorAll('.node');
+  for(var g=0;g<gs.length;g++){ gs[g].addEventListener('click', (function(id){ return function(){ showPanel(id); }; })(gs[g].getAttribute('data-id'))); }
+}
+function showPanel(id){
+  var rects = svg.querySelectorAll('rect');
+  for(var i=0;i<rects.length;i++){ rects[i].classList.remove('sel'); }
+  var g = svg.querySelector('.node[data-id="' + id + '"]');
+  if(g){ g.querySelector('rect').classList.add('sel'); }
+  var n = null, dn = DATA.nodes;
+  for(var k=0;k<dn.length;k++){ if(dn[k].id === id){ n = dn[k]; break; } }
+  if(!n) return;
+  var downs = [];
+  for(var e=0;e<DATA.edges.length;e++){
+    if(DATA.edges[e].from === id){
+      for(var x=0;x<dn.length;x++){ if(dn[x].id === DATA.edges[e].to){ downs.push(dn[x]); break; } }
+    }
+  }
+  var kindTxt = n.kind === 'breadcrumb' ? '决策(面包屑)' : (n.kind === 'narrative' ? '决策(叙事)' : '改动');
+  var h = '<h2>[' + n.id + '] ' + kindTxt + ' · ' + esc(n.date) + '</h2>';
+  if(n.text){ h += '<div class="txt">' + esc(n.text) + '</div>'; }
+  if(n.badge){ h += '<div class="txt" style="color:var(--accent)">' + esc(n.badge) + '</div>'; }
+  h += '<div class="sub">牵动的后续改动(' + downs.length + '):</div><ul>';
+  for(var d=0;d<downs.length;d++){ h += '<li><b>[' + downs[d].id + ']</b> ' + esc(downs[d].subject) + '</li>'; }
+  h += '</ul>';
+  panel.innerHTML = h;
+}
+render();
+</script>
+</body>
+</html>

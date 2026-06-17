@@ -77,3 +77,42 @@ def _assemble(commits, project_path, project, cache):
     nodes.sort(key=lambda n: n["ts"])
     return {"nodes": nodes,
             "edges": [{"from": d[:7], "to": t[:7]} for d, t in edges]}
+
+
+def build_graph(project_path, vault=None):
+    """→ (output_path, error_or_None)。无 git 历史→空图 exit 0(不报错)。"""
+    cfg = load_config()
+    if vault:
+        cfg["vault_path"] = vault
+    pp = Path(project_path).resolve()
+    project = pp.name
+    commits, err = collect_commit_files(pp)
+    if err:
+        # 空仓(尚无 commit)→ 空图,不报错;其他 git 错误才上报
+        if "does not have any commits" in err or "bad default revision" in err:
+            commits = []
+        else:
+            return None, err
+    commits = commits[-SCAN_LIMIT:]                 # graph.py 自己截断最近 200
+    cache = Cache(CACHE_DB_PATH)
+    head = commits[-1]["sha"] if commits else "empty"
+    key = "graph:" + head[:40]
+    cached = cache.get_narrative(key)
+    if cached and "nodes" in cached:
+        data = cached
+    else:
+        data = _assemble(commits, pp, project, cache)
+        cache.put_narrative(key, project, "graph", data)
+    cache.close()
+    today = datetime.now(timezone.utc).astimezone().date()
+    template = Template((Path(__file__).parent / "graph.html")
+                        .read_text(encoding="utf-8"))
+    html = template.substitute(
+        project=project,
+        data=json.dumps(data, ensure_ascii=False).replace("</", "<\\/"),
+        generated="%04d.%02d.%02d" % (today.year, today.month, today.day))
+    vault_dir = Path(cfg["vault_path"]).expanduser()
+    vault_dir.mkdir(parents=True, exist_ok=True)
+    out = vault_dir / (project + "-graph.html")
+    out.write_text(html, encoding="utf-8")
+    return out, None

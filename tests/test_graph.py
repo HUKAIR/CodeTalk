@@ -1,5 +1,6 @@
 import unittest
 from datetime import datetime, timezone
+from pathlib import Path
 from unittest import mock
 
 from vibetrace import graph
@@ -70,6 +71,52 @@ class TestAssemble(unittest.TestCase):
     def test_empty_commits_no_nodes(self):
         self.assertEqual(graph._assemble([], ".", "P", Cache(":memory:")),
                          {"nodes": [], "edges": []})
+
+
+import shutil, subprocess, tempfile
+
+
+def _git(args, cwd):
+    subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True)
+
+
+class TestBuildGraph(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        _git(["init", "-q"], self.dir)
+        _git(["config", "user.email", "t@t"], self.dir)
+        _git(["config", "user.name", "t"], self.dir)
+        p = Path(self.dir)
+        (p / "a.py").write_text("x\n")
+        _git(["add", "."], self.dir)
+        _git(["commit", "-q", "-m", "c1\n\nVibe-Decision: 决策一"], self.dir)
+        (p / "a.py").write_text("y\n")
+        _git(["add", "."], self.dir)
+        _git(["commit", "-q", "-m", "c2 改 a.py"], self.dir)
+        self.vault = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.dir, ignore_errors=True)
+        shutil.rmtree(self.vault, ignore_errors=True)
+
+    def test_build_writes_html_with_decision(self):
+        out, err = graph.build_graph(self.dir, vault=self.vault)
+        self.assertIsNone(err)
+        self.assertTrue(out.exists())
+        html = out.read_text(encoding="utf-8")
+        self.assertIn("决策影响图", html)
+        self.assertIn("决策一", html)          # 决策文案注入了
+        self.assertIn('"nodes"', html)          # 数据 JSON 注入了
+
+    def test_empty_repo_writes_empty_graph_not_error(self):
+        empty = tempfile.mkdtemp()
+        _git(["init", "-q"], empty)
+        try:
+            out, err = graph.build_graph(empty, vault=self.vault)
+            self.assertIsNone(err)               # LOW-3:空仓不报错
+            self.assertTrue(out.exists())
+        finally:
+            shutil.rmtree(empty, ignore_errors=True)
 
 
 if __name__ == "__main__":

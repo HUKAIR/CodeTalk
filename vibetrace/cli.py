@@ -189,6 +189,9 @@ def main(argv=None):
     asq.add_argument("target", help='文件或 文件:起-止,如 vibetrace/llm.py:72-78')
     asq.add_argument("question", help="你的问题")
     asq.add_argument("--vault", help="同时写一份脱敏 Q&A 笔记到该目录")
+    grp = sub.add_parser("graph", help="生成决策影响图(时间轴 DAG,零 LLM)")
+    grp.add_argument("--project", default=".", help="项目路径(默认当前目录)")
+    grp.add_argument("--vault", help="覆盖输出目录")
     args = parser.parse_args(argv)
     if args.command == "course":
         from .course import build_course
@@ -218,4 +221,12 @@ def main(argv=None):
     if args.command == "ask":
         from .ask import ask
         return ask(args.project, args.target, args.question, vault=args.vault)
+    if args.command == "graph":
+        from .graph import build_graph
+        path, err = build_graph(args.project, vault=args.vault)
+        if err:
+            print(f"错误:{err}", file=sys.stderr)
+            return 2
+        print(f"决策图已写入:{path}")
+        return 0
     return digest(args)
