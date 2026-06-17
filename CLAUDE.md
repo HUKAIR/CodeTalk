@@ -75,3 +75,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
   会话富集以 session_id + last_msg_ts 为键,增量更新
 - 隐私红线:数据不出本机(LLM API 调用除外);写缓存前对常见 secret
   模式(API key/token)脱敏
+- 决策面包屑:做关键技术取舍时,在 commit message 正文留 `Vibe-Decision: <一句话决策,
+  可含被否决备选>`;没把握、需日后验证的留 `Vibe-Watch: <一句话>`。digest 会把 Decision
+  并进该 commit 决策、Watch 并进 risks(到期封成可验证胶囊),`vibetrace ask <文件>[:行]
+  "问题"` 据此接地回答"这段代码当初为什么这么写"。行首精确匹配、区分大小写
