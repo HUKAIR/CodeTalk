@@ -165,10 +165,11 @@ class Cache:
 
     def recent_open_loops(self, project, limit=10):
         """最近若干条 commit 叙事里的未闭环项,去重(供开工简报『悬而未决』)。
-        排除 digest: 概览行——它们与 commit 叙事同表却无 open_loops,会挤占名额。"""
+        排除 digest:/ask:/course: 派生行——它们与 commit 叙事同表却无 open_loops,会挤占名额。"""
         rows = self.conn.execute(
             "SELECT narrative_json FROM commit_narratives WHERE project=? "
-            "AND sha NOT LIKE 'digest:%' "
+            "AND sha NOT LIKE 'digest:%' AND sha NOT LIKE 'ask:%' "
+            "AND sha NOT LIKE 'course:%' "
             "ORDER BY created_at DESC LIMIT ?", (project, limit)).fetchall()
         loops = []
         for (raw,) in rows:
