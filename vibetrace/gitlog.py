@@ -115,3 +115,20 @@ def tracked_files(project_path):
         return {f for f in _git(["ls-files"], project_path).splitlines() if f}
     except (RuntimeError, OSError, subprocess.TimeoutExpired):
         return None
+
+
+def parse_breadcrumbs(body):
+    """从 commit body 提取决策面包屑。区分大小写,行首匹配 Vibe-Decision:/Vibe-Watch:。
+    返回 (decisions, watches);body 为空/None 安全返回 ([], [])。"""
+    decisions, watches = [], []
+    for line in (body or "").splitlines():
+        line = line.strip()
+        if line.startswith("Vibe-Decision:"):
+            text = line[len("Vibe-Decision:"):].strip()
+            if text:
+                decisions.append(text)
+        elif line.startswith("Vibe-Watch:"):
+            text = line[len("Vibe-Watch:"):].strip()
+            if text:
+                watches.append(text)
+    return decisions, watches
