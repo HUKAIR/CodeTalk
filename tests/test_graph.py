@@ -60,6 +60,12 @@ class TestAssemble(unittest.TestCase):
             data = graph._assemble(commits, ".", "P", cache)
         out = [e for e in data["edges"] if e["from"] == "d1aaaaa"]
         self.assertEqual(len(out), graph.MAX_OUT)            # ≤8,取最近
+        targets = {e["to"] for e in out}
+        # MED-3:取「其后时间最近的 8 个」= 最早的 8 个下游 c0a..c7a,排除更晚的 c8a..c11a
+        for i in range(8):
+            self.assertIn(("c%da" % i)[:7], targets)
+        for i in range(8, 12):
+            self.assertNotIn(("c%da" % i)[:7], targets)
 
     def test_empty_commits_no_nodes(self):
         self.assertEqual(graph._assemble([], ".", "P", Cache(":memory:")),
