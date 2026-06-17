@@ -1110,5 +1110,21 @@ git commit -m "docs: 记录单代码提问功能验收结果"
 
 ---
 
-## 验收记录
-（执行 Task 11 时填:#1 引用的 SHA 与命中理由、#2 的拒答文本、#4 的胶囊 id。)
+## 验收记录(2026-06-17 执行)
+- **全量单测**:22/22 通过(`python3 -m unittest discover -s tests`)。
+- **行数**:所有 `vibetrace/*.py` < 300(最大 cli.py 221)。
+- **#1 接地回答 + 引用真实 SHA**:`ask vibetrace/enrich.py:75-83 "为什么 Vibe-Watch 要并进 risks
+  而不是 open_loops"` →「因为全仓库唯一的封胶囊入口只遍历 risks,所以 Vibe-Watch 并入 risks
+  而不进入 open_loops。」据此回答的 commit:`c60655f`。该答案完全源于 c60655f 的 `Vibe-Decision`
+  面包屑(该 commit 无缓存叙事)——write-time 捕获→read-time 检索→引用真实 commit 的接地回答,
+  logfile 读不出。
+  - 旁证(反幻觉):问 `llm.py:95-100 "为什么 narrate 要带 max_tokens"`(其 max_tokens 理由在
+    未 digest 的 course 提交里)→ 诚实回「材料不足」、cited(无),不编造。
+  - 反观察:deepseek-v4-pro 的 reasoning token 未饿死 ask(小 schema,默认 3000 足够,无需调大)。
+- **#2 无历史→拒答不编造**:`ask nonexistent_xyz_qwerty.py …` →「错误:… 没有可用的提交历史,
+  无从回答。」exit=2,无 LLM 调用、无编造。
+- **#3 无 key 降级**:由 `tests.test_ask_answer.test_no_llm_degrades_to_raw_history` 覆盖。
+- **#4 Vibe-Watch→胶囊**:新链路 watch→risks 由 `tests.test_enrich_breadcrumbs` 覆盖(并验证脱敏);
+  下游 risks→`seal_capsule` 为既有已验证代码(cli.py:97,Task 3 评审已走查)。未跑实时 digest
+  (避免改写历史 + 多余 LLM 开销)。
+- **#5 ask 不污染简报**:由 `tests.test_cache_filter` 覆盖(排除 ask:/course:/digest: 行)。
