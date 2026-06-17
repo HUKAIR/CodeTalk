@@ -29,3 +29,31 @@ def _parse_target(target):
             end = int(match.group(2)) if match.group(2) else start
             return file, start, end
     return target, None, None
+
+
+def _retrieve(project_path, file, start, end, cache):
+    """→ (context_str, shas oldest-first, code_state)。无历史时 context_str 为 ''。
+    code_state = 命中行最新 commit SHA,进缓存键 → 代码一变旧答案自然失效。"""
+    if start is not None:
+        shas, err = line_log(project_path, file, start, end)
+        if err:                       # 行级失败 → 文件级降级
+            shas, _ = file_log(project_path, file)
+    else:
+        shas, _ = file_log(project_path, file)
+    blocks = []
+    for sha in shas:
+        narrative = cache.get_narrative(sha) or {}
+        decisions, watches = parse_breadcrumbs(commit_body(project_path, sha))
+        decs = (narrative.get("decisions") or []) + decisions
+        risks = (narrative.get("risks") or []) + watches
+        parts = [f"[{sha[:7]}]"]
+        if narrative.get("why"):
+            parts.append("意图:" + narrative["why"][:EXCERPT])
+        if decs:
+            parts.append("决策:" + ";".join(decs)[:EXCERPT])
+        if risks:
+            parts.append("风险/待验证:" + ";".join(risks)[:EXCERPT])
+        blocks.append(" / ".join(parts))
+    context = "\n".join(blocks)[:CONTEXT_BUDGET]
+    code_state = shas[-1] if shas else ""
+    return context, shas, code_state
