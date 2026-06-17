@@ -44,8 +44,8 @@ def _retrieve(project_path, file, start, end, cache):
     for sha in shas:
         narrative = cache.get_narrative(sha) or {}
         decisions, watches = parse_breadcrumbs(commit_body(project_path, sha))
-        decs = (narrative.get("decisions") or []) + decisions
-        risks = (narrative.get("risks") or []) + watches
+        decs = list(dict.fromkeys((narrative.get("decisions") or []) + decisions))
+        risks = list(dict.fromkeys((narrative.get("risks") or []) + watches))
         parts = [f"[{sha[:7]}]"]
         if narrative.get("why"):
             parts.append("意图:" + narrative["why"][:EXCERPT])
