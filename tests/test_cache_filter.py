@@ -11,6 +11,8 @@ class TestRecentOpenLoopsFilter(unittest.TestCase):
         c.put_narrative("course:v2:y", "P", "m", {"open_loops": ["不该出现-course"]})
         c.put_narrative("ask:z", "P", "m",
                         {"answer": "a", "open_loops": ["不该出现-ask"]})
+        c.put_narrative("graph:head1", "P", "graph",
+                        {"open_loops": ["不该出现-graph"]})  # 测试给个 open_loops 逼出过滤
         self.assertEqual(c.recent_open_loops("P"), ["真未闭环"])
 
 
