@@ -4,6 +4,7 @@ import json
 import logging
 
 from .config import redact_secrets
+from .gitlog import parse_breadcrumbs
 from .llm import LLMError
 
 log = logging.getLogger("vibetrace")
@@ -71,8 +72,15 @@ def enrich_commits(commits, llm, cache, project):
             continue
         try:
             raw = llm.narrate(redact_secrets(_commit_prompt(commit)))
+            normalized = _normalize(raw)
+            decisions, watches = parse_breadcrumbs(commit.get("body", ""))
+            if decisions:  # 人原话并入决策,去重,保留 LLM 既有决策
+                normalized["decisions"] = list(dict.fromkeys(
+                    normalized["decisions"] + decisions))
+            if watches:    # Vibe-Watch 进 risks → 复用现有 risks→seal_capsule 环
+                normalized["risks"] = normalized["risks"] + watches
             narrative = json.loads(redact_secrets(
-                json.dumps(_normalize(raw), ensure_ascii=False)))
+                json.dumps(normalized, ensure_ascii=False)))
             stats["llm_calls"] += 1
             commit["narrative"] = narrative
             cache.put_narrative(commit["sha"], project, llm.model, narrative)
