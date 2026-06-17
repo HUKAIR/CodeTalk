@@ -1,3 +1,5 @@
+import contextlib
+import io
 import unittest
 from unittest import mock
 
@@ -12,7 +14,8 @@ class TestCliGraph(unittest.TestCase):
             got.update(p=project_path, v=vault)
             return ("/tmp/x-graph.html", None)
 
-        with mock.patch.object(graph, "build_graph", fake_build):
+        with mock.patch.object(graph, "build_graph", fake_build), \
+                contextlib.redirect_stdout(io.StringIO()):
             rc = cli.main(["graph", "--project", ".", "--vault", "/tmp/v"])
         self.assertEqual(rc, 0)
         self.assertEqual(got, {"p": ".", "v": "/tmp/v"})
