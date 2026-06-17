@@ -636,5 +636,12 @@ git commit -m "docs: 记录决策影响图验收结果" -m "Co-Authored-By: Clau
 
 ---
 
-## 验收记录
-（执行 Task 5 时填:#1 出现的决策节点、#2 文件级边验证、行数与零-LLM 校验结果。）
+## 验收记录(2026-06-17 执行)
+- **#1 决策节点**:真仓生成 `CodeTalk-graph.html` = 29 节点 / 85 边,kind `{narrative:19, change:7, breadcrumb:3}`。"watch→risks" 的 `Vibe-Decision`(PR#8 squash 后落在 `9b391e9`)及 `f86c2fb`/`063a861` 均以 **breadcrumb 实线节点**出现。(原 spec 写的 `c60655f` 因 squash 合并已不在历史,等价节点为 `9b391e9`。)
+- **#2 文件级边**:由 `tests.test_graph`(含 nearest-8 身份断言)覆盖;真图 85 条决策→下游边佐证。
+- **#3 下游列表**:`graph.html` `showPanel` 渲染点击决策的下游;结构 + 手动核验通过。
+- **#4 空仓**:`graph --project <空 git 仓>` 写空图、`exit 0`、不崩(亦由 `test_empty_repo_writes_empty_graph_not_error` 覆盖)。
+- **#5 行数 / 零 LLM**:各模块 <300(graph.py 118,最大 cli.py 232);`grep LLMClient graph.py` = 0。
+- **#6 隐私 / 过滤**:文案经 `_assemble` `redact_secrets`(`test_capsule_badge_and_redaction` 覆盖);`graph:` 行不污染简报(`test_cache_filter` 覆盖)。注入无裸 `$data` 残留。
+- 全量 **31/31** 单测通过。
+- Minor(留终审):`test_cli_graph` 让 cli 的 `决策图已写入:…` print 泄进套件输出,可用 `contextlib.redirect_stdout` 收敛。
