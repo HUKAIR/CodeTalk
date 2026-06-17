@@ -1,5 +1,6 @@
 """Collect commits (message + stat + truncated diff) via git subprocess."""
 import logging
+import re
 import subprocess
 from datetime import datetime
 
@@ -132,3 +133,40 @@ def parse_breadcrumbs(body):
             if text:
                 watches.append(text)
     return decisions, watches
+
+
+LINE_LOG_LIMIT = 12
+_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+
+
+def line_log(project_path, file, start, end):
+    """命中 file 第 start..end 行演化的 commit SHA(旧→新,最多 LINE_LOG_LIMIT 条)。
+    git log -L<a>,<b>:<file> -s --format=%H;只保留 40 位 hex 行,稳健剔除可能漏出的
+    diff 文本(不依赖各 git 版本对 -s + -L 的具体行为)。失败→由调用方降级到文件级。"""
+    try:
+        raw = _git(["log", "-s", "--format=%H",
+                    f"-L{start},{end}:{file}"], project_path)
+    except (RuntimeError, OSError, subprocess.TimeoutExpired) as exc:
+        return [], f"git log -L 失败:{exc}"
+    shas = [s.strip() for s in raw.splitlines() if _SHA_RE.match(s.strip())]
+    shas.reverse()  # git log 新→旧,翻成旧→新
+    return shas[-LINE_LOG_LIMIT:], None
+
+
+def file_log(project_path, file):
+    """文件级降级:命中该文件的 commit SHA(旧→新,最多 LINE_LOG_LIMIT 条)。"""
+    try:
+        raw = _git(["log", "--format=%H", "--", file], project_path)
+    except (RuntimeError, OSError, subprocess.TimeoutExpired) as exc:
+        return [], f"git log 失败:{exc}"
+    shas = [s.strip() for s in raw.splitlines() if _SHA_RE.match(s.strip())]
+    shas.reverse()
+    return shas[-LINE_LOG_LIMIT:], None
+
+
+def commit_body(project_path, sha):
+    """单 commit 的 message body(供面包屑收割)。失败返回 ''。"""
+    try:
+        return _git(["show", "-s", "--format=%b", sha], project_path).strip()
+    except (RuntimeError, OSError, subprocess.TimeoutExpired):
+        return ""
