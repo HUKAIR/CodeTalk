@@ -184,6 +184,11 @@ def main(argv=None):
     bri.add_argument("--vault", help="同时写入该目录(默认仅打印)")
     crs = sub.add_parser("course", help="生成演进课程(项目怎么长成的,实验)")
     crs.add_argument("--project", default=".", help="项目路径(默认当前目录)")
+    asq = sub.add_parser("ask", help="就某段代码提问(接项目记忆,接地回答)")
+    asq.add_argument("--project", default=".", help="项目路径(默认当前目录)")
+    asq.add_argument("target", help='文件或 文件:起-止,如 vibetrace/llm.py:72-78')
+    asq.add_argument("question", help="你的问题")
+    asq.add_argument("--vault", help="同时写一份脱敏 Q&A 笔记到该目录")
     args = parser.parse_args(argv)
     if args.command == "course":
         from .course import build_course
@@ -210,4 +215,7 @@ def main(argv=None):
         return 0
     if args.command == "brief":
         return brief_cmd(args)
+    if args.command == "ask":
+        from .ask import ask
+        return ask(args.project, args.target, args.question, vault=args.vault)
     return digest(args)

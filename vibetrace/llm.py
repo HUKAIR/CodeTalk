@@ -33,6 +33,29 @@ SYSTEM_PROMPT = (
     "输出必须是符合给定 JSON Schema 的单个 JSON 对象,不要输出任何其他文字。"
 )
 
+ASK_SYSTEM_PROMPT = (
+    "你是 vibetrace 的单代码问答引擎。基于给定材料(这段代码相关 commit 的叙事 + 决策"
+    "面包屑,旧→新),用中文回答开发者关于这段代码的问题。\n"
+    "事实纪律(最高优先级):\n"
+    "- 只用给定材料作答;材料不足以回答就直说『材料不足』,不补全、不编造\n"
+    "- 禁止编造材料中不存在的文件名/SHA/数字/专有名词\n"
+    "- 在 cited_shas 里列出你实际据以回答的 commit 短 SHA\n"
+    "- 没把握的部分写进 unsure,不要混进 answer 充数\n"
+    "输出必须是符合给定 JSON Schema 的单个 JSON 对象,不要输出任何其他文字。"
+)
+
+ASK_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "answer": {"type": "string", "description": "对问题的回答,只据材料"},
+        "cited_shas": {"type": "array", "items": {"type": "string"},
+                       "description": "实际据以回答的 commit 短 SHA"},
+        "unsure": {"type": "string", "description": "没把握/材料不足之处,可空"},
+    },
+    "required": ["answer", "cited_shas"],
+    "additionalProperties": False,
+}
+
 NARRATIVE_SCHEMA = {
     "type": "object",
     "properties": {
@@ -69,16 +92,19 @@ class LLMClient:
                 f"的 providers.{self.provider}.api_key,或设置环境变量 "
                 f"{self.provider.upper()}_API_KEY")
 
-    def narrate(self, user_prompt, schema=NARRATIVE_SCHEMA, max_tokens=MAX_OUTPUT_TOKENS):
+    def narrate(self, user_prompt, schema=NARRATIVE_SCHEMA,
+                max_tokens=MAX_OUTPUT_TOKENS, system=None):
         """One structured-JSON completion. Raises LLMError on final failure.
         max_tokens 须覆盖『推理 + 输出』:推理模型(如 deepseek-v4-pro)会先花大量
-        reasoning token,默认 3000 对复杂 schema(如课程分章)不够,调用方按需调大。"""
+        reasoning token,默认 3000 对复杂 schema(如课程分章)不够,调用方按需调大。
+        system=None uses the default SYSTEM_PROMPT (narration); pass ASK_SYSTEM_PROMPT
+        for grounded Q&A."""
         if self.provider == "anthropic":
-            return self._anthropic(user_prompt, schema, max_tokens)
-        return self._openai_compat(user_prompt, schema, max_tokens)
+            return self._anthropic(user_prompt, schema, max_tokens, system)
+        return self._openai_compat(user_prompt, schema, max_tokens, system)
 
-    def _openai_compat(self, user_prompt, schema, max_tokens):
-        system = (SYSTEM_PROMPT + "\n\nJSON Schema:\n"
+    def _openai_compat(self, user_prompt, schema, max_tokens, system=None):
+        system = ((system or SYSTEM_PROMPT) + "\n\nJSON Schema:\n"
                   + json.dumps(schema, ensure_ascii=False))
         body = json.dumps({
             "model": self.model,
@@ -117,7 +143,7 @@ class LLMClient:
             log.warning("LLM 调用失败(第 %d 次):%s", attempt + 1, last_err)
         raise LLMError(f"{self.provider}/{self.model} 调用失败:{last_err}")
 
-    def _anthropic(self, user_prompt, schema, max_tokens):
+    def _anthropic(self, user_prompt, schema, max_tokens, system=None):
         try:
             import anthropic
         except ImportError as exc:
@@ -126,7 +152,7 @@ class LLMClient:
         try:
             resp = client.messages.create(
                 model=self.model, max_tokens=max_tokens,
-                system=[{"type": "text", "text": SYSTEM_PROMPT,
+                system=[{"type": "text", "text": system or SYSTEM_PROMPT,
                          "cache_control": {"type": "ephemeral"}}],
                 output_config={"format": {"type": "json_schema", "schema": schema}},
                 messages=[{"role": "user", "content": user_prompt}])
