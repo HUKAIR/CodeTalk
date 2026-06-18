@@ -3,6 +3,7 @@
 from datetime import datetime, timezone
 
 from . import debt as debt_mod
+from .gitlog import collect_commit_files, commit_body, parse_breadcrumbs
 
 
 def _debt_block(board):
@@ -21,6 +22,18 @@ def _debt_block(board):
             lines.append(f"  上次决定:{r['last_decision']}")
     lines.append("")
     return lines
+
+
+def _breadcrumb_coverage(project_path, n=20):
+    """最近 n 个 commit 有几个带 Vibe-Decision/Watch 面包屑(零 LLM)。
+    返回 (带面包屑数, 统计 commit 数);无 git 历史返回 None。"""
+    commits, err = collect_commit_files(project_path)
+    if err or not commits:
+        return None
+    recent = commits[-n:]
+    got = sum(1 for c in recent
+              if any(parse_breadcrumbs(commit_body(project_path, c["sha"]))))
+    return got, len(recent)
 
 
 def build_brief(cache, project, project_full):
@@ -56,7 +69,21 @@ def build_brief(cache, project, project_full):
     loops = cache.recent_open_loops(project_full)
     if loops:
         lines += ["## 悬而未决", ""]
-        lines += ["- " + l for l in loops]
+        lines += ["- " + l for l in loops[:5]]   # 削峰,别堆成新信息墙
+        if len(loops) > 5:
+            lines.append(f"- 另有 {len(loops) - 5} 条(暂折叠)")
+        lines.append("")
+
+    cov = _breadcrumb_coverage(project_full)
+    if cov:
+        got, total = cov
+        lines += ["## 决策面包屑", ""]
+        if got:
+            lines.append(f"近 {total} 个 commit 有 {got} 个带 Vibe-Decision/Watch"
+                         "——ask/graph 据此更接地。")
+        else:
+            lines.append(f"近 {total} 个 commit 都没留面包屑。在 CLAUDE.md 加一句"
+                         "「关键取舍留 `Vibe-Decision:`」让 agent 自动留,ask/graph 更准。")
         lines.append("")
 
     return "\n".join(lines).rstrip() + "\n"
