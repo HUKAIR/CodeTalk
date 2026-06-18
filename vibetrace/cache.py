@@ -201,5 +201,15 @@ class Cache:
         return {r[0]: r[1] for r in self.conn.execute(
             "SELECT sha, reviewed_at FROM reviewed WHERE project=?", (project,))}
 
+    def rekey_project(self, old, new):
+        """把胶囊/日报/reviewed 三表的 project 键从 old 迁到 new(同名项目串键修复
+        的一次性迁移;commit_narratives 本就用全路径,无需迁)。idempotent。"""
+        if old == new:
+            return
+        for tbl in ("capsules", "daily_digests", "reviewed"):
+            self.conn.execute("UPDATE " + tbl + " SET project=? WHERE project=?",
+                              (new, old))
+        self.conn.commit()
+
     def close(self):
         self.conn.close()

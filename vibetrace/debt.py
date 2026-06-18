@@ -29,14 +29,16 @@ def _to_date(iso):
         return datetime.now(timezone.utc).astimezone().date()
 
 
-def debt_board(project_path, project, cache, today, top=None):
-    """每个文件的理解债,高→低。容错:无 commit/无叙事/无信号均不崩,返回 []。"""
+def debt_board(project_path, cache, today, top=None):
+    """每个文件的理解债,高→低。容错:无 commit/无叙事/无信号均不崩,返回 []。
+    cache 键统一用 str(project_path)(绝对路径),与 commit_narratives 一致、同名项目不串。"""
     commits, err = collect_commit_files(project_path)  # 轻量:只取 sha/date/files
     if err or not commits:
         return []
-    reviewed = cache.reviewed_shas(project)             # {short_sha: iso_ts}
+    pkey = str(project_path)
+    reviewed = cache.reviewed_shas(pkey)                # {short_sha: iso_ts}
     caps_by_sha = {}
-    for cap in cache.all_capsules(project):
+    for cap in cache.all_capsules(pkey):
         caps_by_sha.setdefault(_short(cap["sha"]), []).append(cap)
     tracked = tracked_files(project_path)  # None=git 失败 → 容错降级:不过滤
 

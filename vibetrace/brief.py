@@ -42,9 +42,9 @@ def build_brief(cache, project, project_full):
     lines = [f"# {project} 开工简报", ""]
     today = datetime.now(timezone.utc).astimezone().date()
     lines += _debt_block(
-        debt_mod.debt_board(project_full, project, cache, today, top=3))
+        debt_mod.debt_board(project_full, cache, today, top=3))
 
-    last = cache.latest_daily(project)
+    last = cache.latest_daily(project_full)
     lines += ["## 你上次停在哪", ""]
     if last:
         lines.append(f"_{last['date']}_:{last['overview']}")
@@ -54,7 +54,7 @@ def build_brief(cache, project, project_full):
         lines.append("(还没有任何日报——先跑一次 `vibetrace digest`。)")
     lines.append("")
 
-    pending = cache.pending_capsules(project)
+    pending = cache.pending_capsules(project_full)
     if pending:
         lines += ["## 待验证的预测", ""]
         # 只端出最该验证的几枚(按 open_date 最久未答优先),其余折叠,
