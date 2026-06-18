@@ -192,6 +192,8 @@ def main(argv=None):
     grp = sub.add_parser("graph", help="生成决策影响图(时间轴 DAG,零 LLM)")
     grp.add_argument("--project", default=".", help="项目路径(默认当前目录)")
     grp.add_argument("--vault", help="覆盖输出目录")
+    grp.add_argument("--canvas", action="store_true",
+                     help="额外导出 Obsidian JSON Canvas(*-graph.canvas)")
     args = parser.parse_args(argv)
     if args.command == "course":
         from .course import build_course
@@ -223,7 +225,8 @@ def main(argv=None):
         return ask(args.project, args.target, args.question, vault=args.vault)
     if args.command == "graph":
         from .graph import build_graph
-        path, err = build_graph(args.project, vault=args.vault)
+        path, err = build_graph(args.project, vault=args.vault,
+                                canvas=args.canvas)
         if err:
             print(f"错误:{err}", file=sys.stderr)
             return 2
