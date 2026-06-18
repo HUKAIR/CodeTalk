@@ -62,7 +62,7 @@ SECRET_PATTERNS = [
     re.compile(r"[0-9]+-[0-9A-Za-z_]{32}\.apps\.googleusercontent\.com"),  # Google OAuth
     re.compile(r"sk_(?:live|test)_[0-9a-zA-Z]{24}"),                    # Stripe
     re.compile(r"SG\.[A-Za-z0-9_\-]{22}\.[A-Za-z0-9_\-]{43}"),          # SendGrid
-    re.compile(r"ey[A-Za-z0-9_\-]{17,}\.ey[A-Za-z0-9_\-]{17,}\.[A-Za-z0-9_\-]*"),  # JWT
+    re.compile(r"ey[A-Za-z0-9_\-]{17,}\.ey[A-Za-z0-9_\-]{17,}\.[A-Za-z0-9_\-]+"),  # JWT(签名段非空,降假阳性)
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----"),  # PEM 私钥整块
     re.compile(r"https://hooks\.slack\.com/services/[A-Za-z0-9/]+"),    # Slack webhook
 ]
