@@ -177,7 +177,9 @@ class Cache:
                 loops += json.loads(raw).get("open_loops", []) or []
             except (ValueError, AttributeError):
                 continue
-        return list(dict.fromkeys(loops))
+        # 滤掉 LLM 的「材料不足」填充与空白项,简报不堆噪声墙
+        return [l for l in dict.fromkeys(loops)
+                if str(l).strip() and not str(l).strip().startswith("材料不足")]
 
     def latest_daily(self, project):
         """最近一天的概览+决定(供开工简报『你上次停在哪』)。"""
