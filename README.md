@@ -75,6 +75,10 @@ Vibe-Watch:    先这么扛,并发安全待验证
 `ask` 据此接地回答、`graph` 据此连决策影响边。你本就用 AI 写代码——让它顺手留痕。行首精确匹配、
 区分大小写。
 
+手写 commit(不带 `-m`)的提交者,跑一次 `vibetrace install-hook` 装 `prepare-commit-msg` 钩子,
+编辑器里会自动提示这两行——填则成 trailer,不填被 git 剥除。git 钩子不随仓库版本控制,
+**每个 clone 各装一次**。
+
 ## 缓存与隐私
 
 - commit 叙事以 SHA 为键缓存于 `~/.vibetrace/cache.db`,**永不重算**;重跑同一天 digest 为
