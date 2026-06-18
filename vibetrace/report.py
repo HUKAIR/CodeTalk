@@ -107,15 +107,17 @@ _CAPSULE_MARKER = "<!-- vt-capsule:"
 _OUTCOMES = ("想多了", "已解决", "还在担心")
 
 
-def read_capsule_answers(vault_path, project, cache):
-    """回读:扫 vault 里本项目的旧日报,把用户勾选的 [x] 答案写回缓存,
-    闭合预测-验证环。任何解析失败记 warning 跳过,绝不崩溃(容错红线)。"""
+def read_capsule_answers(vault_path, project_path, cache):
+    """回读:扫 vault 里本项目的旧日报,把用户勾选的 [x] 答案写回缓存,闭合预测-验证环。
+    project_path=项目绝对路径:文件名按 basename 匹配,胶囊键用绝对路径(同名项目不串)。
+    任何解析失败记 warning 跳过,绝不崩溃(容错红线)。"""
     vault = Path(vault_path).expanduser()
     if not vault.is_dir():
         return
-    # 严格匹配 <ISO 日期>-<project>.md:glob 的 *-api.md 会误吞 …-legacy-api.md
-    name_re = re.compile(r"\d{4}-\d{2}-\d{2}-" + re.escape(project) + r"\.md$")
-    for md in vault.glob(f"*-{project}.md"):
+    name = Path(project_path).name
+    # 严格匹配 <ISO 日期>-<name>.md:glob 的 *-api.md 会误吞 …-legacy-api.md
+    name_re = re.compile(r"\d{4}-\d{2}-\d{2}-" + re.escape(name) + r"\.md$")
+    for md in vault.glob(f"*-{name}.md"):
         if not name_re.fullmatch(md.name):
             continue
         try:
@@ -133,7 +135,7 @@ def read_capsule_answers(vault_path, project, cache):
                 ticked = next((o for o in _OUTCOMES if f"[x] {o}" in checked),
                               None)
                 if ticked:
-                    cache.set_capsule_outcome(pending_id, ticked, project)
+                    cache.set_capsule_outcome(pending_id, ticked, project_path)
                 pending_id = None
 
 
