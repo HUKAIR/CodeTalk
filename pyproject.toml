@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vibetrace"
+version = "0.1.0"
+description = "本地优先的 AI 编码认知层:git 历史 + Claude Code 会话 → 变更叙事 / 理解债 / 决策影响图,输出到 Obsidian"
+readme = "README.md"
+requires-python = ">=3.11"
+# M0 红线:核心零三方依赖(deepseek/openai/qwen 经 stdlib urllib);
+# 仅 anthropic provider 需 SDK,作可选 extra。
+dependencies = []
+
+[project.optional-dependencies]
+anthropic = ["anthropic>=0.40"]
+
+[project.scripts]
+vibetrace = "vibetrace.cli:main"
+
+[tool.setuptools]
+packages = ["vibetrace"]
+
+[tool.setuptools.package-data]
+vibetrace = ["*.html"]

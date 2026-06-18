@@ -1,6 +1,7 @@
 """vibetrace CLI — single command: digest."""
 import argparse
 import calendar
+import json
 import logging
 import sys
 import time
@@ -162,6 +163,25 @@ def brief_cmd(args):
     return 0
 
 
+def init_cmd(args):
+    """写配置模板到 ~/.vibetrace/config.json(chmod 600),引导填 key。"""
+    from .config import CONFIG_PATH, DEFAULTS
+    if CONFIG_PATH.exists() and not args.force:
+        print(f"配置已存在:{CONFIG_PATH}(加 --force 覆盖)")
+        return 0
+    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CONFIG_PATH.write_text(
+        json.dumps(DEFAULTS, ensure_ascii=False, indent=2), encoding="utf-8")
+    try:
+        CONFIG_PATH.chmod(0o600)  # 隐私:配置含 key,仅本人可读
+    except OSError:
+        pass
+    print(f"已写入配置模板:{CONFIG_PATH}")
+    print(f"请填 providers.{DEFAULTS['provider']}.api_key,"
+          f"或设环境变量 {DEFAULTS['provider'].upper()}_API_KEY")
+    return 0
+
+
 def main(argv=None):
     logging.basicConfig(level=logging.WARNING,
                         format="vibetrace %(levelname)s: %(message)s")
@@ -194,6 +214,8 @@ def main(argv=None):
     grp.add_argument("--vault", help="覆盖输出目录")
     grp.add_argument("--canvas", action="store_true",
                      help="额外导出 Obsidian JSON Canvas(*-graph.canvas)")
+    ini = sub.add_parser("init", help="生成配置模板到 ~/.vibetrace/config.json")
+    ini.add_argument("--force", action="store_true", help="已存在时覆盖")
     args = parser.parse_args(argv)
     if args.command == "course":
         from .course import build_course
@@ -232,4 +254,6 @@ def main(argv=None):
             return 2
         print(f"决策图已写入:{path}")
         return 0
+    if args.command == "init":
+        return init_cmd(args)
     return digest(args)
