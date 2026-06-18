@@ -57,6 +57,14 @@ SECRET_PATTERNS = [
     re.compile(r"AKIA[0-9A-Z]{16}"),
     re.compile(r"(?i)bearer\s+[A-Za-z0-9._=-]{20,}"),
     re.compile(r"(?i)(api[_-]?key|token|secret|password)(\"?\s*[:=]\s*[\"']?)[A-Za-z0-9._-]{12,}"),
+    # 借 trivy builtin rules 扩充(故意不收 AWS 裸 40 位 base64 secret——假阳性灾难)
+    re.compile(r"AIza[0-9A-Za-z_\-]{35}"),                              # Google API key
+    re.compile(r"[0-9]+-[0-9A-Za-z_]{32}\.apps\.googleusercontent\.com"),  # Google OAuth
+    re.compile(r"sk_(?:live|test)_[0-9a-zA-Z]{24}"),                    # Stripe
+    re.compile(r"SG\.[A-Za-z0-9_\-]{22}\.[A-Za-z0-9_\-]{43}"),          # SendGrid
+    re.compile(r"ey[A-Za-z0-9_\-]{17,}\.ey[A-Za-z0-9_\-]{17,}\.[A-Za-z0-9_\-]*"),  # JWT
+    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----"),  # PEM 私钥整块
+    re.compile(r"https://hooks\.slack\.com/services/[A-Za-z0-9/]+"),    # Slack webhook
 ]
 
 
