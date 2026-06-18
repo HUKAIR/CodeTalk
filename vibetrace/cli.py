@@ -48,7 +48,8 @@ def digest(args):
     if args.vault:
         cfg["vault_path"] = args.vault
     project_path = Path(args.project).resolve()
-    project = project_path.name
+    project = project_path.name        # 显示标题 / 输出文件名
+    pkey = str(project_path)            # cache 键:绝对路径,同名项目不串
 
     commits, git_err = gitlog.collect_commits(
         project_path, args.since, cfg["diff_token_budget"])
@@ -60,6 +61,7 @@ def digest(args):
         return 0
 
     cache = Cache(CACHE_DB_PATH)
+    cache.rekey_project(project, pkey)   # 迁移旧 basename 键数据(一次性,幂等)
     session_list, session_err = sessions.scan_sessions(
         project_path, _since_to_dt(args.since), cache)
     if session_err:
@@ -72,7 +74,7 @@ def digest(args):
         print(f"错误:{exc}", file=sys.stderr)
         return 2
     # 回读上次运行后用户在 Obsidian 里勾选的胶囊答案,闭合预测-验证环
-    report.read_capsule_answers(cfg["vault_path"], project, cache)
+    report.read_capsule_answers(cfg["vault_path"], pkey, cache)
     # 运行前已缓存的 SHA:用于区分每天的缓存命中 vs 新算(按日页脚统计)
     pre_cached = {c["sha"] for c in commits if cache.get_narrative(c["sha"])}
     enrich.enrich_commits(commits, llm, cache, str(project_path))
@@ -89,22 +91,22 @@ def digest(args):
         date_str = day.isoformat()
         overview, decision, calls = enrich.make_overview(
             day_commits, llm, cache, str(project_path), date_str)
-        cache.put_daily(project, date_str, overview, decision)
+        cache.put_daily(pkey, date_str, overview, decision)
         for commit in day_commits:  # 以该天为「今日」封存,忠实重放胶囊时间线
             sealed = commit["date"].date().isoformat()
             opens = (commit["date"].date() + timedelta(days=21)).isoformat()
             if opens <= date_str:
                 continue  # 该天视角下已到期的不补密封,不复活成洪流
             for idx, risk in enumerate(commit["narrative"]["risks"]):
-                cache.seal_capsule(project, commit["sha"], idx, risk,
+                cache.seal_capsule(pkey, commit["sha"], idx, risk,
                                    sealed, opens)
         # 仅对真正的「今日」削峰(留次日);历史回放当天全开,天数不失真
         cap_limit = 3 if day == date.today() else None
-        capsules = cache.open_due_capsules(project, date_str, cap_limit)
+        capsules = cache.open_due_capsules(pkey, date_str, cap_limit)
         on_this_day = {}
         for label, shifted in (("上月今日", _shift(day, months=1)),
                                ("去年今日", _shift(day, years=1))):
-            past = cache.get_daily(project, shifted.isoformat())
+            past = cache.get_daily(pkey, shifted.isoformat())
             if past:
                 on_this_day[label] = (shifted.isoformat(), past["overview"])
         hits = sum(1 for c in day_commits if c["sha"] in pre_cached)
@@ -115,7 +117,7 @@ def digest(args):
             "cache_hits": hits,
         })
 
-    opened, filled = cache.capsule_fill_stats(project)
+    opened, filled = cache.capsule_fill_stats(pkey)
     paths = []
     for d in days:
         run_stats = {
@@ -151,10 +153,12 @@ def brief_cmd(args):
         cfg["vault_path"] = args.vault
     project_path = Path(args.project).resolve()
     project = project_path.name
+    pkey = str(project_path)
     cache = Cache(CACHE_DB_PATH)
+    cache.rekey_project(project, pkey)   # 迁移旧 basename 键数据(幂等)
     # 与 digest 对齐:先回读 Obsidian 里勾选的答案,否则简报会反复催问已答胶囊
-    report.read_capsule_answers(cfg["vault_path"], project, cache)
-    content = brief.build_brief(cache, project, str(project_path))
+    report.read_capsule_answers(cfg["vault_path"], pkey, cache)
+    content = brief.build_brief(cache, project, pkey)
     cache.close()
     print(content)
     if args.vault:
