@@ -56,6 +56,7 @@ prompt caching)。
 | `course` | **演进课程**:项目怎么一步步长成这样(分章 + 大白话 + 场景测验,单文件 HTML) | `vibetrace course` |
 | `ask` | **就某段代码提问**,答案接项目记忆(叙事 + 决策面包屑),引用真实 commit | `vibetrace ask vibetrace/llm.py:72-78 "为什么这么写"` |
 | `tunnel` | **3D 像素时光隧道**:把提交史做成可飞行的走廊(`--serve` 起本地服务,胶囊回答即时写回) | `vibetrace tunnel --serve` |
+| `install-hook` | 装 git 钩子:手写 commit 时在编辑器里提示留 `Vibe-Decision`/`Vibe-Watch` 面包屑 | `vibetrace install-hook` |
 
 `digest` 产物:`<vault>/YYYY-MM-DD-<project>.md` —— 去年今日 / 上月今日回流 → 今日概览(信件体)
 + 今日决定 → 到期的时间胶囊(供回填)→ 按 commit 的叙事 → 未闭环汇总 → 运行统计。时间胶囊把
