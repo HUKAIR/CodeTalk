@@ -70,9 +70,10 @@ def _build_html(project_path, serve):
     if not commits:
         return None, project_path.name, "没有任何 commit,隧道无从谈起。"
     cache = Cache(CACHE_DB_PATH)
+    cache.rekey_project(project_path.name, str(project_path))  # 迁移旧 basename 键(幂等)
     narratives = {c["sha"]: cache.get_narrative(c["sha"]) for c in commits}
     capsules_by_sha = {}
-    for cap in cache.all_capsules(project_path.name):
+    for cap in cache.all_capsules(str(project_path)):
         capsules_by_sha.setdefault(cap["sha"], []).append(cap)
     cache.close()
 
@@ -109,6 +110,7 @@ def serve_tunnel(project_path, open_browser=True):
     html_text, project, err = _build_html(project_path, serve=True)
     if err:
         return err
+    pkey = str(Path(project_path).resolve())   # 胶囊/reviewed 回写键:绝对路径
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *_):
@@ -137,13 +139,13 @@ def serve_tunnel(project_path, open_browser=True):
                     # 安全:outcome 必须是已知枚举,防任意字符串写入缓存
                     if outcome not in _OUTCOMES:
                         self.send_response(400); self.end_headers(); return
-                    cache.set_capsule_outcome(cid, outcome, project)
+                    cache.set_capsule_outcome(cid, outcome, pkey)
                 elif self.path == "/reviewed":
                     # 还债信号:你回看了哪个 commit 叙事 → 喂理解债量化
                     sha = req["sha"]
                     if not isinstance(sha, str) or not sha:
                         self.send_response(400); self.end_headers(); return
-                    cache.mark_reviewed(project, sha)
+                    cache.mark_reviewed(pkey, sha)
                 else:
                     self.send_response(404); self.end_headers(); return
             except KeyError:
