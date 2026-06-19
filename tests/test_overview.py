@@ -141,5 +141,39 @@ class TestBuildBriefRedacts(unittest.TestCase):
         self.assertNotIn("sk-abcdef0123456789ABCDEF", out)
 
 
+class TestBriefAllCLI(unittest.TestCase):
+    def setUp(self):
+        self.dirs = []
+
+    def tearDown(self):
+        for d in self.dirs:
+            shutil.rmtree(d, ignore_errors=True)
+
+    def test_brief_all_routes_to_overview_and_skips_sync(self):
+        repo = _make_repo(2)                       # 真实 git 仓
+        self.dirs.append(repo)
+        dbdir = tempfile.mkdtemp()
+        self.dirs.append(dbdir)
+        dbfile = str(Path(dbdir) / "cache.db")
+        c = Cache(dbfile)
+        c.put_daily(repo, "2026-06-01", "ov", "")  # 让 repo 可被发现
+        c.seal_capsule(repo, "sha", 0, "待验证项", "2026-05-01", "2026-05-22")
+        c.open_due_capsules(repo, "2026-06-01")
+        c.close()
+
+        synced = {"v": False}
+        with mock.patch.object(cli, "CACHE_DB_PATH", dbfile), \
+             mock.patch.object(config, "CONFIG_PATH", Path(dbdir) / "none.json"), \
+             mock.patch.object(report, "read_capsule_answers",
+                               lambda *a, **k: synced.__setitem__("v", True)):
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                rc = cli.main(["brief", "--all"])
+        self.assertEqual(rc, 0)
+        self.assertIn("跨项目总览", buf.getvalue())
+        self.assertIn(Path(repo).name, buf.getvalue())
+        self.assertFalse(synced["v"])  # --all 不跑跨项目胶囊同步
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -151,10 +151,20 @@ def brief_cmd(args):
     cfg = load_config()
     if args.vault:
         cfg["vault_path"] = args.vault
+    cache = Cache(CACHE_DB_PATH)
+    if args.all:
+        today = datetime.now(timezone.utc).astimezone().date()
+        content = brief.build_overview(cache, cache.distinct_projects(), today)
+        cache.close()
+        print(content)
+        if args.vault:
+            path = report.write_report(cfg["vault_path"], "overview",
+                                       "brief", content)
+            print(f"总览已写入:{path}")
+        return 0
     project_path = Path(args.project).resolve()
     project = project_path.name
     pkey = str(project_path)
-    cache = Cache(CACHE_DB_PATH)
     cache.rekey_project(project, pkey)   # 迁移旧 basename 键数据(幂等)
     # 与 digest 对齐:先回读 Obsidian 里勾选的答案,否则简报会反复催问已答胶囊
     report.read_capsule_answers(cfg["vault_path"], pkey, cache)
@@ -206,6 +216,8 @@ def main(argv=None):
     bri = sub.add_parser("brief", help="开工简报:你上次停在哪(纯本地,无 LLM)")
     bri.add_argument("--project", default=".", help="项目路径(默认当前目录)")
     bri.add_argument("--vault", help="同时写入该目录(默认仅打印)")
+    bri.add_argument("--all", action="store_true",
+                     help="跨项目总览:所有项目里需要注意的(零 LLM,忽略 --project)")
     crs = sub.add_parser("course", help="生成演进课程(项目怎么长成的,实验)")
     crs.add_argument("--project", default=".", help="项目路径(默认当前目录)")
     asq = sub.add_parser("ask", help="就某段代码提问(接项目记忆,接地回答)")
