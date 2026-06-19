@@ -141,6 +141,18 @@ class TestBuildBriefRedacts(unittest.TestCase):
         self.assertNotIn("sk-abcdef0123456789ABCDEF", out)
 
 
+class TestShorten(unittest.TestCase):
+    def test_home_abbreviation_and_prefix_boundary(self):
+        with mock.patch.object(brief.Path, "home",
+                               return_value=Path("/home/u")):
+            self.assertEqual(brief._shorten("/home/u/proj"), "~/proj")
+            self.assertEqual(brief._shorten("/home/u"), "~")
+            self.assertEqual(brief._shorten("/var/x/proj"), "/var/x/proj")
+            # 前缀相撞:/home/userX 不是 /home/u 的子路径,不能误缩成 ~serX/...
+            self.assertEqual(brief._shorten("/home/userX/proj"),
+                             "/home/userX/proj")
+
+
 class TestBriefAllCLI(unittest.TestCase):
     def setUp(self):
         self.dirs = []

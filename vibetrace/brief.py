@@ -95,9 +95,11 @@ TOP_DEBT_PROJECTS = 5
 
 
 def _shorten(path):
-    """~/x 代替 home,终端更短。"""
+    """~/x 代替 home,终端更短。带 / 边界守卫:/home/userX 不算 /home/u 的子路径。"""
     home, s = str(Path.home()), str(path)
-    return "~" + s[len(home):] if s.startswith(home) else s
+    if s == home or s.startswith(home + "/"):
+        return "~" + s[len(home):]
+    return s
 
 
 def _overview_row(name, path, pending, board, today):
