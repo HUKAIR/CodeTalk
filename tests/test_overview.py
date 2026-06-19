@@ -48,5 +48,98 @@ class TestDistinctProjects(unittest.TestCase):
         self.assertEqual(Cache(":memory:").distinct_projects(), [])
 
 
+class TestBuildOverview(unittest.TestCase):
+    def setUp(self):
+        self.today = date(2026, 6, 9)
+        self.dirs = []
+
+    def tearDown(self):
+        for d in self.dirs:
+            shutil.rmtree(d, ignore_errors=True)
+
+    def _tmpdir(self):
+        d = tempfile.mkdtemp()
+        self.dirs.append(d)
+        return str(Path(d).resolve())
+
+    def _open_capsule(self, cache, proj, risk, sealed="2026-05-01"):
+        cache.seal_capsule(proj, "sha", 0, risk, sealed, "2026-05-22")
+        cache.open_due_capsules(proj, "2026-06-01")  # 盖 opened_date → 进 pending
+
+    def test_empty_projects_list(self):
+        out = brief.build_overview(Cache(":memory:"), [], self.today)
+        self.assertIn("没有需要注意的项目", out)
+
+    def test_nonexistent_paths_skipped_silently(self):
+        out = brief.build_overview(Cache(":memory:"),
+                                   ["/no/such/path/xyz"], self.today)
+        self.assertIn("没有需要注意的项目", out)
+        self.assertNotIn("失效", out)  # 不计数、不报失效
+
+    def test_capsule_only_project_shown(self):
+        c = Cache(":memory:")
+        p = self._tmpdir()  # 非 git 目录 → debt_board 返回 [],债峰 0
+        self._open_capsule(c, p, "serve 模式胶囊回写可能丢失")
+        out = brief.build_overview(c, [p], self.today)
+        self.assertIn(Path(p).name, out)
+        self.assertIn("待验证预测 1 枚", out)
+        self.assertIn("serve 模式胶囊回写可能丢失", out)
+        self.assertNotIn("理解债 top", out)  # 无 git → 无债行
+
+    def test_days_ago_from_sealed_date(self):
+        c = Cache(":memory:")
+        p = self._tmpdir()
+        self._open_capsule(c, p, "r", sealed="2026-05-01")  # 至 6/9 = 39 天
+        out = brief.build_overview(c, [p], self.today)
+        self.assertIn("最久 39 天前", out)
+
+    def test_redaction_masks_secret_in_risk(self):
+        c = Cache(":memory:")
+        p = self._tmpdir()
+        self._open_capsule(c, p, "key 是 sk-abcdef0123456789ABCDEF 别泄漏")
+        out = brief.build_overview(c, [p], self.today)
+        self.assertIn("[REDACTED]", out)
+        self.assertNotIn("sk-abcdef0123456789ABCDEF", out)
+
+    def test_topk_omits_lowest_debt(self):
+        c = Cache(":memory:")
+        a, b, cc = self._tmpdir(), self._tmpdir(), self._tmpdir()
+        peaks = {a: 30.0, b: 20.0, cc: 10.0}
+
+        def fake_board(path, cache, today, top=None):
+            return [{"file": "x.py", "debt": peaks[path]}]
+
+        with mock.patch.object(brief, "TOP_DEBT_PROJECTS", 2), \
+             mock.patch("vibetrace.debt.debt_board", side_effect=fake_board):
+            out = brief.build_overview(c, [a, b, cc], self.today)
+        self.assertIn(Path(a).name, out)
+        self.assertIn(Path(b).name, out)
+        self.assertNotIn(Path(cc).name, out)        # 债最低被省
+        self.assertIn("另有 1 个存活项目未入榜", out)
+
+    def test_capsule_sorts_before_higher_debt(self):
+        c = Cache(":memory:")
+        hi, lo = self._tmpdir(), self._tmpdir()     # hi 债高无胶囊;lo 债低有胶囊
+        self._open_capsule(c, lo, "待验证")
+        peaks = {hi: 99.0, lo: 1.0}
+
+        def fake_board(path, cache, today, top=None):
+            return [{"file": "x.py", "debt": peaks[path]}]
+
+        with mock.patch("vibetrace.debt.debt_board", side_effect=fake_board):
+            out = brief.build_overview(c, [hi, lo], self.today)
+        self.assertLess(out.index(Path(lo).name), out.index(Path(hi).name))
+
+
+class TestBuildBriefRedacts(unittest.TestCase):
+    def test_brief_output_is_redacted(self):
+        c = Cache(":memory:")
+        c.put_daily("/abs/proj", "2026-06-01",
+                    "上次提交里写了 sk-abcdef0123456789ABCDEF", "")
+        out = brief.build_brief(c, "proj", "/abs/proj")
+        self.assertIn("[REDACTED]", out)
+        self.assertNotIn("sk-abcdef0123456789ABCDEF", out)
+
+
 if __name__ == "__main__":
     unittest.main()
