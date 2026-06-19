@@ -16,6 +16,12 @@ def _section(title, items):
     return f"\n**{title}**\n" + "\n".join("- " + i for i in items) + "\n"
 
 
+def _clean_loops(loops):
+    """滤掉 LLM 的『材料不足』填充与空白项(与 brief recent_open_loops 同口径)。"""
+    return [l for l in (loops or [])
+            if str(l).strip() and not str(l).strip().startswith("材料不足")]
+
+
 def _on_this_day_block(entries):
     """头部回流:把过去同一天的概览首句端到面前。两条都无则整块省略。"""
     rows = []
@@ -73,13 +79,14 @@ def render(project, date_str, overview, commits, sessions, session_error,
         lines.append(f"**为什么** {n['why']}")
         lines.append(_section("关键决策", n["decisions"]))
         lines.append(_section("风险(供日后验证)", n["risks"]))
-        lines.append(_section("未闭环", n["open_loops"]))
+        lines.append(_section("未闭环", _clean_loops(n["open_loops"])))
         refs = [f"`{m['session']['session_id'][:8]}`({m['confidence']}"
                 f",交集 {len(m['overlap'])} 文件)"
                 for m in commit.get("matches", [])]
         lines.append("关联会话:" + ("、".join(refs) if refs else "无"))
         lines.append("")
-    loops = [loop for c in commits for loop in c["narrative"]["open_loops"]]
+    loops = [loop for c in commits
+             for loop in _clean_loops(c["narrative"]["open_loops"])]
     lines += ["## 未闭环汇总", ""]
     lines += (["- " + l for l in dict.fromkeys(loops)] if loops else ["(无)"])
     footer = (
