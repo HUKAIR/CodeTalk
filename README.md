@@ -51,7 +51,7 @@ prompt caching)。
 | 命令 | 做什么 | 例 |
 |---|---|---|
 | `digest` | 把一段时间的 commit + 会话富集成**变更叙事日报**(防幻觉、信件体、内嵌时间胶囊) | `vibetrace digest --since "3 days ago"` |
-| `brief` | **开工简报**:你上次停在哪 + 理解债 top 3(**纯本地零 LLM**) | `vibetrace brief` |
+| `brief` | **开工简报**:你上次停在哪 + 理解债 top 3(**纯本地零 LLM**);`--all` 出**跨项目总览**(所有项目里有到期胶囊的 + 理解债最高的几个,按紧迫度) | `vibetrace brief` · `vibetrace brief --all` |
 | `graph` | **决策影响图**:哪个决定牵动了后续哪些改动(时间轴 DAG,**零 LLM**;`--canvas` 导出 Obsidian Canvas) | `vibetrace graph --canvas` |
 | `course` | **演进课程**:项目怎么一步步长成这样(分章 + 大白话 + 场景测验,单文件 HTML) | `vibetrace course` |
 | `ask` | **就某段代码提问**,答案接项目记忆(叙事 + 决策面包屑),引用真实 commit | `vibetrace ask vibetrace/llm.py:72-78 "为什么这么写"` |
