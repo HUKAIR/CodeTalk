@@ -23,6 +23,13 @@ class TestReportDropsFillerLoops(unittest.TestCase):
         self.assertIn("真问题", out)
         self.assertNotIn("材料不足", out)   # 与 brief recent_open_loops 同口径
 
+    def test_risks_section_drops_filler(self):
+        cm = _commit([])                       # open_loops 为空
+        cm["narrative"]["risks"] = ["真风险", "材料不足以判断"]
+        out = report.render("P", "2026-06-19", "ov", [cm], [], None, _STATS)
+        self.assertIn("真风险", out)
+        self.assertNotIn("材料不足", out)     # 风险段同样滤掉填充
+
 
 if __name__ == "__main__":
     unittest.main()

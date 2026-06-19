@@ -59,6 +59,11 @@ def _normalize(narrative):
     for key in ("decisions", "risks", "open_loops"):
         value = narrative.get(key, [])
         clean[key] = [str(v) for v in value] if isinstance(value, list) else [str(value)]
+    # risks/open_loops 是 LLM 推断字段(llm.py:31),risks 还会被封成时间胶囊。
+    # 滤掉『材料不足』填充与空白,免得封出噪声胶囊、上简报堆噪声。decisions 是事实字段,不滤。
+    for key in ("risks", "open_loops"):
+        clean[key] = [x for x in clean[key]
+                      if x.strip() and not x.strip().startswith("材料不足")]
     return clean
 
 
