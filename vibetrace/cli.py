@@ -286,11 +286,11 @@ def main(argv=None):
         return 0
     if args.command == "install-agent-seed":
         from .hook import install_agent_seed
-        path, err = install_agent_seed(args.project)
+        paths, err = install_agent_seed(args.project)
         if err:
             return _fail(err)
-        print(f"决策捕获种子已就绪:{path}\n"
-              "AI agent 提交时会按约定留 Vibe-Decision/Watch,供 vibetrace 长期分析。")
+        print("决策捕获种子已就绪:" + "、".join(str(p) for p in paths)
+              + "\nAI agent 提交时会按约定留 Vibe-Decision/Watch,供 vibetrace 长期分析。")
         return 0
     if args.command == "init":
         return init_cmd(args)
