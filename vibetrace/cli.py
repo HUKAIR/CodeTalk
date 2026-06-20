@@ -224,6 +224,10 @@ def main(argv=None):
                          help="装 git 钩子:手写 commit 时提示留决策面包屑")
     ihk.add_argument("--project", default=".", help="项目路径(默认当前目录)")
     ihk.add_argument("--force", action="store_true", help="覆盖已有钩子")
+    ias = sub.add_parser(
+        "install-agent-seed",
+        help="把决策捕获约定植入项目 CLAUDE.md,让 AI agent 提交时留推导面包屑")
+    ias.add_argument("--project", default=".", help="项目路径(默认当前目录)")
     args = parser.parse_args(argv)
     if args.command == "course":
         from .course import build_course
@@ -269,6 +273,15 @@ def main(argv=None):
             print(f"错误:{err}", file=sys.stderr)
             return 2
         print(f"钩子已装:{path}\n手写 commit 时会提示留 Vibe-Decision/Watch。")
+        return 0
+    if args.command == "install-agent-seed":
+        from .hook import install_agent_seed
+        path, err = install_agent_seed(args.project)
+        if err:
+            print(f"错误:{err}", file=sys.stderr)
+            return 2
+        print(f"决策捕获种子已就绪:{path}\n"
+              "AI agent 提交时会按约定留 Vibe-Decision/Watch,供 vibetrace 长期分析。")
         return 0
     if args.command == "init":
         return init_cmd(args)
