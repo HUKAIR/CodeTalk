@@ -2,6 +2,7 @@
 import hashlib
 import json
 import logging
+from pathlib import Path
 
 from .config import redact_secrets
 from .gitlog import parse_breadcrumbs
@@ -26,8 +27,26 @@ OVERVIEW_SCHEMA = {
 }
 
 
-def _commit_prompt(commit):
-    parts = [
+def _project_context(project_path, limit=4000):
+    """项目背景(节选):CLAUDE.md 优先,否则 README.md;无/读失败返回 ''。
+    供叙事据项目约束判断风险(如『引入第三方依赖违背 M0』)。limit 兜住 token。"""
+    base = Path(project_path)
+    for name in ("CLAUDE.md", "README.md"):
+        try:
+            text = (base / name).read_text(encoding="utf-8").strip()
+        except (OSError, UnicodeError):
+            continue
+        if text:
+            return text[:limit]
+    return ""
+
+
+def _commit_prompt(commit, project_context=""):
+    parts = []
+    if project_context:
+        parts.append("### 项目背景(节选,据此判断改动是否违背项目约束)\n"
+                     + project_context)
+    parts += [
         f"## Commit {commit['sha'][:10]}",
         f"时间:{commit['date'].isoformat()} 作者:{commit['author']}",
         f"message:{commit['subject']}\n{commit['body'][:500]}".strip(),
@@ -69,6 +88,7 @@ def _normalize(narrative):
 
 def enrich_commits(commits, llm, cache, project):
     stats = {"cache_hits": 0, "llm_calls": 0, "failures": 0}
+    ctx = _project_context(project)   # 项目背景读一次,供本次所有 commit 叙事接地
     for commit in commits:
         cached = cache.get_narrative(commit["sha"])
         if cached:
@@ -76,7 +96,7 @@ def enrich_commits(commits, llm, cache, project):
             stats["cache_hits"] += 1
             continue
         try:
-            raw = llm.narrate(redact_secrets(_commit_prompt(commit)))
+            raw = llm.narrate(redact_secrets(_commit_prompt(commit, ctx)))
             normalized = _normalize(raw)
             decisions, watches = parse_breadcrumbs(commit.get("body", ""))
             if decisions:  # 人原话并入决策,去重,保留 LLM 既有决策
