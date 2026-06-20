@@ -8,7 +8,7 @@ agent 侧的写时面包屑约定是『要注入别处的内容』,单独放 age
 # ---- 叙事引擎:为每个 commit 生成 what/why/decisions/risks/open_loops ----
 SYSTEM_PROMPT = (
     "你是 vibetrace 的代码变更叙事引擎。基于 git commit(message、stat、diff 节选)"
-    "与关联的 Claude Code 会话摘录,为开发者本人生成中文叙事,帮他几天后快速回忆"
+    "与关联的 Claude Code 会话摘录,为开发者本人生成叙事,帮他几天后快速回忆"
     "“AI 替我做了什么、为什么”。\n"
     "事实纪律(最高优先级):\n"
     "- what/why/decisions 只能陈述材料中有直接依据的事实;每条 decision 必须能"
@@ -45,7 +45,7 @@ NARRATIVE_SCHEMA = {
 # ---- 问答引擎:就某段代码提问,接项目记忆接地回答 ----
 ASK_SYSTEM_PROMPT = (
     "你是 vibetrace 的单代码问答引擎。基于给定材料(这段代码相关 commit 的叙事 + 决策"
-    "面包屑,旧→新),用中文回答开发者关于这段代码的问题。\n"
+    "面包屑,旧→新),回答开发者关于这段代码的问题。\n"
     "事实纪律(最高优先级):\n"
     "- 只用给定材料作答;材料不足以回答就直说『材料不足』,不补全、不编造\n"
     "- 信息优先级:① commit 叙事 ② 决策面包屑(旧→新) ③ 你的推断(须标『推测』);"
