@@ -211,5 +211,16 @@ class Cache:
                               (new, old))
         self.conn.commit()
 
+    def distinct_projects(self):
+        """所有项目绝对路径(供 brief --all 跨项目发现),去重升序。
+        LIKE '/%' 只取绝对路径键:graph/ask/course 把 basename 写进了
+        commit_narratives.project(幻影),必须滤掉(见 spec F2)。"""
+        rows = self.conn.execute(
+            "SELECT project FROM commit_narratives WHERE project LIKE '/%' "
+            "UNION SELECT project FROM daily_digests WHERE project LIKE '/%' "
+            "UNION SELECT project FROM capsules WHERE project LIKE '/%'"
+        ).fetchall()
+        return sorted(r[0] for r in rows)
+
     def close(self):
         self.conn.close()
