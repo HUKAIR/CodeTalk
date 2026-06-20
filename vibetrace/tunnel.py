@@ -1,22 +1,19 @@
-"""Time tunnel, the project's memory as a flyable 3D corridor (M1 v3).
+"""Time axis (时光轴): the project's history as a readable linear timeline.
 
-After FranzLy/TimeChannel: commits ring an endless tunnel — the entrance
-is now, deeper is older; you scroll through your own history with
-inertia, starfield and date waypoints. TimeChannel uses Three.js; this
-stays inside vibetrace red lines (single file, zero deps, offline) by
-doing the tunnel with native CSS 3D transforms + a Canvas 2D starfield.
-Visual language follows careers.kimi.com: pure black/white pixel terminal,
-Fusion Pixel font (CDN with font-display swap — degrades to system mono
-offline), chunky low-res canvases, hard borders, quantized fades.
+Commits run top-down, newest-first, on a vertical spine grouped by day;
+each row expands to its narrative (what/why/decisions/risks) + capsule
+status. Plain system fonts, no 3D/canvas/pixel — readability over spectacle
+(decision-impact *relationships* live in `graph`; this is pure linear time).
+Stays inside vibetrace red lines: single file, zero deps, offline.
 
 Markup/JS live in tunnel.html next to this module; this file only
 assembles data and substitutes it in.
 
 Two run modes (Issue #4 — single cache.db source of truth):
   render_tunnel(): write static HTML (file://); capsule answers read-only.
-  serve_tunnel():  127.0.0.1 http.server; tunnel POSTs answers back to
-                   cache.db live. cache.db is the only capsule store —
-                   the tunnel no longer keeps answers in localStorage.
+  serve_tunnel():  127.0.0.1 http.server; the page POSTs answers back to
+                   cache.db live (/capsule, /reviewed). cache.db is the only
+                   capsule store — the page keeps no answers in localStorage.
 """
 import json
 import webbrowser
