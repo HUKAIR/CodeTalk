@@ -47,6 +47,20 @@ class TestAskSystem(unittest.TestCase):
         sys_msg = captured["body"]["messages"][0]["content"]
         self.assertIn("单代码问答引擎", sys_msg)  # 用了 ASK 而非默认 SYSTEM_PROMPT
 
+    def test_output_lang_directive_injected(self):
+        captured = {}
+        payload = {"choices": [{"message": {"content":
+                   json.dumps({"answer": "a", "cited_shas": []})}}], "usage": {}}
+
+        def fake_urlopen(req, timeout=0):
+            captured["body"] = json.loads(req.data.decode("utf-8"))
+            return _FakeResp(payload)
+
+        cfg = _cfg(); cfg["output_lang"] = "English"
+        with mock.patch("urllib.request.urlopen", fake_urlopen):
+            LLMClient(cfg).narrate("Q", schema=ASK_SCHEMA, system=ASK_SYSTEM_PROMPT)
+        self.assertIn("English", captured["body"]["messages"][0]["content"])
+
 
 if __name__ == "__main__":
     unittest.main()
