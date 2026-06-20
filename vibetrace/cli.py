@@ -16,6 +16,11 @@ from .llm import LLMClient, LLMError
 log = logging.getLogger("vibetrace")
 
 
+def _fail(msg):
+    print(f"错误:{msg}", file=sys.stderr)
+    return 2
+
+
 def _since_to_dt(since):
     """Loose mirror of common 'git --since' phrases, for session file filtering."""
     parts = since.split()
@@ -54,8 +59,7 @@ def digest(args):
     commits, git_err = gitlog.collect_commits(
         project_path, args.since, cfg["diff_token_budget"])
     if git_err:
-        print(f"错误:{git_err}", file=sys.stderr)
-        return 2
+        return _fail(git_err)
     if not commits:
         print(f"{args.since} 以来没有 commit,无日报可写。")
         return 0
@@ -71,8 +75,7 @@ def digest(args):
     try:
         llm = LLMClient(cfg)
     except LLMError as exc:
-        print(f"错误:{exc}", file=sys.stderr)
-        return 2
+        return _fail(exc)
     # 回读上次运行后用户在 Obsidian 里勾选的胶囊答案,闭合预测-验证环
     report.read_capsule_answers(cfg["vault_path"], pkey, cache)
     # 运行前已缓存的 SHA:用于区分每天的缓存命中 vs 新算(按日页脚统计)
@@ -245,8 +248,7 @@ def main(argv=None):
         from .course import build_course
         path, err = build_course(args.project)
         if err:
-            print(f"错误:{err}", file=sys.stderr)
-            return 2
+            return _fail(err)
         print(f"课程已写入:{path}")
         return 0
     if args.command == "tunnel":
@@ -254,14 +256,12 @@ def main(argv=None):
             from .tunnel import serve_tunnel
             err = serve_tunnel(args.project, open_browser=not args.no_open)
             if err:
-                print(f"错误:{err}", file=sys.stderr)
-                return 2
+                return _fail(err)
             return 0
         from .tunnel import render_tunnel
         path, err = render_tunnel(args.project)
         if err:
-            print(f"错误:{err}", file=sys.stderr)
-            return 2
+            return _fail(err)
         print(f"隧道已写入:{path}")
         return 0
     if args.command == "brief":
@@ -274,24 +274,21 @@ def main(argv=None):
         path, err = build_graph(args.project, vault=args.vault,
                                 canvas=args.canvas)
         if err:
-            print(f"错误:{err}", file=sys.stderr)
-            return 2
+            return _fail(err)
         print(f"决策图已写入:{path}")
         return 0
     if args.command == "install-hook":
         from .hook import install_hook
         path, err = install_hook(args.project, force=args.force)
         if err:
-            print(f"错误:{err}", file=sys.stderr)
-            return 2
+            return _fail(err)
         print(f"钩子已装:{path}\n手写 commit 时会提示留 Vibe-Decision/Watch。")
         return 0
     if args.command == "install-agent-seed":
         from .hook import install_agent_seed
         path, err = install_agent_seed(args.project)
         if err:
-            print(f"错误:{err}", file=sys.stderr)
-            return 2
+            return _fail(err)
         print(f"决策捕获种子已就绪:{path}\n"
               "AI agent 提交时会按约定留 Vibe-Decision/Watch,供 vibetrace 长期分析。")
         return 0
