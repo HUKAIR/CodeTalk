@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 
 from .config import redact_secrets
-from .gitlog import parse_breadcrumbs
+from .gitlog import parse_breadcrumbs, prior_commit
 from .llm import LLMError
 
 log = logging.getLogger("vibetrace")
@@ -43,11 +43,23 @@ def _project_context(project_path, limit=4000):
     return ""
 
 
-def _commit_prompt(commit, project_context=""):
+def _prior_context(project_path, commit, cache):
+    """这些文件上次改动的叙事 what(跨时间接地:让 LLM 知道本次改动建立在什么之上)。
+    无前置 commit / 前置未缓存叙事 → 返回 ''。"""
+    prior = prior_commit(project_path, commit["sha"], commit.get("files") or [])
+    if not prior:
+        return ""
+    what = (cache.get_narrative(prior) or {}).get("what", "")
+    return f"### 这些文件上次的改动({prior[:7]})\n{what[:200]}" if what else ""
+
+
+def _commit_prompt(commit, project_context="", prior_context=""):
     parts = []
     if project_context:
         parts.append("### 项目背景(节选,据此判断改动是否违背项目约束)\n"
                      + project_context)
+    if prior_context:
+        parts.append(prior_context)
     parts += [
         f"## Commit {commit['sha'][:10]}",
         f"时间:{commit['date'].isoformat()} 作者:{commit['author']}",
@@ -121,7 +133,8 @@ def enrich_commits(commits, llm, cache, project):
             stats["trivial"] += 1
             continue
         try:
-            raw = llm.narrate(redact_secrets(_commit_prompt(commit, ctx)))
+            prior = _prior_context(project, commit, cache)  # 这些文件上次改动叙事
+            raw = llm.narrate(redact_secrets(_commit_prompt(commit, ctx, prior)))
             normalized = _normalize(raw)
             decisions, watches = parse_breadcrumbs(commit.get("body", ""))
             if decisions:  # 人原话并入决策,去重,保留 LLM 既有决策
