@@ -4,7 +4,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from vibetrace.gitlog import line_log, file_log, commit_body
+from vibetrace.gitlog import (collect_commit_files, collect_commits,
+                              commit_body, file_log, line_log)
 
 
 def _git(args, cwd):
@@ -46,6 +47,44 @@ class TestGitlogHistory(unittest.TestCase):
         shas, err = line_log(self.dir, "nope.py", 1, 1)
         self.assertTrue(err)
         self.assertEqual(shas, [])
+
+
+class TestSkipMergeCommits(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        _git(["init", "-q"], self.dir)
+        _git(["config", "user.email", "t@t"], self.dir)
+        _git(["config", "user.name", "t"], self.dir)
+        f = Path(self.dir) / "a.py"
+        f.write_text("base\n")
+        _git(["add", "."], self.dir)
+        _git(["commit", "-q", "-m", "c1 base"], self.dir)
+        _git(["checkout", "-q", "-b", "feat"], self.dir)
+        f.write_text("base\nfeat\n")
+        _git(["add", "."], self.dir)
+        _git(["commit", "-q", "-m", "c2 feat work"], self.dir)
+        _git(["checkout", "-q", "-"], self.dir)          # 回主分支
+        _git(["merge", "--no-ff", "-q", "-m", "Merge feat", "feat"], self.dir)
+
+    def tearDown(self):
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def test_collect_commits_excludes_merge(self):
+        commits, err = collect_commits(self.dir, "30 years ago", 3000)
+        self.assertIsNone(err)
+        subs = [c["subject"] for c in commits]
+        self.assertIn("c1 base", subs)
+        self.assertIn("c2 feat work", subs)
+        self.assertNotIn("Merge feat", subs)            # 合并气泡不进叙事
+
+    def test_collect_commit_files_excludes_merge(self):
+        commits, err = collect_commit_files(self.dir)
+        self.assertIsNone(err)
+        subs = [c["subject"] for c in commits]
+        self.assertIn("c2 feat work", subs)
+        # 子串匹配:合并记录的 subject 带尾部 NUL('Merge feat\x00'),
+        # 精确比较会假阳性通过——确保合并整条不进(否则 graph 出空节点)
+        self.assertFalse(any("Merge feat" in s for s in subs))
 
 
 if __name__ == "__main__":

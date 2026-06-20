@@ -23,8 +23,8 @@ def collect_commits(project_path, since, diff_token_budget):
     """Return (commits oldest-first, error_message_or_None)."""
     fmt = FIELD_SEP.join(["%H", "%aI", "%an", "%s", "%b"]) + RECORD_SEP
     try:
-        raw = _git(["log", f"--since={since}", f"--pretty=format:{fmt}"],
-                   project_path)
+        raw = _git(["log", "--no-merges", f"--since={since}",
+                    f"--pretty=format:{fmt}"], project_path)
     except (RuntimeError, OSError, subprocess.TimeoutExpired) as exc:
         return [], f"git log 失败:{exc}"
 
@@ -59,8 +59,8 @@ def collect_commits(project_path, since, diff_token_budget):
             commit["stat"] = _git(
                 ["show", "--stat", "--pretty=format:", sha],
                 project_path).strip()
-            diff = _git(["show", "--patch", "--no-color",
-                         "--pretty=format:", sha], project_path)
+            diff = _git(["show", "--patch", "--no-color", "-U10",
+                         "--pretty=format:", sha], project_path)  # 加厚上下文,让叙事看懂改动所在函数
             if len(diff) > char_budget:
                 diff = diff[:char_budget] + "\n... [diff 已截断]"
             commit["diff_excerpt"] = diff.strip()
@@ -77,8 +77,8 @@ def collect_commit_files(project_path, since="30 years ago"):
     返回 (commits oldest-first, error_or_None);文件以 \\x00 分隔避免空格路径问题。"""
     fmt = RECORD_SEP + FIELD_SEP.join(["%H", "%aI", "%s"])
     try:
-        raw = _git(["log", f"--since={since}", "--name-only", "-z",
-                    f"--pretty=format:{fmt}"], project_path)
+        raw = _git(["log", "--no-merges", f"--since={since}", "--name-only",
+                    "-z", f"--pretty=format:{fmt}"], project_path)
     except (RuntimeError, OSError, subprocess.TimeoutExpired) as exc:
         return [], f"git log 失败:{exc}"
     commits = []

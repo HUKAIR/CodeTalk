@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 import os
+from pathlib import Path
 
 from .config import redact_secrets
 from .gitlog import parse_breadcrumbs
@@ -28,8 +29,26 @@ OVERVIEW_SCHEMA = {
 }
 
 
-def _commit_prompt(commit):
-    parts = [
+def _project_context(project_path, limit=4000):
+    """项目背景(节选):CLAUDE.md 优先,否则 README.md;无/读失败返回 ''。
+    供叙事据项目约束判断风险(如『引入第三方依赖违背 M0』)。limit 兜住 token。"""
+    base = Path(project_path)
+    for name in ("CLAUDE.md", "README.md"):
+        try:
+            text = (base / name).read_text(encoding="utf-8").strip()
+        except (OSError, UnicodeError):
+            continue
+        if text:
+            return text[:limit]
+    return ""
+
+
+def _commit_prompt(commit, project_context=""):
+    parts = []
+    if project_context:
+        parts.append("### 项目背景(节选,据此判断改动是否违背项目约束)\n"
+                     + project_context)
+    parts += [
         f"## Commit {commit['sha'][:10]}",
         f"时间:{commit['date'].isoformat()} 作者:{commit['author']}",
         f"message:{commit['subject']}\n{commit['body'][:500]}".strip(),
@@ -61,6 +80,11 @@ def _normalize(narrative):
     for key in ("decisions", "risks", "open_loops"):
         value = narrative.get(key, [])
         clean[key] = [str(v) for v in value] if isinstance(value, list) else [str(value)]
+    # risks/open_loops 是 LLM 推断字段(llm.py:31),risks 还会被封成时间胶囊。
+    # 滤掉『材料不足』填充与空白,免得封出噪声胶囊、上简报堆噪声。decisions 是事实字段,不滤。
+    for key in ("risks", "open_loops"):
+        clean[key] = [x for x in clean[key]
+                      if x.strip() and not x.strip().startswith("材料不足")]
     return clean
 
 
@@ -81,6 +105,7 @@ def _is_trivial(commit):
 
 def enrich_commits(commits, llm, cache, project):
     stats = {"cache_hits": 0, "llm_calls": 0, "failures": 0, "trivial": 0}
+    ctx = _project_context(project)   # 项目背景读一次,供本次所有 commit 叙事接地
     for commit in commits:
         cached = cache.get_narrative(commit["sha"])
         if cached:
@@ -96,7 +121,7 @@ def enrich_commits(commits, llm, cache, project):
             stats["trivial"] += 1
             continue
         try:
-            raw = llm.narrate(redact_secrets(_commit_prompt(commit)))
+            raw = llm.narrate(redact_secrets(_commit_prompt(commit, ctx)))
             normalized = _normalize(raw)
             decisions, watches = parse_breadcrumbs(commit.get("body", ""))
             if decisions:  # 人原话并入决策,去重,保留 LLM 既有决策
