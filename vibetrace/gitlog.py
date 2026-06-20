@@ -164,6 +164,20 @@ def file_log(project_path, file):
     return shas[-LINE_LOG_LIMIT:], None
 
 
+def prior_commit(project_path, sha, files):
+    """最近一个在 sha 之前、改过 files 里任一文件的 commit(40 hex);无/失败返回 ''。
+    供叙事跨时间接地:让 LLM 知道这些文件上次改动做了什么。"""
+    if not files:
+        return ""
+    try:
+        raw = _git(["log", f"{sha}~1", "-1", "--format=%H", "--", *files],
+                   project_path)
+    except (RuntimeError, OSError, subprocess.TimeoutExpired):
+        return ""
+    out = raw.strip().splitlines()
+    return out[0] if out and _SHA_RE.match(out[0]) else ""
+
+
 def commit_body(project_path, sha):
     """单 commit 的 message body(供面包屑收割)。失败返回 ''。"""
     try:

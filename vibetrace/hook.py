@@ -58,20 +58,27 @@ AGENT_SEED = """
 """
 
 
+SEED_TARGETS = ("CLAUDE.md", "AGENTS.md")
+
+
 def install_agent_seed(project_path):
-    """把决策捕获约定幂等植入项目 CLAUDE.md(无则建),让 AI agent 提交时留推导面包屑。
-    → (claude_md_path, error_or_None)。只追加、绝不覆盖已有内容;容错不崩。"""
-    claude = Path(project_path) / "CLAUDE.md"
-    try:
-        existing = claude.read_text(encoding="utf-8") if claude.exists() else ""
-    except (OSError, UnicodeError) as exc:
-        return None, f"读取 CLAUDE.md 失败:{exc}"
-    if SEED_MARKER in existing:
-        return claude, None   # 幂等:已植入,不重复追加
-    sep = "" if (not existing or existing.endswith("\n")) else "\n"
-    try:
-        with open(claude, "a", encoding="utf-8") as fh:
-            fh.write(sep + AGENT_SEED)
-    except OSError as exc:
-        return None, f"写入 CLAUDE.md 失败:{exc}"
-    return claude, None
+    """把决策捕获约定幂等植入 CLAUDE.md + AGENTS.md(覆盖 Claude 与其他 agent),
+    让 AI agent 提交时留推导面包屑。→ (installed_paths, error_or_None)。
+    只追加、绝不覆盖已有内容;无则建;容错不崩。"""
+    base = Path(project_path)
+    written = []
+    for name in SEED_TARGETS:
+        f = base / name
+        try:
+            existing = f.read_text(encoding="utf-8") if f.exists() else ""
+        except (OSError, UnicodeError) as exc:
+            return None, f"读取 {name} 失败:{exc}"
+        if SEED_MARKER not in existing:  # 幂等:已植入则跳过追加
+            sep = "" if (not existing or existing.endswith("\n")) else "\n"
+            try:
+                with open(f, "a", encoding="utf-8") as fh:
+                    fh.write(sep + AGENT_SEED)
+            except OSError as exc:
+                return None, f"写入 {name} 失败:{exc}"
+        written.append(f)
+    return written, None

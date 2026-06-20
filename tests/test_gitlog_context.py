@@ -4,12 +4,17 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from vibetrace.gitlog import collect_commits
+from vibetrace.gitlog import collect_commits, prior_commit
 
 
 def _git(args, cwd):
     subprocess.run(["git", *args], cwd=cwd, check=True,
                    capture_output=True, text=True)
+
+
+def _sha(cwd):
+    return subprocess.run(["git", "rev-parse", "HEAD"], cwd=cwd, check=True,
+                          capture_output=True, text=True).stdout.strip()
 
 
 class TestRicherDiffContext(unittest.TestCase):
@@ -36,6 +41,31 @@ class TestRicherDiffContext(unittest.TestCase):
         diff = commits[-1]["diff_excerpt"]            # oldest-first → 最新是 edit
         self.assertIn("TARGET = 1", diff)             # 改动本身
         self.assertIn("FARLINE_MARKER", diff)         # 6 行外上下文 → 仅宽 -U 可见
+
+
+class TestPriorCommit(unittest.TestCase):
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.d, ignore_errors=True)
+        _git(["init", "-q"], self.d)
+        _git(["config", "user.email", "t@t"], self.d)
+        _git(["config", "user.name", "t"], self.d)
+        a = Path(self.d) / "a.py"
+        a.write_text("v1\n"); _git(["add", "."], self.d)
+        _git(["commit", "-q", "-m", "A 改 a.py"], self.d)
+        self.shaA = _sha(self.d)
+        a.write_text("v2\n"); _git(["add", "."], self.d)
+        _git(["commit", "-q", "-m", "B 改 a.py"], self.d)
+        self.shaB = _sha(self.d)
+
+    def test_finds_prior_touching_file(self):
+        self.assertEqual(prior_commit(self.d, self.shaB, ["a.py"]), self.shaA)
+
+    def test_no_prior_returns_empty(self):
+        self.assertEqual(prior_commit(self.d, self.shaA, ["a.py"]), "")  # A 是首个
+
+    def test_empty_files_returns_empty(self):
+        self.assertEqual(prior_commit(self.d, self.shaB, []), "")
 
 
 if __name__ == "__main__":
