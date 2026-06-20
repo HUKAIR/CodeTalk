@@ -59,8 +59,8 @@ def collect_commits(project_path, since, diff_token_budget):
             commit["stat"] = _git(
                 ["show", "--stat", "--pretty=format:", sha],
                 project_path).strip()
-            diff = _git(["show", "--patch", "--no-color",
-                         "--pretty=format:", sha], project_path)
+            diff = _git(["show", "--patch", "--no-color", "-U10",
+                         "--pretty=format:", sha], project_path)  # 加厚上下文,让叙事看懂改动所在函数
             if len(diff) > char_budget:
                 diff = diff[:char_budget] + "\n... [diff 已截断]"
             commit["diff_excerpt"] = diff.strip()
