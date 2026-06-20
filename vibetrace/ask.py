@@ -11,7 +11,8 @@ from pathlib import Path
 from .cache import Cache
 from .config import CACHE_DB_PATH, load_config, redact_secrets
 from .gitlog import line_log, file_log, commit_body, parse_breadcrumbs
-from .llm import ASK_SCHEMA, ASK_SYSTEM_PROMPT, LLMClient, LLMError
+from .llm import LLMClient, LLMError
+from .prompts import ASK_SCHEMA, ASK_SYSTEM_PROMPT
 
 EXCERPT = 200
 CONTEXT_BUDGET = 6000
