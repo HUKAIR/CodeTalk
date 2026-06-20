@@ -16,16 +16,13 @@ Two run modes (Issue #4 — single cache.db source of truth):
                    capsule store — the page keeps no answers in localStorage.
 """
 import json
-import webbrowser
 from datetime import datetime, timezone
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from string import Template
 
 from .cache import Cache
 from .config import CACHE_DB_PATH, load_config
 from .gitlog import collect_commits
-from .report import _OUTCOMES
 
 EXCERPT = 220
 
@@ -103,67 +100,9 @@ def render_tunnel(project_path):
 
 def serve_tunnel(project_path, open_browser=True):
     """Serve the tunnel on 127.0.0.1 so answers write back to cache live.
-    Returns error_or_None (blocks until Ctrl+C)."""
+    Returns error_or_None (blocks until Ctrl+C)。服务器逻辑复用 webserve.serve_html。"""
     html_text, project, err = _build_html(project_path, serve=True)
     if err:
         return err
-    pkey = str(Path(project_path).resolve())   # 胶囊/reviewed 回写键:绝对路径
-
-    class Handler(BaseHTTPRequestHandler):
-        def log_message(self, *_):
-            pass  # 静默:不打 access log
-
-        def do_GET(self):
-            if self.path != "/":
-                self.send_response(404); self.end_headers(); return
-            body = html_text.encode("utf-8")
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html; charset=utf-8")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
-
-        def do_POST(self):
-            try:
-                n = int(self.headers.get("Content-Length", 0))
-                req = json.loads(self.rfile.read(n))
-            except (ValueError, TypeError):
-                self.send_response(400); self.end_headers(); return
-            cache = Cache(CACHE_DB_PATH)
-            try:
-                if self.path == "/capsule":
-                    cid, outcome = req["capsule_id"], req["outcome"]
-                    # 安全:outcome 必须是已知枚举,防任意字符串写入缓存
-                    if outcome not in _OUTCOMES:
-                        self.send_response(400); self.end_headers(); return
-                    cache.set_capsule_outcome(cid, outcome, pkey)
-                elif self.path == "/reviewed":
-                    # 还债信号:你回看了哪个 commit 叙事 → 喂理解债量化
-                    sha = req["sha"]
-                    if not isinstance(sha, str) or not sha:
-                        self.send_response(400); self.end_headers(); return
-                    cache.mark_reviewed(pkey, sha)
-                else:
-                    self.send_response(404); self.end_headers(); return
-            except KeyError:
-                self.send_response(400); self.end_headers(); return
-            finally:
-                cache.close()
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(b'{"ok":true}')
-
-    # 绑 127.0.0.1(不 0.0.0.0):隧道服务只对本机开放,数据不出本机
-    srv = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-    url = f"http://127.0.0.1:{srv.server_address[1]}/"
-    print(f"隧道服务:{url}\n回答即时写回 cache.db。Ctrl+C 停止。")
-    if open_browser:
-        webbrowser.open(url)
-    try:
-        srv.serve_forever()
-    except KeyboardInterrupt:
-        print("\n已停止。")
-    finally:
-        srv.server_close()
-    return None
+    from .webserve import serve_html
+    return serve_html(html_text, project_path, open_browser)
