@@ -1,7 +1,9 @@
 """Per-commit narrative enrichment, SHA-keyed and never recomputed."""
+import fnmatch
 import hashlib
 import json
 import logging
+import os
 from pathlib import Path
 
 from .config import redact_secrets
@@ -86,14 +88,37 @@ def _normalize(narrative):
     return clean
 
 
+TRIVIAL_GLOBS = ("package-lock.json", "yarn.lock", "pnpm-lock.yaml",
+                 "poetry.lock", "Pipfile.lock", "Cargo.lock", "go.sum",
+                 "composer.lock", "*.lock", "*.min.js", "*.min.css")
+
+
+def _is_trivial(commit):
+    """机械提交:改动文件非空且全部是 lockfile/生成产物(零-LLM,保守判定)。
+    只要有一个真实源码文件就照常叙事——宁可少跳、不错杀有料小改。"""
+    files = commit.get("files") or []
+    if not files:
+        return False
+    return all(any(fnmatch.fnmatch(os.path.basename(f), g) for g in TRIVIAL_GLOBS)
+               for f in files)
+
+
 def enrich_commits(commits, llm, cache, project):
-    stats = {"cache_hits": 0, "llm_calls": 0, "failures": 0}
+    stats = {"cache_hits": 0, "llm_calls": 0, "failures": 0, "trivial": 0}
     ctx = _project_context(project)   # 项目背景读一次,供本次所有 commit 叙事接地
     for commit in commits:
         cached = cache.get_narrative(commit["sha"])
         if cached:
             commit["narrative"] = cached
             stats["cache_hits"] += 1
+            continue
+        if _is_trivial(commit):  # 机械提交:不调 LLM,存稀疏 stub,仍进时间线
+            stub = {"what": commit["subject"],
+                    "why": "机械改动(lockfile/生成文件),未叙事",
+                    "decisions": [], "risks": [], "open_loops": []}
+            commit["narrative"] = stub
+            cache.put_narrative(commit["sha"], project, llm.model, stub)
+            stats["trivial"] += 1
             continue
         try:
             raw = llm.narrate(redact_secrets(_commit_prompt(commit, ctx)))
