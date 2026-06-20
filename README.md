@@ -32,6 +32,7 @@ vibetrace init        # 写配置模板到 ~/.vibetrace/config.json(自动 chmod
   "provider": "deepseek",
   "model": "deepseek-v4-pro",
   "diff_token_budget": 3000,
+  "output_lang": "中文",
   "providers": {
     "deepseek":  {"base_url": "https://api.deepseek.com/v1", "api_key": "sk-..."},
     "openai":    {"base_url": "https://api.openai.com/v1", "api_key": ""},

@@ -31,6 +31,7 @@ class LLMClient:
         self.base_url = ((cfg["providers"].get(self.provider) or {})
                          .get("base_url") or "").rstrip("/")
         self.api_key = resolve_api_key(cfg, self.provider)
+        self.output_lang = cfg.get("output_lang") or "中文"
         self.stats = {"calls": 0, "input_tokens": 0, "output_tokens": 0,
                       "cache_hit_tokens": 0}
         if not self.api_key:
@@ -45,10 +46,11 @@ class LLMClient:
         max_tokens 须覆盖『推理 + 输出』:推理模型(如 deepseek-v4-pro)会先花大量
         reasoning token,默认 3000 对复杂 schema(如课程分章)不够,调用方按需调大。
         system=None uses the default SYSTEM_PROMPT (narration); pass ASK_SYSTEM_PROMPT
-        for grounded Q&A."""
+        for grounded Q&A. 输出语言由 output_lang 决定(单一注入点)。"""
+        sys = (system or SYSTEM_PROMPT) + f"\n所有输出字段用{self.output_lang}书写。"
         if self.provider == "anthropic":
-            return self._anthropic(user_prompt, schema, max_tokens, system)
-        return self._openai_compat(user_prompt, schema, max_tokens, system)
+            return self._anthropic(user_prompt, schema, max_tokens, sys)
+        return self._openai_compat(user_prompt, schema, max_tokens, sys)
 
     def _openai_compat(self, user_prompt, schema, max_tokens, system=None):
         system = ((system or SYSTEM_PROMPT) + "\n\nJSON Schema:\n"
