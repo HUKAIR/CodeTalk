@@ -1,10 +1,22 @@
 import shutil
+import subprocess
 import tempfile
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
 from vibetrace import enrich
+from vibetrace.cache import Cache
+
+
+def _git(args, cwd):
+    subprocess.run(["git", *args], cwd=cwd, check=True,
+                   capture_output=True, text=True)
+
+
+def _sha(cwd):
+    return subprocess.run(["git", "rev-parse", "HEAD"], cwd=cwd, check=True,
+                          capture_output=True, text=True).stdout.strip()
 
 
 def _commit():
@@ -45,6 +57,42 @@ class TestCommitPromptContext(unittest.TestCase):
 
     def test_omits_when_no_context(self):
         self.assertNotIn("项目背景", enrich._commit_prompt(_commit(), ""))
+
+
+class TestPriorContext(unittest.TestCase):
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.d, ignore_errors=True)
+        _git(["init", "-q"], self.d)
+        _git(["config", "user.email", "t@t"], self.d)
+        _git(["config", "user.name", "t"], self.d)
+        a = Path(self.d) / "a.py"
+        a.write_text("v1\n"); _git(["add", "."], self.d)
+        _git(["commit", "-q", "-m", "A"], self.d)
+        self.shaA = _sha(self.d)
+        a.write_text("v2\n"); _git(["add", "."], self.d)
+        _git(["commit", "-q", "-m", "B"], self.d)
+        self.shaB = _sha(self.d)
+        self.cache = Cache(":memory:")
+
+    def test_includes_prior_what_when_cached(self):
+        self.cache.put_narrative(self.shaA, self.d, "m",
+                                 {"what": "上次给 a.py 加了 v1 逻辑"})
+        ctx = enrich._prior_context(
+            self.d, {"sha": self.shaB, "files": ["a.py"]}, self.cache)
+        self.assertIn("上次给 a.py 加了 v1 逻辑", ctx)
+        self.assertIn(self.shaA[:7], ctx)
+
+    def test_empty_when_prior_uncached(self):
+        ctx = enrich._prior_context(
+            self.d, {"sha": self.shaB, "files": ["a.py"]}, self.cache)
+        self.assertEqual(ctx, "")          # 前置存在但未缓存叙事
+
+    def test_empty_when_no_prior(self):
+        self.cache.put_narrative(self.shaA, self.d, "m", {"what": "x"})
+        ctx = enrich._prior_context(
+            self.d, {"sha": self.shaA, "files": ["a.py"]}, self.cache)
+        self.assertEqual(ctx, "")          # A 无前置
 
 
 if __name__ == "__main__":
