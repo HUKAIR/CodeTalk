@@ -9,24 +9,12 @@ from pathlib import Path
 from .config import redact_secrets
 from .gitlog import parse_breadcrumbs, prior_commit
 from .llm import LLMError
+from .prompts import OVERVIEW_PROMPT, OVERVIEW_SCHEMA
 
 log = logging.getLogger("vibetrace")
 
 # 单天 commit 过多时的兜底:概览输入字符上限,超出截断,概览 token 不爆。
 OVERVIEW_LISTING_BUDGET = 6000
-
-OVERVIEW_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "overview": {
-            "type": "string",
-            "description": "今日开发概览,第二人称信件体,不超过 3 句"},
-        "decision": {
-            "type": "string",
-            "description": "今日最重要的一个决定,从各 commit 的 decisions 里挑一句或综合一句"},
-    },
-    "required": ["overview", "decision"], "additionalProperties": False,
-}
 
 
 def _project_context(project_path, limit=4000):
@@ -184,10 +172,7 @@ def make_overview(commits, llm, cache, project, date_str):
         listing = ("\n".join(rows[:kept])
                    + f"\n… [另有 {len(rows) - kept} 个 commit 未计入当日概览]")
     try:
-        raw = llm.narrate(
-            "为以下一天的 commit 写概览:用第二人称『你』、像结对同事帮你回忆"
-            "今天写了什么,不超过 3 句;再挑出今天最重要的一个决定。\n" + listing,
-            schema=OVERVIEW_SCHEMA)
+        raw = llm.narrate(OVERVIEW_PROMPT + listing, schema=OVERVIEW_SCHEMA)
         overview = redact_secrets(str(raw.get("overview", "")).strip() or fallback)
         decision = redact_secrets(str(raw.get("decision", "")).strip() or fb_decision)
         cache.put_narrative(key, project, llm.model,
