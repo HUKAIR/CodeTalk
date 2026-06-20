@@ -1,8 +1,10 @@
 """开工简报(Boot Brief):开工前把『你上次停在哪』端到面前。
 读本地 cache + git log(理解债),不调 LLM、不出网——补『日常化』最大短板。"""
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+from pathlib import Path
 
 from . import debt as debt_mod
+from .config import redact_secrets
 from .gitlog import collect_commit_files, commit_body, parse_breadcrumbs
 
 
@@ -86,4 +88,67 @@ def build_brief(cache, project, project_full):
                          "「关键取舍留 `Vibe-Decision:`」让 agent 自动留,ask/graph 更准。")
         lines.append("")
 
-    return "\n".join(lines).rstrip() + "\n"
+    return redact_secrets("\n".join(lines).rstrip() + "\n")
+
+
+TOP_DEBT_PROJECTS = 5
+
+
+def _shorten(path):
+    """~/x 代替 home,终端更短。带 / 边界守卫:/home/userX 不算 /home/u 的子路径。"""
+    home, s = str(Path.home()), str(path)
+    if s == home or s.startswith(home + "/"):
+        return "~" + s[len(home):]
+    return s
+
+
+def _overview_row(name, path, pending, board, today):
+    """单项目紧凑块。pending=pending_capsules(最久在前);board=debt_board(top=1)。"""
+    lines = [f"## {name}  {_shorten(path)}"]
+    if pending:
+        oldest = pending[0]
+        try:
+            days = (today - date.fromisoformat(oldest["sealed_date"])).days
+            since = f"(最久 {days} 天前)"
+        except (ValueError, TypeError):
+            since = ""  # 容错:坏日期不崩,省掉天数
+        lines.append(f"- 待验证预测 {len(pending)} 枚{since}:「{oldest['risk']}」")
+    if board:
+        r = board[0]
+        lines.append(f"- 理解债 top:`{r['file']}`(债 {r['debt']})")
+    return lines
+
+
+def build_overview(cache, projects, today):
+    """跨项目注意力路由:有到期胶囊的 + 理解债最高的 K 个,零 LLM。
+    projects=绝对路径列表(cache.distinct_projects())。返回已脱敏 markdown。"""
+    live = []
+    for p in projects:
+        if not Path(p).is_dir():
+            continue  # 失效路径静默跳过:不计数、不进 footer
+        board = debt_mod.debt_board(p, cache, today, top=1)
+        live.append({
+            "path": p, "name": Path(p).name,
+            "pending": cache.pending_capsules(p), "board": board,
+            "peak": board[0]["debt"] if board else 0,
+        })
+
+    by_debt = sorted(live, key=lambda x: x["peak"], reverse=True)
+    debt_in = {x["path"] for x in by_debt[:TOP_DEBT_PROJECTS] if x["peak"] > 0}
+    shown = [x for x in live if x["pending"] or x["path"] in debt_in]
+    shown.sort(key=lambda x: (len(x["pending"]), x["peak"]), reverse=True)
+
+    if not shown:
+        return ("# 跨项目总览\n\n没有需要注意的项目"
+                "——先在某个项目跑 `vibetrace digest`。\n")
+
+    lines = [f"# 跨项目总览 · {len(shown)} 个项目待办", ""]
+    for x in shown:
+        lines += _overview_row(x["name"], x["path"], x["pending"],
+                               x["board"], today)
+        lines.append("")
+    omitted = len(live) - len(shown)
+    if omitted:
+        lines.append(f"_另有 {omitted} 个存活项目未入榜"
+                     "(债较低、无到期胶囊),已省略。_")
+    return redact_secrets("\n".join(lines).rstrip() + "\n")
