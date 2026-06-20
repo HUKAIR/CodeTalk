@@ -1,0 +1,104 @@
+import contextlib
+import io
+import shutil
+import subprocess
+import tempfile
+import unittest
+from pathlib import Path
+from unittest import mock
+
+from vibetrace import cli, console
+from vibetrace.cache import Cache
+
+
+def _git(a, c):
+    subprocess.run(["git", *a], cwd=c, check=True, capture_output=True, text=True)
+
+
+def _sha(c):
+    return subprocess.run(["git", "rev-parse", "HEAD"], cwd=c, check=True,
+                          capture_output=True, text=True).stdout.strip()
+
+
+class TestConsoleAssemble(unittest.TestCase):
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.d, ignore_errors=True)
+        _git(["init", "-q"], self.d)
+        _git(["config", "user.email", "t@t"], self.d)
+        _git(["config", "user.name", "t"], self.d)
+        f = Path(self.d) / "a.py"
+        f.write_text("1\n"); _git(["add", "."], self.d)
+        _git(["commit", "-q", "-m", "c1"], self.d)
+        f.write_text("2\n"); _git(["add", "."], self.d)
+        _git(["commit", "-q", "-m", "c2"], self.d)
+        self.sha2 = _sha(self.d)
+        self.pkey = str(Path(self.d).resolve())
+        self.cache = Cache(":memory:")
+        self.cache.put_narrative(self.sha2, self.pkey, "m",
+                                 {"what": "做了 X", "why": "因为 Y",
+                                  "decisions": ["选 A"], "risks": ["风险 R"],
+                                  "open_loops": []})
+        self.cache.put_daily(self.pkey, "2026-06-20", "今日概览", "今日决定")
+
+    def test_assemble_has_four_views(self):
+        data, err = console._assemble(self.d, self.cache)
+        self.assertIsNone(err)
+        self.assertEqual(set(data), {"overview", "timeline", "graph", "debt"})
+        self.assertTrue(data["timeline"])              # 有 commit
+        self.assertIn("nodes", data["graph"])
+        self.assertIsInstance(data["debt"], list)
+        self.assertEqual(data["overview"]["last"]["overview"], "今日概览")
+
+    def test_assemble_empty_repo_no_crash(self):
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        _git(["init", "-q"], d)
+        data, err = console._assemble(d, Cache(":memory:"))
+        self.assertIsNone(err)
+        self.assertEqual(data["timeline"], [])
+
+
+class TestConsoleBuildHtml(unittest.TestCase):
+    def test_renders_views_and_redacts(self):
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        _git(["init", "-q"], d)
+        _git(["config", "user.email", "t@t"], d)
+        _git(["config", "user.name", "t"], d)
+        (Path(d) / "a.py").write_text("1\n"); _git(["add", "."], d)
+        _git(["commit", "-q", "-m", "c1"], d)
+        sha = _sha(d)
+        dbfile = str(Path(d) / "cache.db")
+        c = Cache(dbfile)
+        c.put_narrative(sha, str(Path(d).resolve()), "m",
+                        {"what": "key sk-abcdef0123456789ABCDEF 别泄漏", "why": "y",
+                         "decisions": [], "risks": [], "open_loops": []})
+        c.close()
+        with mock.patch.object(console, "CACHE_DB_PATH", dbfile):
+            html, project, err = console._build_html(d, serve=False)
+        self.assertIsNone(err)
+        self.assertIn("控制台", html)
+        self.assertIn("时光轴", html)
+        self.assertNotIn("$data", html)          # 模板已替换
+        self.assertIn("[REDACTED]", html)        # 脱敏生效
+        self.assertNotIn("sk-abcdef0123456789ABCDEF", html)
+
+
+class TestConsoleCLI(unittest.TestCase):
+    def test_console_dispatches_render(self):
+        called = {}
+
+        def fake_render(pp):
+            called["pp"] = pp
+            return Path("/x/c.html"), None
+
+        with mock.patch("vibetrace.console.render_console", fake_render), \
+             contextlib.redirect_stdout(io.StringIO()):
+            rc = cli.main(["console", "--project", "."])
+        self.assertEqual(rc, 0)
+        self.assertTrue(called)
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -21,6 +21,20 @@ def _fail(msg):
     return 2
 
 
+def _proj(p):  # 折叠各子命令重复的 --project
+    p.add_argument("--project", default=".", help="项目路径(默认当前目录)"); return p
+
+
+def _render_or_serve(args, render, serve, label):  # tunnel/console 共用:serve 起服务,否则写静态
+    if args.serve:
+        err = serve(args.project, open_browser=not getattr(args, "no_open", False))
+        return _fail(err) if err else 0
+    path, err = render(args.project)
+    if err: return _fail(err)
+    print(f"{label}已写入:{path}")
+    return 0
+
+
 def _since_to_dt(since):
     """Loose mirror of common 'git --since' phrases, for session file filtering."""
     parts = since.split()
@@ -205,44 +219,39 @@ def main(argv=None):
     parser = argparse.ArgumentParser(
         prog="vibetrace", description="个人 AI 编码认知层:git+会话 → 变更叙事日报")
     sub = parser.add_subparsers(dest="command", required=True)
-    dig = sub.add_parser("digest", help="生成开发日报")
-    dig.add_argument("--project", default=".", help="项目路径(默认当前目录)")
+    dig = _proj(sub.add_parser("digest", help="生成开发日报"))
     dig.add_argument("--since", default="1 day ago", help='如 "3 days ago"')
     dig.add_argument("--vault", help="覆盖日报输出目录")
     dig.add_argument("--provider", help="覆盖 LLM provider")
     dig.add_argument("--model", help="覆盖模型 ID")
-    tun = sub.add_parser("tunnel", help="生成时光隧道(实验)")
-    tun.add_argument("--project", default=".", help="项目路径(默认当前目录)")
+    tun = _proj(sub.add_parser("tunnel", help="生成时光轴(线性时间线)"))
     tun.add_argument("--serve", action="store_true",
                      help="起本地服务,胶囊回答即时写回 cache(否则只读)")
     tun.add_argument("--no-open", action="store_true", help="--serve 时不自动开浏览器")
-    bri = sub.add_parser("brief", help="开工简报:你上次停在哪(纯本地,无 LLM)")
-    bri.add_argument("--project", default=".", help="项目路径(默认当前目录)")
+    bri = _proj(sub.add_parser("brief", help="开工简报:你上次停在哪(纯本地,无 LLM)"))
     bri.add_argument("--vault", help="同时写入该目录(默认仅打印)")
     bri.add_argument("--all", action="store_true",
                      help="跨项目总览:所有项目里需要注意的(零 LLM,忽略 --project)")
-    crs = sub.add_parser("course", help="生成演进课程(项目怎么长成的,实验)")
-    crs.add_argument("--project", default=".", help="项目路径(默认当前目录)")
-    asq = sub.add_parser("ask", help="就某段代码提问(接项目记忆,接地回答)")
-    asq.add_argument("--project", default=".", help="项目路径(默认当前目录)")
+    _proj(sub.add_parser("course", help="生成演进课程(项目怎么长成的,实验)"))
+    asq = _proj(sub.add_parser("ask", help="就某段代码提问(接项目记忆,接地回答)"))
     asq.add_argument("target", help='文件或 文件:起-止,如 vibetrace/llm.py:72-78')
     asq.add_argument("question", help="你的问题")
     asq.add_argument("--vault", help="同时写一份脱敏 Q&A 笔记到该目录")
-    grp = sub.add_parser("graph", help="生成决策影响图(时间轴 DAG,零 LLM)")
-    grp.add_argument("--project", default=".", help="项目路径(默认当前目录)")
+    grp = _proj(sub.add_parser("graph", help="生成决策影响图(时间轴 DAG,零 LLM)"))
     grp.add_argument("--vault", help="覆盖输出目录")
     grp.add_argument("--canvas", action="store_true",
                      help="额外导出 Obsidian JSON Canvas(*-graph.canvas)")
+    con = _proj(sub.add_parser("console", help="统一控制台:四视图单页 web(零 LLM)"))
+    con.add_argument("--serve", action="store_true", help="起本地服务,回答写回 cache")
+    con.add_argument("--no-open", action="store_true", help="--serve 时不自动开浏览器")
     ini = sub.add_parser("init", help="生成配置模板到 ~/.vibetrace/config.json")
     ini.add_argument("--force", action="store_true", help="已存在时覆盖")
-    ihk = sub.add_parser("install-hook",
-                         help="装 git 钩子:手写 commit 时提示留决策面包屑")
-    ihk.add_argument("--project", default=".", help="项目路径(默认当前目录)")
+    ihk = _proj(sub.add_parser("install-hook",
+                               help="装 git 钩子:手写 commit 时提示留决策面包屑"))
     ihk.add_argument("--force", action="store_true", help="覆盖已有钩子")
-    ias = sub.add_parser(
+    _proj(sub.add_parser(
         "install-agent-seed",
-        help="把决策捕获约定植入项目 CLAUDE.md,让 AI agent 提交时留推导面包屑")
-    ias.add_argument("--project", default=".", help="项目路径(默认当前目录)")
+        help="把决策捕获约定植入项目 CLAUDE.md,让 AI agent 提交时留推导面包屑"))
     args = parser.parse_args(argv)
     if args.command == "course":
         from .course import build_course
@@ -252,18 +261,11 @@ def main(argv=None):
         print(f"课程已写入:{path}")
         return 0
     if args.command == "tunnel":
-        if args.serve:
-            from .tunnel import serve_tunnel
-            err = serve_tunnel(args.project, open_browser=not args.no_open)
-            if err:
-                return _fail(err)
-            return 0
-        from .tunnel import render_tunnel
-        path, err = render_tunnel(args.project)
-        if err:
-            return _fail(err)
-        print(f"隧道已写入:{path}")
-        return 0
+        from .tunnel import render_tunnel, serve_tunnel
+        return _render_or_serve(args, render_tunnel, serve_tunnel, "时光轴")
+    if args.command == "console":
+        from .console import render_console, serve_console
+        return _render_or_serve(args, render_console, serve_console, "控制台")
     if args.command == "brief":
         return brief_cmd(args)
     if args.command == "ask":
