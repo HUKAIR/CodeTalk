@@ -42,5 +42,17 @@ class TestEnrichBreadcrumbs(unittest.TestCase):
         self.assertEqual(narr["risks"], ["LLM 风险"])
 
 
+class TestNormalizeDropsFiller(unittest.TestCase):
+    def test_filler_dropped_from_risks_and_loops_decisions_kept(self):
+        raw = {"what": "w", "why": "y",
+               "decisions": ["真决定", "材料不足 x"],     # 事实字段:不滤
+               "risks": ["真风险", "材料不足以判断", "  "],
+               "open_loops": ["真未闭环", "材料不足", ""]}
+        out = enrich._normalize(raw)
+        self.assertEqual(out["risks"], ["真风险"])          # 不会封出噪声胶囊
+        self.assertEqual(out["open_loops"], ["真未闭环"])
+        self.assertEqual(out["decisions"], ["真决定", "材料不足 x"])
+
+
 if __name__ == "__main__":
     unittest.main()
