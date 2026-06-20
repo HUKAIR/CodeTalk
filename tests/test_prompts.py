@@ -10,6 +10,11 @@ class TestAskGrounding(unittest.TestCase):
         self.assertIn("信息优先级", ASK_SYSTEM_PROMPT)
         self.assertIn("最新", ASK_SYSTEM_PROMPT)
 
+    def test_anti_slop_discipline_present(self):
+        # ask 回答也加去-AI-腔文风纪律(与叙事同口径)
+        self.assertIn("文风纪律", ASK_SYSTEM_PROMPT)
+        self.assertIn("开场陈词", ASK_SYSTEM_PROMPT)
+
 
 class TestNarrativeStyle(unittest.TestCase):
     def test_anti_slop_discipline_present(self):
