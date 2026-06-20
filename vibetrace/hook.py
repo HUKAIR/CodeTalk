@@ -40,31 +40,24 @@ def install_hook(project_path, force=False):
 
 
 SEED_MARKER = "<!-- vibetrace-agent-seed -->"
-AGENT_SEED = """
-<!-- vibetrace-agent-seed -->
-## vibetrace 决策捕获(AI coding agent 必读)
-
-每次 `git commit`,在 commit message 正文按下面格式留下这次改动的**关键决策与推导**,
-供 vibetrace 长期分析(ask / graph / digest 据此接地,免得日后从 diff 反推)。保持精炼:
-每条一行、总共几行即可,别写长文。**行首精确、区分大小写**。
-
-- `Vibe-Decision: <做了什么决定;为什么这么选;否决了什么备选>` —— 一个关键决策一行,可多条
-- `Vibe-Watch: <没把握、需日后验证的点>` —— 风险 / 待验证,可多条
-
-例:
-
-    Vibe-Decision: 用 --no-merges 跳合并而非 --first-parent —— 后者保留合并气泡、丢功能提交,叙事更差
-    Vibe-Watch: 空提交尾部 NUL subject 未处理,罕见暂不管
-"""
-
-
 SEED_TARGETS = ("CLAUDE.md", "AGENTS.md")
+
+
+def _agent_seed():
+    """随包发布的注入内容(agent_seed.md)。读失败返回 ''(包数据损坏 → install 报错)。"""
+    try:
+        return (Path(__file__).parent / "agent_seed.md").read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return ""
 
 
 def install_agent_seed(project_path):
     """把决策捕获约定幂等植入 CLAUDE.md + AGENTS.md(覆盖 Claude 与其他 agent),
     让 AI agent 提交时留推导面包屑。→ (installed_paths, error_or_None)。
     只追加、绝不覆盖已有内容;无则建;容错不崩。"""
+    seed = _agent_seed().strip()
+    if not seed:
+        return None, "agent_seed.md 缺失或不可读(包数据损坏)"
     base = Path(project_path)
     written = []
     for name in SEED_TARGETS:
@@ -74,10 +67,10 @@ def install_agent_seed(project_path):
         except (OSError, UnicodeError) as exc:
             return None, f"读取 {name} 失败:{exc}"
         if SEED_MARKER not in existing:  # 幂等:已植入则跳过追加
-            sep = "" if (not existing or existing.endswith("\n")) else "\n"
+            sep = "" if not existing else ("\n" if existing.endswith("\n") else "\n\n")
             try:
                 with open(f, "a", encoding="utf-8") as fh:
-                    fh.write(sep + AGENT_SEED)
+                    fh.write(sep + seed + "\n")
             except OSError as exc:
                 return None, f"写入 {name} 失败:{exc}"
         written.append(f)

@@ -22,4 +22,4 @@ vibetrace = "vibetrace.cli:main"
 packages = ["vibetrace"]
 
 [tool.setuptools.package-data]
-vibetrace = ["*.html"]
+vibetrace = ["*.html", "*.md"]
