@@ -1,4 +1,5 @@
 """Collect commits (message + stat + truncated diff) via git subprocess."""
+import json
 import logging
 import re
 import subprocess
@@ -197,6 +198,32 @@ def commit_body(project_path, sha):
         return _git(["show", "-s", "--format=%b", sha], project_path).strip()
     except (RuntimeError, OSError, subprocess.TimeoutExpired):
         return ""
+
+
+def pr_discussion(project_path, sha):
+    """该 commit 关联的第一个 PR(标题+描述,作 why 接地源;opt-in,数据出本机)。
+    gh api repos/{owner}/{repo}/commits/<sha>/pulls(gh 自动解析当前仓 owner/repo)。
+    容错铁律:gh 不存在/非零退出/超时/空列表/JSON 解析失败 → 一律返回 None,绝不抛。
+    返回 {number, url(取 html_url), title, body}。"""
+    try:
+        out = subprocess.run(
+            ["gh", "api", f"repos/{{owner}}/{{repo}}/commits/{sha}/pulls"],
+            cwd=project_path, capture_output=True, text=True, timeout=15)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if out.returncode != 0:
+        return None
+    try:
+        prs = json.loads(out.stdout)
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(prs, list) or not prs:
+        return None
+    pr = prs[0]
+    if not isinstance(pr, dict):
+        return None
+    return {"number": pr.get("number"), "url": pr.get("html_url", ""),
+            "title": pr.get("title", ""), "body": pr.get("body") or ""}
 
 
 def commit_meta(project_path, sha):
