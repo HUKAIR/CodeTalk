@@ -5,7 +5,7 @@ from pathlib import Path
 
 from . import debt as debt_mod
 from .config import redact_secrets
-from .gitlog import collect_commit_files, commit_body, parse_breadcrumbs
+from .gitlog import collect_commit_files, parse_breadcrumbs
 
 
 def _debt_block(board):
@@ -33,8 +33,8 @@ def _breadcrumb_coverage(project_path, n=20):
     if err or not commits:
         return None
     recent = commits[-n:]
-    got = sum(1 for c in recent
-              if any(parse_breadcrumbs(commit_body(project_path, c["sha"]))))
+    got = sum(1 for c in recent          # body 已随批量 git log 取回,不再逐 commit git show
+              if any(parse_breadcrumbs(c.get("body", ""))))
     return got, len(recent)
 
 
@@ -117,6 +117,56 @@ def _overview_row(name, path, pending, board, today):
         r = board[0]
         lines.append(f"- 理解债 top:`{r['file']}`(债 {r['debt']})")
     return lines
+
+
+def _days_sealed(sealed_date, today):
+    """已封天数;坏日期容错返回 None(到期胶囊仍要列,只是省天数)。"""
+    try:
+        return (today - date.fromisoformat(sealed_date)).days
+    except (ValueError, TypeError):
+        return None
+
+
+def _watch_block(name, path, pending, opened, filled, today):
+    """单项目待回填块:risk + 已封天数 + 该项目回填率。"""
+    rate = f"{filled}/{opened}" if opened else "0/0"
+    lines = [f"## {name}  {_shorten(path)}",
+             f"_回填率 {rate}_", ""]
+    for cap in pending:
+        days = _days_sealed(cap["sealed_date"], today)
+        since = f"(已封 {days} 天)" if days is not None else ""
+        lines.append(f"- (`{cap['sha'][:7]}`)你曾担心:「{cap['risk']}」"
+                     f"{since}——现在验证了吗?")
+    lines.append("")
+    return lines
+
+
+def build_watch(cache, projects, today):
+    """跨项目 watch 收件箱:列出所有项目里『已到期开启、未回填』的胶囊,零 LLM。
+    预测-验证闭环的日常入口,直接服务北极星『回填率』。
+    projects=绝对路径列表(cache.distinct_projects())。返回已脱敏 markdown。"""
+    rows = []
+    for p in projects:
+        if not Path(p).is_dir():
+            continue  # 失效路径静默跳过,不计数
+        pending = cache.pending_capsules(p)
+        if not pending:
+            continue
+        opened, filled = cache.capsule_fill_stats(p)
+        rows.append({"path": p, "name": Path(p).name, "pending": pending,
+                     "opened": opened, "filled": filled})
+
+    if not rows:
+        return ("# 待验证收件箱\n\n暂时没有待回填的预测——"
+                "胶囊到期后会出现在这里,届时回头验证当初的担心是否成真。\n")
+
+    rows.sort(key=lambda x: len(x["pending"]), reverse=True)  # 待办多的在前
+    total = sum(len(x["pending"]) for x in rows)
+    lines = [f"# 待验证收件箱 · {total} 枚待回填", ""]
+    for x in rows:
+        lines += _watch_block(x["name"], x["path"], x["pending"],
+                              x["opened"], x["filled"], today)
+    return redact_secrets("\n".join(lines).rstrip() + "\n")
 
 
 def build_overview(cache, projects, today):

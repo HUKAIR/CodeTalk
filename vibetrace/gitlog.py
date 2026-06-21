@@ -72,10 +72,12 @@ def collect_commits(project_path, since, diff_token_budget):
 
 
 def collect_commit_files(project_path, since="30 years ago"):
-    """轻量:一次 git log --name-only 取 (sha, date, subject, files),不碰 diff/stat。
-    供理解债量化与课程——只要文件清单+主题,不该为此每 commit 跑 3 次 git show。
-    返回 (commits oldest-first, error_or_None);文件以 \\x00 分隔避免空格路径问题。"""
-    fmt = RECORD_SEP + FIELD_SEP.join(["%H", "%aI", "%s"])
+    """轻量:一次 git log --name-only 取 (sha, date, subject, body, files),不碰 diff/stat。
+    供理解债量化、课程与面包屑收割——一次批量拿到主题、正文(面包屑源)、文件清单,
+    替代调用方逐 commit 跑 git show(commit_body)。
+    返回 (commits oldest-first, error_or_None);文件以 \\x00 分隔避免空格路径问题。
+    %b 含换行,故按 \\x00 切出文件 token,首 token 用 rpartition 剥出第一个文件名。"""
+    fmt = RECORD_SEP + FIELD_SEP.join(["%H", "%aI", "%s", "%b"])
     try:
         raw = _git(["log", "--no-merges", f"--since={since}", "--name-only",
                     "-z", f"--pretty=format:{fmt}"], project_path)
@@ -85,17 +87,25 @@ def collect_commit_files(project_path, since="30 years ago"):
     for rec in raw.split(RECORD_SEP):
         if not rec.strip("\x00\n"):
             continue
-        head, _, files_blob = rec.partition("\n")
-        parts = head.split(FIELD_SEP)
+        # rec = "H\x1fdate\x1fsubject\x1fbody\n\nfile1\x00file2\x00...";body 可含 \n,
+        # 不含 \x00。按 \x00 切:首段含元数据+第一个文件名,余段是其余文件名。
+        tokens = rec.split("\x00")
+        meta_and_first = tokens[0]
+        rest_files = [f for f in tokens[1:] if f.strip()]
+        meta, _, first_file = meta_and_first.rpartition("\n")
+        if not meta:                       # 无文件的 commit:整段都是元数据
+            meta, first_file = meta_and_first, ""
+        parts = meta.split(FIELD_SEP)
         if len(parts) < 3:
             continue
         try:
             date = datetime.fromisoformat(parts[1])
         except ValueError:
             continue
-        files = [f for f in files_blob.split("\x00") if f.strip()]
-        commits.append({"sha": parts[0], "date": date,
-                        "subject": parts[2], "files": files})
+        body = parts[3].strip() if len(parts) > 3 else ""
+        files = ([first_file] if first_file.strip() else []) + rest_files
+        commits.append({"sha": parts[0], "date": date, "subject": parts[2],
+                        "body": body, "files": files})
     commits.reverse()
     return commits, None
 
@@ -139,12 +149,13 @@ LINE_LOG_LIMIT = 12
 _SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
-def line_log(project_path, file, start, end):
+def line_log(project_path, file, start, end, extra=None):
     """命中 file 第 start..end 行演化的 commit SHA(旧→新,最多 LINE_LOG_LIMIT 条)。
     git log -L<a>,<b>:<file> -s --format=%H;只保留 40 位 hex 行,稳健剔除可能漏出的
-    diff 文本(不依赖各 git 版本对 -s + -L 的具体行为)。失败→由调用方降级到文件级。"""
+    diff 文本(不依赖各 git 版本对 -s + -L 的具体行为)。失败→由调用方降级到文件级。
+    extra:时间范围 token(--since=... 或 rev range),须排在 -L 之前(git -L 对顺序敏感)。"""
     try:
-        raw = _git(["log", "-s", "--format=%H",
+        raw = _git(["log", "-s", "--format=%H", *(extra or []),
                     f"-L{start},{end}:{file}"], project_path)
     except (RuntimeError, OSError, subprocess.TimeoutExpired) as exc:
         return [], f"git log -L 失败:{exc}"
@@ -153,10 +164,12 @@ def line_log(project_path, file, start, end):
     return shas[-LINE_LOG_LIMIT:], None
 
 
-def file_log(project_path, file):
-    """文件级降级:命中该文件的 commit SHA(旧→新,最多 LINE_LOG_LIMIT 条)。"""
+def file_log(project_path, file, extra=None):
+    """文件级降级:命中该文件的 commit SHA(旧→新,最多 LINE_LOG_LIMIT 条)。
+    extra:时间范围 token(--since=... 或 rev range),须排在 -- pathspec 之前。"""
     try:
-        raw = _git(["log", "--format=%H", "--", file], project_path)
+        raw = _git(["log", "--format=%H", *(extra or []), "--", file],
+                   project_path)
     except (RuntimeError, OSError, subprocess.TimeoutExpired) as exc:
         return [], f"git log 失败:{exc}"
     shas = [s.strip() for s in raw.splitlines() if _SHA_RE.match(s.strip())]
@@ -184,3 +197,14 @@ def commit_body(project_path, sha):
         return _git(["show", "-s", "--format=%b", sha], project_path).strip()
     except (RuntimeError, OSError, subprocess.TimeoutExpired):
         return ""
+
+
+def commit_meta(project_path, sha):
+    """单 commit 的 (作者日期 ISO, subject)(供 blame 确定性罗列)。失败返回 ('', '')。"""
+    try:
+        raw = _git(["show", "-s", f"--format=%aI{FIELD_SEP}%s", sha],
+                   project_path).strip()
+    except (RuntimeError, OSError, subprocess.TimeoutExpired):
+        return "", ""
+    date_iso, _, subject = raw.partition(FIELD_SEP)
+    return date_iso, subject

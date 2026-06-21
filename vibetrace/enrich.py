@@ -10,6 +10,7 @@ from .config import redact_secrets
 from .gitlog import parse_breadcrumbs, prior_commit
 from .llm import LLMError
 from .prompts import OVERVIEW_PROMPT, OVERVIEW_SCHEMA
+from .sessions import head_tail
 
 log = logging.getLogger("vibetrace")
 
@@ -41,11 +42,9 @@ def _prior_context(project_path, commit, cache):
     return f"### 这些文件上次的改动({prior[:7]})\n{what[:200]}" if what else ""
 
 
-def _commit_prompt(commit, project_context="", prior_context=""):
+def _commit_prompt(commit, prior_context=""):
+    # 项目背景已上移到 llm.narrate(cache_prefix=...) 作缓存前缀,不再每 commit 重传
     parts = []
-    if project_context:
-        parts.append("### 项目背景(节选,据此判断改动是否违背项目约束)\n"
-                     + project_context)
     if prior_context:
         parts.append(prior_context)
     parts += [
@@ -63,12 +62,12 @@ def _commit_prompt(commit, project_context="", prior_context=""):
             f"{', '.join(match['overlap']) or '无'})")
         if session["title"]:
             parts.append("会话标题:" + session["title"])
-        if session["prompts"]:
+        if session["prompts"]:    # 保留首尾:靠后的话更接近最终决策
             parts.append("用户原话:\n"
-                         + "\n".join("- " + p for p in session["prompts"][:6]))
+                         + "\n".join("- " + p for p in head_tail(session["prompts"], 6)))
         if session["excerpts"]:
             parts.append("AI 关键陈述:\n"
-                         + "\n".join("- " + e for e in session["excerpts"][:6]))
+                         + "\n".join("- " + e for e in head_tail(session["excerpts"], 6)))
     if not commit.get("matches"):
         parts.append("### 无关联会话数据 —— why 字段只能基于 commit 本身,请注明属于推测")
     return "\n\n".join(parts)
@@ -105,7 +104,8 @@ def _is_trivial(commit):
 
 def enrich_commits(commits, llm, cache, project):
     stats = {"cache_hits": 0, "llm_calls": 0, "failures": 0, "trivial": 0}
-    ctx = _project_context(project)   # 项目背景读一次,供本次所有 commit 叙事接地
+    # 项目背景读一次脱敏,作稳定缓存前缀(系统提示+项目上下文),供本次所有 commit 复用
+    cache_prefix = redact_secrets(_project_context(project))
     for commit in commits:
         cached = cache.get_narrative(commit["sha"])
         if cached:
@@ -122,7 +122,8 @@ def enrich_commits(commits, llm, cache, project):
             continue
         try:
             prior = _prior_context(project, commit, cache)  # 这些文件上次改动叙事
-            raw = llm.narrate(redact_secrets(_commit_prompt(commit, ctx, prior)))
+            raw = llm.narrate(redact_secrets(_commit_prompt(commit, prior)),
+                              cache_prefix=cache_prefix)
             normalized = _normalize(raw)
             decisions, watches = parse_breadcrumbs(commit.get("body", ""))
             if decisions:  # 人原话并入决策,去重,保留 LLM 既有决策

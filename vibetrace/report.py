@@ -147,10 +147,11 @@ def read_capsule_answers(vault_path, project_path, cache):
 
 
 def append_usage(record):
-    """Append run parameters to ~/.vibetrace/usage.log (data flywheel seed)."""
+    """Append run parameters to ~/.vibetrace/usage.log (data flywheel seed)。
+    容错红线:埋点是旁路,任何失败都只记警告、绝不拖垮主命令。"""
     try:
         record["ts"] = datetime.now(timezone.utc).isoformat()
         with open(USAGE_LOG_PATH, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(record, ensure_ascii=False) + "\n")
-    except OSError as exc:
+    except Exception as exc:  # noqa: BLE001 — 旁路埋点不得让主流程崩
         log.warning("usage.log 写入失败:%s", exc)
