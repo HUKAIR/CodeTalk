@@ -85,6 +85,28 @@ class TestConsoleBuildHtml(unittest.TestCase):
         self.assertNotIn("sk-abcdef0123456789ABCDEF", html)
 
 
+class TestConsoleThemeAndMotion(unittest.TestCase):
+    def setUp(self):
+        self.html = (Path(console.__file__).parent / "console.html").read_text(
+            encoding="utf-8")
+
+    def test_light_theme_toggle_present(self):
+        self.assertIn('data-theme="light"', self.html)   # 浅色覆盖块
+        self.assertIn("themebtn", self.html)             # 切换按钮
+        self.assertIn("prefers-color-scheme", self.html)  # 跟随系统默认
+
+    def test_motion_with_reduced_motion_guard(self):
+        self.assertIn("@keyframes", self.html)
+        self.assertIn("prefers-reduced-motion", self.html)  # 尊重无障碍偏好
+
+    def test_timeline_scroll_reveal_scoped(self):
+        self.assertIn("@keyframes rowReveal", self.html)             # 揭示帧
+        self.assertIn("animation-timeline: view()", self.html)      # 滚动驱动
+        self.assertIn("#v-timeline.on .row", self.html)             # 作用域收口,非裸 .row
+        self.assertIn("tlArm", self.html)                           # 懒挂载 IO 回落
+        self.assertNotIn("setupTimelineReveal", self.html)          # 旧的 init 即挂已移除
+
+
 class TestConsoleCLI(unittest.TestCase):
     def test_console_dispatches_render(self):
         called = {}
