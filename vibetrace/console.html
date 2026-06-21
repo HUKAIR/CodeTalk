@@ -210,9 +210,10 @@ function store(v){ try {
   if (v === undefined) return JSON.parse(localStorage.getItem(VKEY)) || {};
   localStorage.setItem(VKEY, JSON.stringify(v));
 } catch (e) { return {}; } }
-function post(path, payload){ if (!SERVE) return;
-  fetch(path, {method:"POST", headers:{"Content-Type":"application/json"},
-    body:JSON.stringify(payload)}).catch(function(){}); }
+function post(path, payload){ if (!SERVE) return Promise.resolve(false);
+  return fetch(path, {method:"POST", headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(payload)}).then(function(r){ return r.ok; })
+    .catch(function(){ return false; }); }
 function agoText(n){ return n === 0 ? "今天" : n + " 天前"; }
 var visited = store();
 
@@ -254,9 +255,14 @@ function buildNav(){
 
 // ---- ① 开工概览 ----
 function answerCapsule(capId, outcome, host){
-  post("/capsule", {capsule_id:capId, outcome:outcome});
-  host.innerHTML = '<span class="ago">已记录:</span><span style="color:var(--ok)">'
-    + esc(outcome) + '</span>';
+  // 只在服务器确认写回(res.ok)后才显「已记录」,失败则保留按钮 + 提示重试,
+  // 杜绝乐观更新造成的「UI 假成功、库里其实没写」静默数据丢失。
+  post("/capsule", {capsule_id:capId, outcome:outcome}).then(function(ok){
+    if (ok) host.innerHTML = '<span class="ago">已记录:</span>'
+      + '<span style="color:var(--ok)">' + esc(outcome) + '</span>';
+    else host.insertAdjacentHTML("beforeend",
+      '<div class="ro" style="color:var(--warn)">写回失败,请重试</div>');
+  });
 }
 function renderOverview(){
   var o = DATA.overview, h = '<h2 class="vh">开工概览 — 你上次停在哪</h2>';
@@ -303,7 +309,7 @@ function renderOverview(){
   if (SERVE) el.querySelectorAll(".cap-q .btn").forEach(function(b){
     b.addEventListener("click", function(){
       var p = DATA.overview.pending[+b.getAttribute("data-k")];
-      answerCapsule(p.id || (p.sha+":0"), b.getAttribute("data-out"),
+      answerCapsule(p.capsule_id, b.getAttribute("data-out"),
         document.getElementById("ov-cap-"+b.getAttribute("data-k"))); }); });
 }
 

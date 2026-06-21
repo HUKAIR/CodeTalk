@@ -122,7 +122,7 @@ def build_course(project_path):
                      for c in commits}
     subj_by_short = {c["sha"][:7]: c.get("subject", "") for c in commits}
     today = datetime.now(timezone.utc).astimezone().date()
-    debt = debt_board(project_path, project, cache, today, top=5)
+    debt = debt_board(project_path, cache, today, top=5)
 
     # v2:schema 加了 plain 大白话字段,旧缓存无此字段 → 换版本前缀自然失效重算
     key = "course:v2:" + hashlib.sha256(
