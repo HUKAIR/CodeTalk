@@ -5,6 +5,8 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .config import redact_secrets
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS commit_narratives (
     sha TEXT PRIMARY KEY, project TEXT, model TEXT,
@@ -29,6 +31,10 @@ class Cache:
     def __init__(self, path):
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         self.conn = sqlite3.connect(path)
+        # WAL + 等锁:webserve 每请求新连接回写胶囊/reviewed,与并行 digest 写同库
+        # 不再 database is locked(读写并发、写者排队等锁而非立即报错)。:memory: 无害降级。
+        self.conn.execute("PRAGMA journal_mode=WAL")
+        self.conn.execute("PRAGMA busy_timeout=5000")
         self._migrate()
         self.conn.executescript(SCHEMA)
 
@@ -53,10 +59,12 @@ class Cache:
         return json.loads(row[0]) if row else None
 
     def put_narrative(self, sha, project, model, narrative):
+        # 落盘前统一脱敏:无论叙事来自哪条路径(LLM/trivial stub/digest/course),
+        # secret 都不进 cache.db —— M0 隐私红线对缓存存储这一面的单点收口。
+        payload = redact_secrets(json.dumps(narrative, ensure_ascii=False))
         self.conn.execute(
             "INSERT OR REPLACE INTO commit_narratives VALUES (?,?,?,?,?)",
-            (sha, project, model, json.dumps(narrative, ensure_ascii=False),
-             self._now()))
+            (sha, project, model, payload, self._now()))
         self.conn.commit()
 
     def get_session(self, session_id):
@@ -148,12 +156,14 @@ class Cache:
         return opened, filled
 
     def pending_capsules(self, project):
-        """已到期开启、但用户还没回填的胶囊(供开工简报『待验证的预测』)。"""
+        """已到期开启、但用户还没回填的胶囊(供开工简报/控制台『待验证的预测』)。
+        必带 capsule_id:console 回写要按它精确寻址,缺则多风险胶囊只能写到第 0 枚。"""
         rows = self.conn.execute(
-            "SELECT sha, risk, sealed_date FROM capsules WHERE project=? "
+            "SELECT capsule_id, sha, risk, sealed_date FROM capsules WHERE project=? "
             "AND opened_date IS NOT NULL AND outcome IS NULL "
             "ORDER BY open_date", (project,)).fetchall()
-        return [{"sha": r[0], "risk": r[1], "sealed_date": r[2]} for r in rows]
+        return [{"capsule_id": r[0], "sha": r[1], "risk": r[2], "sealed_date": r[3]}
+                for r in rows]
 
     def all_capsules(self, project):
         """项目全部已密封胶囊(供时光隧道注入已答状态、即时回写)。"""

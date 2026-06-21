@@ -73,6 +73,9 @@ def _build_html(project_path, serve):
 
     today = datetime.now(timezone.utc).astimezone().date()
     data = _payload(commits, narratives, capsules_by_sha, today)
+    from . import report  # 零 LLM 命令:记一行用量(commit 数 / serve 模式),写失败不影响主流程
+    report.append_usage({"command": "tunnel", "project": str(project_path),
+                         "commits": len(commits), "serve": serve})
     template = Template((Path(__file__).parent / "tunnel.html")
                         .read_text(encoding="utf-8"))
     html_text = template.substitute(

@@ -8,7 +8,8 @@ class TestCliAsk(unittest.TestCase):
     def test_ask_subcommand_dispatches_args(self):
         got = {}
 
-        def fake_ask(project_path, target, question, vault=None):
+        def fake_ask(project_path, target, question, vault=None,
+                     since=None, as_json=False):
             got.update(p=project_path, t=target, q=question, v=vault)
             return 0
 
