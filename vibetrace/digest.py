@@ -9,7 +9,7 @@ import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from . import align, enrich, gitlog, report, sessions
+from . import align, cursor_sessions, enrich, gitlog, report, sessions
 from .cache import Cache
 from .config import load_config
 from .llm import LLMClient, LLMError
@@ -39,6 +39,17 @@ def _shift(d, *, years=0, months=0):
     return date(y, m, min(d.day, calendar.monthrange(y, m)[1]))
 
 
+def _sources(cfg, args):
+    """会话源:默认 config.sources;--source 覆盖(both=claude+cursor)。"""
+    srcs = list(cfg.get("sources") or ["claude"])
+    sel = getattr(args, "source", None)
+    if sel == "both":
+        return ["claude", "cursor"]
+    if sel:
+        return [sel]
+    return srcs
+
+
 def digest(args):
     from .commands import _cache_db_path, _fail  # 复用 commands 的轻量分发辅助
     started = time.time()
@@ -63,10 +74,20 @@ def digest(args):
 
     cache = Cache(_cache_db_path())
     cache.rekey_project(project, pkey)   # 迁移旧 basename 键数据(一次性,幂等)
-    session_list, session_err = sessions.scan_sessions(
-        project_path, _since_to_dt(args.since), cache)
-    if session_err:
-        log.warning("会话层降级:%s", session_err)
+    session_list, session_err = ([], None)
+    srcs = _sources(cfg, args)
+    if "claude" in srcs:
+        session_list, session_err = sessions.scan_sessions(
+            project_path, _since_to_dt(args.since), cache)
+        if session_err:
+            log.warning("会话层降级:%s", session_err)
+    if "cursor" in srcs:
+        cursor_sessions.maybe_notice()
+        cur_list, cur_err = cursor_sessions.scan_sessions(
+            project_path, _since_to_dt(args.since), cache)
+        if cur_err:
+            log.warning("Cursor 会话层降级:%s", cur_err)
+        session_list = session_list + cur_list
     align.align(commits, session_list, project_path)
 
     try:
