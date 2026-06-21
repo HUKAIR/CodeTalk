@@ -50,6 +50,7 @@ def collect_segments(cache, project_path, file, start, end):
             "why": narrative.get("why") or "",
             "decisions": decs, "risks": risks,
             "evidence": narrative.get("evidence") or [],  # 旧缓存无键 .get 兼容
+            "test_refs": narrative.get("test_refs") or [],
         })
     return segments
 
@@ -72,6 +73,16 @@ def _emit_evidence(lines, evidence):
         lines.append("    (基于软关联会话,置信较低,请核对原话)")
 
 
+def _emit_test_refs(lines, test_refs):
+    """「相关测试(从测试场景反推设计)」确定性追加(零 LLM)。无则不输出。"""
+    if not test_refs:
+        return
+    lines.append("  相关测试(从测试场景反推设计):")
+    for tr in test_refs:
+        names = "、".join(tr.get("names") or []) or "(无显式 test_ 用例)"
+        lines.append(f"    {tr.get('path', '')} — {names}")
+
+
 def _format(file, start, end, segments):
     span = f"{file}:{start}-{end}" if start is not None else file
     lines = [f"# blame {span}(旧→新,共 {len(segments)} 个 commit 触达)\n"]
@@ -85,6 +96,7 @@ def _format(file, start, end, segments):
         for risk in seg["risks"]:
             lines.append(f"  待验证:{risk}")
         _emit_evidence(lines, seg.get("evidence") or [])
+        _emit_test_refs(lines, seg.get("test_refs") or [])
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 

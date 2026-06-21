@@ -29,7 +29,7 @@ def _patch_retrieve(evidence, ctx="[sha1aaa] 决策:用 urllib",
                     state="sha1aaaabbbb"):
     return mock.patch.object(
         ask, "_retrieve",
-        lambda *a, **k: (ctx, ["sha1aaaabbbb"], state, evidence))
+        lambda *a, **k: (ctx, ["sha1aaaabbbb"], state, evidence, []))
 
 
 class TestAskEvidenceBlock(unittest.TestCase):
