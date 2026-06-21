@@ -49,8 +49,27 @@ def collect_segments(cache, project_path, file, start, end):
             "sha": sha, "date": date_iso, "subject": subject,
             "why": narrative.get("why") or "",
             "decisions": decs, "risks": risks,
+            "evidence": narrative.get("evidence") or [],  # 旧缓存无键 .get 兼容
         })
     return segments
+
+
+def _emit_evidence(lines, evidence):
+    """把该段原话锚点确定性追加进输出(零 LLM):source·短id·ts + 原话/AI 片段;
+    支撑全为 low 时加置信度警示。无 evidence 不输出块。脱敏已在 enrich 上游做。"""
+    if not evidence:
+        return
+    lines.append("  原话佐证(可自行核验):")
+    for ev in evidence:
+        sid = (ev.get("session_id") or "")[:7]
+        lines.append(f"    [{ev.get('source', '?')}·{sid}·{ev.get('ts', '')}"
+                     f"·{ev.get('confidence', '?')}]")
+        for p in ev.get("prompts") or []:
+            lines.append(f"      原话:{p}")
+        for e in ev.get("excerpts") or []:
+            lines.append(f"      AI:{e}")
+    if not any(ev.get("confidence") == "high" for ev in evidence):
+        lines.append("    (基于软关联会话,置信较低,请核对原话)")
 
 
 def _format(file, start, end, segments):
@@ -65,6 +84,7 @@ def _format(file, start, end, segments):
             lines.append(f"  决策:{dec}")
         for risk in seg["risks"]:
             lines.append(f"  待验证:{risk}")
+        _emit_evidence(lines, seg.get("evidence") or [])
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 
