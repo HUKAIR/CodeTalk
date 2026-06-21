@@ -35,5 +35,48 @@ class TestAttribution(unittest.TestCase):
             ids, matched = cs.project_composer_ids(user, other)
             self.assertEqual((ids, matched), (set(), False))
 
+def make_global(user_dir, composer_id, bubbles, created=1000):
+    """造 globalStorage/state.vscdb : composerData + 若干 bubbleId 行。
+    bubbles: [(type, text, createdAt, [files])]。"""
+    g = Path(user_dir) / "globalStorage"; g.mkdir(parents=True, exist_ok=True)
+    con = sqlite3.connect(g / "state.vscdb")
+    con.execute("CREATE TABLE IF NOT EXISTS cursorDiskKV (key TEXT PRIMARY KEY, value TEXT)")
+    con.execute("INSERT OR REPLACE INTO cursorDiskKV VALUES (?,?)",
+                (f"composerData:{composer_id}", json.dumps({"createdAt": created, "text": ""})))
+    for i, (typ, text, ts, files) in enumerate(bubbles):
+        con.execute("INSERT OR REPLACE INTO cursorDiskKV VALUES (?,?)",
+                    (f"bubbleId:{composer_id}:b{i}",
+                     json.dumps({"type": typ, "text": text, "createdAt": ts,
+                                 "relevantFiles": files})))
+    con.commit(); con.close()
+    return g / "state.vscdb"
+
+class TestParseComposer(unittest.TestCase):
+    def test_maps_bubbles_to_prompts_excerpts_files_ts(self):
+        with tempfile.TemporaryDirectory() as t:
+            user = Path(t) / "User"; user.mkdir()
+            root = Path(t) / "repo"; root.mkdir()
+            db = make_global(user, "cid", [
+                (1, "为什么用乐观锁", 1000, ["a.py"]),
+                (2, "因为实现简单可靠,且 " + "x" * 400, 2000, ["a.py", "b.py"]),
+            ])
+            con = cs._open_ro(db)
+            s = cs._parse_composer(con, "cid", root); con.close()
+            self.assertEqual(s["session_id"], "cid")
+            self.assertEqual(s["prompts"], ["为什么用乐观锁"])
+            self.assertEqual(len(s["excerpts"]), 1)
+            self.assertLessEqual(len(s["excerpts"][0]), cs.EXCERPT_CAP)
+            self.assertEqual(s["files_written"], {str(root / "a.py"), str(root / "b.py")})
+            self.assertEqual(s["start"].year, cs._ms(1000).year)
+            self.assertTrue(s["start"] < s["end"])
+
+    def test_secret_in_bubble_is_redacted(self):
+        with tempfile.TemporaryDirectory() as t:
+            user = Path(t) / "User"; user.mkdir(); root = Path(t) / "r"; root.mkdir()
+            db = make_global(user, "c", [(1, "key sk-abcdef0123456789ABCD here", 5, [])])
+            con = cs._open_ro(db); s = cs._parse_composer(con, "c", root); con.close()
+            self.assertIn("[REDACTED]", s["prompts"][0])
+            self.assertNotIn("sk-abcdef0123456789ABCD", s["prompts"][0])
+
 if __name__ == "__main__":
     unittest.main()
