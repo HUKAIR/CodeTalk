@@ -2,23 +2,48 @@
 <html lang="zh"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>$project — vibetrace 控制台</title>
+<script>
+  // 上色先于首屏,避免浅色用户看到深色闪烁(单一偏好解析处)
+  try {
+    var saved = localStorage.getItem("vibetrace.theme");
+    var sys = window.matchMedia
+      && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", saved || sys);
+  } catch (e) {}
+</script>
 <style>
   :root {
     --bg: #0d0d0f; --fg: #e8e8ea; --dim: #8b8b92; --faint: #5a5a62;
     --line: #26262b; --card: #16161a; --card2: #1c1c22;
     --accent: #5b9cff; --warn: #e0a44a; --ok: #57b87a;
+    --header: rgba(13,13,15,.94);
     --sans: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
     --mono: "SF Mono", ui-monospace, "Cascadia Code", Menlo, monospace;
   }
+  :root[data-theme="light"] {
+    --bg: #fbfbfd; --fg: #1b1b1f; --dim: #5f5f68; --faint: #9a9aa3;
+    --line: #e4e4ea; --card: #ffffff; --card2: #f2f2f6;
+    --accent: #2f6fe0; --warn: #b07415; --ok: #2e8b57;
+    --header: rgba(251,251,253,.92);
+  }
+  @keyframes fadeup { from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; } }
+  @keyframes growx { from { transform: scaleX(0); } to { transform: scaleX(1); } }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--fg);
-    font-family: var(--sans); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+    font-family: var(--sans); line-height: 1.6; -webkit-font-smoothing: antialiased;
+    transition: background-color .3s ease, color .3s ease; }
   ::selection { background: var(--accent); color: #fff; }
-  header { position: sticky; top: 0; z-index: 5; background: rgba(13,13,15,.94);
+  header { position: sticky; top: 0; z-index: 5; background: var(--header);
     backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
   .bar { display: flex; justify-content: space-between; align-items: center;
     padding: 12px 24px; font-family: var(--mono); font-size: 12px; color: var(--dim); }
   .bar .b { color: var(--fg); font-weight: 600; letter-spacing: .12em; }
+  .themebtn { font: inherit; font-family: var(--mono); font-size: 13px; line-height: 1;
+    background: none; border: 1px solid var(--line); color: var(--dim);
+    cursor: pointer; padding: 4px 9px; margin-left: 12px;
+    transition: color .15s ease, border-color .15s ease; }
+  .themebtn:hover { color: var(--fg); border-color: var(--accent); }
   nav { display: flex; gap: 2px; padding: 0 16px; }
   nav button { font: inherit; font-family: var(--mono); font-size: 13px;
     color: var(--dim); background: none; border: none; border-bottom: 2px solid transparent;
@@ -108,11 +133,61 @@
   .empty { color: var(--faint); font-size: 13px; font-style: italic; }
   footer { max-width: 820px; margin: 0 auto; padding: 0 24px 50px;
     color: var(--faint); font-size: 12px; font-family: var(--mono); }
+
+  /* 动效:进场淡入、展开淡入、债条生长;交互件平滑过渡 */
+  .view.on { animation: fadeup .28s ease; }
+  #v-overview.on .card { animation: fadeup .32s ease both; }
+  #v-overview.on .card:nth-child(2) { animation-delay: .04s; }
+  #v-overview.on .card:nth-child(3) { animation-delay: .08s; }
+  #v-overview.on .card:nth-child(4) { animation-delay: .12s; }
+  #v-overview.on .card:nth-child(5) { animation-delay: .16s; }
+  .row.open .body, .dec.open .down { animation: fadeup .2s ease; }
+  .debt .bar2 { transform-origin: left; animation: growx .5s .04s ease both; }
+  .card, .btn, nav button, .head .subj, .jump, .dec .imp {
+    transition: color .15s ease, border-color .15s ease, background-color .2s ease; }
+
+  /* 时光轴卡片滚动驱动揭示 — 路线C 混合 */
+  /* 揭示帧:从下方滑入(40px)+略放大(1.06)+淡入,落到正常 */
+  @keyframes rowReveal {
+    from { opacity: 0; transform: translateY(40px) scale(1.06); }
+    to   { opacity: 1; transform: none; }
+  }
+  /* 路径A:支持 view() → 纯 CSS 连续 scrub。初始隐藏态只活在关键帧里,
+     不写进 .row 基样式,故不支持的引擎 / JS 关闭 永远看不到隐藏行。
+     #v-timeline.on 作用域:仅时光轴 display:block(有几何)时绑定,切走不命中、
+     切回按当前滚动几何重新求值,无需 JS;内嵌 no-preference 使 reduce 下整块不生成。 */
+  @supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+      #v-timeline.on .row {
+        transform-origin: left center;        /* 沿时间轴线生长,不歪 ::before 圆点 */
+        animation: rowReveal linear both;     /* both:range 两端各钉一帧,首屏行自动落定 */
+        animation-timeline: view();
+        animation-range: entry 2% entry 42%;
+      }
+    }
+  }
+  /* 路径B:不支持 view() → 仅当 JS 给行加上 .tl-pre 才进入隐藏态;
+     JS 关闭时无任何规则命中,行保持自然可读。.tl-in 由 IO 触发落定。 */
+  @supports not (animation-timeline: view()) {
+    #v-timeline.on .row.tl-pre {
+      opacity: 0; transform: translateY(40px) scale(1.06);
+      transform-origin: left center;
+    }
+    #v-timeline.on .row.tl-pre.tl-in {
+      opacity: 1; transform: none;
+      transition: opacity .5s ease, transform .5s cubic-bezier(.22,.61,.36,1);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+    /* 兜底:即便某行被加了隐藏类,也强制可见(scrub/IO 全停时不留空白) */
+    .row.tl-pre { opacity: 1 !important; transform: none !important; } }
 </style></head><body>
 <header>
   <div class="bar">
     <span><span class="b">VIBETRACE</span> 控制台 · $project</span>
-    <span>LOCAL-FIRST · $generated</span>
+    <span>LOCAL-FIRST · $generated<button id="themebtn" class="themebtn" title="切换浅色/深色">☀</button></span>
   </div>
   <nav id="nav"></nav>
 </header>
@@ -141,6 +216,23 @@ function post(path, payload){ if (!SERVE) return;
 function agoText(n){ return n === 0 ? "今天" : n + " 天前"; }
 var visited = store();
 
+// ---- 主题(初始偏好已在 head 解析;此处设值 + 同步图标 + 接线)----
+function setTheme(t){
+  document.documentElement.setAttribute("data-theme", t);
+  try { localStorage.setItem("vibetrace.theme", t); } catch (e) {}
+  var b = document.getElementById("themebtn");
+  if (b) b.textContent = t === "light" ? "🌙" : "☀";
+}
+function initTheme(){
+  var b = document.getElementById("themebtn");
+  if (!b) return;
+  b.textContent = document.documentElement.getAttribute("data-theme") === "light"
+    ? "🌙" : "☀";
+  b.addEventListener("click", function(){
+    setTheme(document.documentElement.getAttribute("data-theme") === "light"
+      ? "dark" : "light"); });
+}
+
 // ---- 导航 ----
 function show(name){
   VIEWS.forEach(function(v){
@@ -149,6 +241,8 @@ function show(name){
   document.querySelectorAll("#nav button").forEach(function(b){
     b.classList.toggle("on", b.getAttribute("data-v")===name);
   });
+  // 切到时光轴(display:none→block):先懒挂载 IO,再 rAF 兜底揭示已在首屏的隐藏行
+  if (name === "timeline") { tlArm(); requestAnimationFrame(tlRevealVisibleNow); }
 }
 function buildNav(){
   document.getElementById("nav").innerHTML = VIEWS.map(function(v){
@@ -262,6 +356,56 @@ function renderTimeline(){
   });
 }
 
+// ---- ②b 时光轴滚动驱动揭示(路线C 混合)----
+// 支持 animation-timeline:view() → 纯 CSS scrub 已接管,JS 不介入(避免重复触发)。
+// 否则 → IntersectionObserver 一次性揭示。reduced-motion 一律不介入。
+// 懒挂载:只在首次切到时光轴(#v-timeline 已 display:block、有几何)时 arm,
+// 避开在 display:none 子树上 observe 的脆弱时机;tlArmed 守卫保证切走切回只挂一次。
+var tlObserver = null;
+var tlArmed = false;
+function tlSupportsCss(){
+  try { return !!(window.CSS && CSS.supports
+    && CSS.supports("animation-timeline", "view()")); }
+  catch (e) { return false; }
+}
+function tlReduced(){
+  try { return !!(window.matchMedia
+    && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }
+  catch (e) { return false; }
+}
+function tlArm(){
+  if (tlArmed) return;                                   // 只挂一次(切走切回不重连)
+  tlArmed = true;
+  if (tlSupportsCss() || tlReduced()) return;            // CSS 接管 或 关动效 → 不挂 IO
+  if (!window.IntersectionObserver) return;              // 老引擎无 IO → 行保持自然可见
+  var rows = document.querySelectorAll("#v-timeline .row");
+  if (!rows.length) return;
+  for (var i = 0; i < rows.length; i++) rows[i].classList.add("tl-pre");
+  tlObserver = new IntersectionObserver(function(entries){
+    entries.forEach(function(en){
+      if (en.isIntersecting){
+        en.target.classList.add("tl-in");
+        tlObserver.unobserve(en.target);                 // 一次性,落定后不再观察
+      }
+    });
+  }, { rootMargin: "0px 0px -8% 0px", threshold: 0.01 });
+  for (var j = 0; j < rows.length; j++) tlObserver.observe(rows[j]);
+}
+// 切到时光轴时,display:none→block 会让 IO 重新求值首屏行;此处兜底再扫一遍,
+// 把已在视口、却仍处隐藏态的行立即揭示(防止首屏行卡在 .tl-pre)。
+function tlRevealVisibleNow(){
+  if (!tlObserver) return;
+  var rows = document.querySelectorAll("#v-timeline .row.tl-pre:not(.tl-in)");
+  for (var i = 0; i < rows.length; i++){
+    var r = rows[i].getBoundingClientRect();
+    var vh = window.innerHeight || document.documentElement.clientHeight;
+    if (r.top < vh && r.bottom > 0){
+      rows[i].classList.add("tl-in");
+      tlObserver.unobserve(rows[i]);
+    }
+  }
+}
+
 // ---- ③ 决策图(渐进式:决策 → 点开下游影响)----
 function renderGraph(){
   var g = DATA.graph || {nodes:[],edges:[]};
@@ -310,7 +454,7 @@ function renderFoot(){
     + " 段叙事" + (SERVE?" · serve:回答即时写回 cache.db":" · 只读");
 }
 
-buildNav(); renderOverview(); renderTimeline(); renderGraph(); renderDebt();
+buildNav(); initTheme(); renderOverview(); renderTimeline(); renderGraph(); renderDebt();
 renderFoot(); show("overview");
 </script>
 </body></html>
