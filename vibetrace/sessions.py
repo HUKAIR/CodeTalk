@@ -87,7 +87,7 @@ def _parse_file(path, is_subagent=False):
         "session_id": path.stem, "title": "", "start": None, "end": None,
         "prompts": [], "excerpts": [], "files_written": set(),
         "files_read": set(), "records": 0, "parse_failures": 0,
-        "is_subagent": is_subagent,
+        "is_subagent": is_subagent, "source": "claude",
         "tokens": {"input": 0, "output": 0, "cache_read": 0},
     }
     usage_by_msg = {}

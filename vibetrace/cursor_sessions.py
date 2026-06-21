@@ -116,6 +116,7 @@ def _blank_summary(cid):
             "files_written": set(), "files_read": set(),
             "start": None, "end": None, "records": 0, "parse_failures": 0,
             "is_subagent": False,   # 与 Claude summary 契约对齐(Cursor 会话非 subagent)
+            "source": "cursor",     # evidence 透传:区分原话来自哪个工具
             "tokens": {"input": 0, "output": 0, "cache_read": 0}}
 
 
