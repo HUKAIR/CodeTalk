@@ -36,14 +36,14 @@ class TestAttribution(unittest.TestCase):
             ids, matched = cs.project_composer_ids(user, other)
             self.assertEqual((ids, matched), (set(), False))
 
-def make_global(user_dir, composer_id, bubbles, created=1000):
+def make_global(user_dir, composer_id, bubbles, created=1000, head_text=""):
     """造 globalStorage/state.vscdb : composerData + 若干 bubbleId 行。
-    bubbles: [(type, text, createdAt, [files])]。"""
+    bubbles: [(type, text, createdAt, [files])];head_text=composerData 草稿文本。"""
     g = Path(user_dir) / "globalStorage"; g.mkdir(parents=True, exist_ok=True)
     con = sqlite3.connect(g / "state.vscdb")
     con.execute("CREATE TABLE IF NOT EXISTS cursorDiskKV (key TEXT PRIMARY KEY, value TEXT)")
     con.execute("INSERT OR REPLACE INTO cursorDiskKV VALUES (?,?)",
-                (f"composerData:{composer_id}", json.dumps({"createdAt": created, "text": ""})))
+                (f"composerData:{composer_id}", json.dumps({"createdAt": created, "text": head_text})))
     for i, (typ, text, ts, files) in enumerate(bubbles):
         con.execute("INSERT OR REPLACE INTO cursorDiskKV VALUES (?,?)",
                     (f"bubbleId:{composer_id}:b{i}",
@@ -113,10 +113,40 @@ class TestScanSessions(unittest.TestCase):
             cache = Cache(":memory:")
             with unittest.mock.patch.object(cs, "_USER_DIRS", [user]):
                 cs.scan_sessions(proj, None, cache)          # 首次写缓存
-                hit = cache.get_session("cid")
+                hit = cache.get_session("cursor:cid")        # 源前缀键,与 Claude 隔离
                 self.assertIsNotNone(hit)
+                self.assertIsNone(cache.get_session("cid"))  # 旧裸键不再使用
                 out2, _ = cs.scan_sessions(proj, None, cache)  # 二次命中
             self.assertEqual(len(out2), 1)
+
+class TestReviewFixes(unittest.TestCase):
+    """PR#29 评审发现的修复回归。"""
+
+    def test_title_secret_at_boundary_redacted(self):
+        # 无 type==1 提问 → title 取 composerData.text;secret 跨第60字符不得逃过脱敏
+        with tempfile.TemporaryDirectory() as t:
+            user = Path(t) / "User"; user.mkdir(); root = Path(t) / "r"; root.mkdir()
+            head = "x" * 50 + "sk-ABCDEFGHIJKLMNOP1234567890"
+            db = make_global(user, "c", [(2, "ai 回答够长够长够长够长够长够长够长够长", 5, [])],
+                             head_text=head)
+            con = cs._open_ro(db); s = cs._parse_composer(con, "c", root); con.close()
+            self.assertNotIn("sk-ABCDEF", s["title"])   # 旧码(先截断后脱敏)会泄此残片
+            self.assertIn("[REDACTED]", s["title"])
+
+    def test_nondict_bubble_does_not_drop_session(self):
+        # 一条合法但非对象的 JSON bubble 不应使整条会话丢失
+        with tempfile.TemporaryDirectory() as t:
+            user = Path(t) / "User"; user.mkdir(); root = Path(t) / "r"; root.mkdir()
+            db = make_global(user, "c", [(1, "真实问题", 1000, [])])
+            con = sqlite3.connect(db)   # 注入一条非 dict 的 bubble 值
+            con.execute("INSERT INTO cursorDiskKV VALUES (?,?)", ("bubbleId:c:bad", "[]"))
+            con.commit(); con.close()
+            con = cs._open_ro(db); s = cs._parse_composer(con, "c", root); con.close()
+            self.assertEqual(s["prompts"], ["真实问题"])   # 有效 bubble 仍被解析
+
+    def test_blank_summary_has_is_subagent(self):
+        self.assertIs(cs._blank_summary("x")["is_subagent"], False)
+
 
 class TestNotice(unittest.TestCase):
     def test_notice_shown_once(self):

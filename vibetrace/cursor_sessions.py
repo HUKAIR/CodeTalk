@@ -74,7 +74,7 @@ def _ms(value):
     """Cursor epoch 毫秒 → tz-aware UTC datetime;非法返回 None。"""
     try:
         return datetime.fromtimestamp(float(value) / 1000, tz=timezone.utc)
-    except (TypeError, ValueError, OSError):
+    except (TypeError, ValueError, OSError, OverflowError):
         return None
 
 
@@ -106,6 +106,7 @@ def _blank_summary(cid):
     return {"session_id": cid, "title": "", "prompts": [], "excerpts": [],
             "files_written": set(), "files_read": set(),
             "start": None, "end": None, "records": 0, "parse_failures": 0,
+            "is_subagent": False,   # 与 Claude summary 契约对齐(Cursor 会话非 subagent)
             "tokens": {"input": 0, "output": 0, "cache_read": 0}}
 
 
@@ -119,9 +120,11 @@ def _parse_composer(gcon, cid, root):
         rows = []
     for (raw,) in rows:
         try:
-            bubbles.append(json.loads(raw))
+            obj = json.loads(raw)
         except (ValueError, TypeError):
             continue
+        if isinstance(obj, dict):   # 合法但非对象的 JSON(数组/标量)不致整条会话丢失
+            bubbles.append(obj)
     bubbles.sort(key=lambda b: b.get("createdAt") or 0)
     s = _blank_summary(cid)
     for b in bubbles:
@@ -138,8 +141,9 @@ def _parse_composer(gcon, cid, root):
             s["prompts"].append(redact_secrets(head_tail(text, PROMPT_CAP)))
         elif b.get("type") == 2 and len(s["excerpts"]) < MAX_EXCERPTS:
             s["excerpts"].append(redact_secrets(head_tail(text, EXCERPT_CAP)))
+    # 先脱敏整段再切,避免 secret 跨第 60 字符被截成残片逃过正则(title 经 put_session 落盘不二次脱敏)
     s["title"] = (s["prompts"][0][:60] if s["prompts"]
-                  else redact_secrets((head.get("text") or "")[:60]))
+                  else redact_secrets(head.get("text") or "")[:60])
     return s
 
 
@@ -163,6 +167,8 @@ def _ids_by_file_overlap(gcon, root):
             try:
                 b = json.loads(raw)
             except (ValueError, TypeError):
+                continue
+            if not isinstance(b, dict):   # 非对象 JSON 跳过,_abs_files 才不会 AttributeError
                 continue
             for f in _abs_files(b, root):
                 try:
@@ -197,25 +203,31 @@ def scan_sessions(project_path, since_dt, cache=None):
             ids = _ids_by_file_overlap(gcon, root)
         for cid in sorted(ids):
             try:
-                n = gcon.execute("SELECT COUNT(*) FROM cursorDiskKV WHERE key LIKE ?",
-                                 (f"bubbleId:{cid}:%",)).fetchone()[0]
                 last = gcon.execute(
-                    "SELECT value FROM cursorDiskKV WHERE key LIKE ? ",
+                    "SELECT value FROM cursorDiskKV WHERE key LIKE ?",
                     (f"bubbleId:{cid}:%",)).fetchall()
+                n = len(last)                       # 由 fetchall 推出,省一次 COUNT 扫表
                 last_ms = 0
                 for (raw,) in last:
                     try:
-                        last_ms = max(last_ms, json.loads(raw).get("createdAt") or 0)
+                        obj = json.loads(raw)
                     except (ValueError, TypeError):
                         continue
-                cached = cache.get_session(cid) if cache else None
-                if cached and cached["mtime"] == last_ms and cached["size"] == n:
+                    if isinstance(obj, dict):       # 非对象 JSON 不抛 AttributeError
+                        last_ms = max(last_ms, obj.get("createdAt") or 0)
+                m = _ms(last_ms)
+                if since_dt and m and m < since_dt:  # 早剪枝:窗口外会话免解析全部 bubble
+                    continue
+                ckey = "cursor:" + cid              # 源前缀:与 Claude session 键隔离、列语义不混
+                cached = cache.get_session(ckey) if cache else None
+                if cached and last_ms and cached["mtime"] == last_ms \
+                        and cached["size"] == n:
                     s = _thaw(cached["summary"])
                 else:
                     s = _parse_composer(gcon, cid, root)
-                    if cache and s["records"]:
+                    if cache and s["records"] and last_ms:  # 无时间戳不缓存,免陈旧命中
                         cache.put_session(
-                            cid, s["end"].isoformat() if s["end"] else "",
+                            ckey, s["end"].isoformat() if s["end"] else "",
                             last_ms, n, _freeze(s))
                 if not s["records"]:
                     continue
