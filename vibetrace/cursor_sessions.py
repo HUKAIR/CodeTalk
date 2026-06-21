@@ -78,6 +78,15 @@ def _ms(value):
         return None
 
 
+def _epoch(value):
+    """createdAt(int 或数字字符串)→ 可比较 int 毫秒;非数值返回 0。
+    真实 Cursor 数据 createdAt 偶为字符串,直接与 int 比较/排序会 TypeError(dogfood 实测)。"""
+    try:
+        return int(float(value))
+    except (TypeError, ValueError, OverflowError):   # 溢出/无穷串也按契约降级为 0(同 _ms)
+        return 0
+
+
 def _abs_files(bubble, root):
     """从一条消息抠出涉及文件,统一成绝对路径(供 align 与 commit 文件求交)。"""
     out = set()
@@ -111,7 +120,9 @@ def _blank_summary(cid):
 
 
 def _parse_composer(gcon, cid, root):
-    head = _table_get(gcon, "cursorDiskKV", f"composerData:{cid}") or {}
+    head = _table_get(gcon, "cursorDiskKV", f"composerData:{cid}")
+    if not isinstance(head, dict):   # 非官方 schema:损坏/版本变可能非 dict,守住免整条会话丢
+        head = {}
     bubbles = []
     try:
         rows = gcon.execute("SELECT value FROM cursorDiskKV WHERE key LIKE ?",
@@ -125,7 +136,7 @@ def _parse_composer(gcon, cid, root):
             continue
         if isinstance(obj, dict):   # 合法但非对象的 JSON(数组/标量)不致整条会话丢失
             bubbles.append(obj)
-    bubbles.sort(key=lambda b: b.get("createdAt") or 0)
+    bubbles.sort(key=lambda b: _epoch(b.get("createdAt")))   # createdAt 可能是字符串
     s = _blank_summary(cid)
     for b in bubbles:
         ts = _ms(b.get("createdAt"))
@@ -133,7 +144,8 @@ def _parse_composer(gcon, cid, root):
             s["start"] = min(s["start"] or ts, ts)
             s["end"] = max(s["end"] or ts, ts)
         s["files_written"] |= _abs_files(b, Path(root))
-        text = (b.get("text") or "").strip()
+        raw_text = b.get("text")   # 非 str(富内容 dict/list)降级为空,免 .strip() 崩掉整条会话
+        text = raw_text.strip() if isinstance(raw_text, str) else ""
         if not text:
             continue
         s["records"] += 1
@@ -142,8 +154,9 @@ def _parse_composer(gcon, cid, root):
         elif b.get("type") == 2 and len(s["excerpts"]) < MAX_EXCERPTS:
             s["excerpts"].append(redact_secrets(head_tail(text, EXCERPT_CAP)))
     # 先脱敏整段再切,避免 secret 跨第 60 字符被截成残片逃过正则(title 经 put_session 落盘不二次脱敏)
+    head_text = head.get("text")   # 非 str 草稿降级为空,免 [:60] 切片崩掉整条会话
     s["title"] = (s["prompts"][0][:60] if s["prompts"]
-                  else redact_secrets(head.get("text") or "")[:60])
+                  else redact_secrets(head_text if isinstance(head_text, str) else "")[:60])
     return s
 
 
@@ -214,7 +227,7 @@ def scan_sessions(project_path, since_dt, cache=None):
                     except (ValueError, TypeError):
                         continue
                     if isinstance(obj, dict):       # 非对象 JSON 不抛 AttributeError
-                        last_ms = max(last_ms, obj.get("createdAt") or 0)
+                        last_ms = max(last_ms, _epoch(obj.get("createdAt")))  # 可能是字符串
                 m = _ms(last_ms)
                 if since_dt and m and m < since_dt:  # 早剪枝:窗口外会话免解析全部 bubble
                     continue
