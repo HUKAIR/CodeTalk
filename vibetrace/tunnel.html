@@ -11,6 +11,9 @@
     --mono: "SF Mono", ui-monospace, "Cascadia Code", Menlo, monospace;
   }
   * { box-sizing: border-box; }
+  /* 键盘焦点可见:给可点击非按钮件(role=button / 改答链接)统一焦点环 */
+  [role="button"]:focus-visible, .reanswer:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px; }
   html { scroll-behavior: smooth; }
   body { margin: 0; background: var(--bg); color: var(--fg);
     font-family: var(--sans); line-height: 1.6;
@@ -44,6 +47,9 @@
   .btn:disabled { opacity: .4; cursor: not-allowed; }
   .ro { font-size: 12px; color: var(--faint); margin-top: 8px;
     font-family: var(--mono); }
+  .reanswer { font-size: 12px; color: var(--accent); cursor: pointer;
+    font-family: var(--mono); margin-left: 4px; }
+  .reanswer:hover { text-decoration: underline; }
 
   /* 时间轴 */
   .daygroup { margin-top: 8px; }
@@ -109,10 +115,19 @@ function store(v){
   } catch (e) { return {}; }
 }
 function post(path, payload){
-  if (!SERVE) return;
-  fetch(path, { method: "POST",
+  if (!SERVE) return Promise.resolve(false);
+  return fetch(path, { method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload) }).catch(function(){});
+    body: JSON.stringify(payload) })
+    .then(function(r){ return r.ok; })
+    .catch(function(){ return false; });
+}
+// 键盘可达:Enter / Space 激活;Space 阻止默认滚屏。给可点击非按钮元素接键。
+function onActivate(el, fn){
+  el.addEventListener("click", fn);
+  el.addEventListener("keydown", function(e){
+    if (e.key === "Enter" || e.key === " "){ e.preventDefault(); fn(e); }
+  });
 }
 var visited = store();
 
@@ -146,7 +161,7 @@ function renderTimeline(){
   app.innerHTML = html;
   DATA.forEach(function(c, i){
     var head = document.getElementById("h" + i);
-    head.addEventListener("click", function(){ toggleRow(c, i); });
+    onActivate(head, function(){ toggleRow(c, i); });
   });
   wireDueButtons();
   renderFooter();
@@ -159,7 +174,8 @@ function rowHtml(c, i){
     + ((c.capsules || []).length ? ' · <span class="c">' + c.capsules.length + ' 胶囊</span>' : "");
   var prev = c.what || "尚未叙事 — 终端跑 vibetrace digest";
   return '<div class="' + cls + '" id="r' + i + '">'
-    + '<div class="head" id="h' + i + '"><div class="top">'
+    + '<div class="head" id="h' + i + '" role="button" tabindex="0"'
+    + ' aria-expanded="false" aria-controls="b' + i + '"><div class="top">'
     + '<span class="sha">' + c.sha + '</span>'
     + '<span class="subj">' + esc(c.subject) + '</span>'
     + '<span class="badges">' + badges + '</span></div>'
@@ -195,6 +211,8 @@ function bodyHtml(c){
 function toggleRow(c, i){
   var row = document.getElementById("r" + i);
   var open = row.classList.toggle("open");
+  document.getElementById("h" + i).setAttribute("aria-expanded",
+    open ? "true" : "false");
   if (!open) return;
   var body = document.getElementById("b" + i);
   if (!body.innerHTML) body.innerHTML = bodyHtml(c);
@@ -215,36 +233,60 @@ function dueCaps(){
   });
   return out;
 }
+function dueBtnsHtml(k){
+  var h = '<div class="btns">';
+  ["想多了", "已解决", "还在担心"].forEach(function(label){
+    h += '<button class="btn" data-k="' + k + '" data-out="' + label + '"'
+      + (SERVE ? "" : " disabled") + '>' + label + '</button>';
+  });
+  return h + '</div>';
+}
+function dueDoneHtml(out){
+  return '<span class="ago">已记录:</span>'
+    + '<span style="color:var(--ok)">' + esc(out) + '</span>'
+    + ' <span class="reanswer" role="button" tabindex="0">改答 ↺</span>';
+}
 function dueCapsulesHtml(){
   var due = dueCaps();
   if (!due.length) return "";
   var h = '<div class="due"><h4>■ 到期待验证的预测 — ' + due.length + ' 枚</h4>';
   due.forEach(function(d, k){
     h += '<div class="q" data-k="' + k + '"><span class="ago">'
-      + agoText(d.host.days_ago) + '你担心:</span>「' + esc(d.cap.risk) + '」<div class="btns">';
-    ["想多了", "已解决", "还在担心"].forEach(function(label){
-      h += '<button class="btn" data-k="' + k + '" data-out="' + label + '"'
-        + (SERVE ? "" : " disabled") + '>' + label + '</button>';
-    });
-    h += '</div></div>';
+      + agoText(d.host.days_ago) + '你担心:</span>「' + esc(d.cap.risk) + '」'
+      + '<div class="ans" id="due-ans-' + k + '">' + dueBtnsHtml(k) + '</div></div>';
   });
   if (!SERVE) h += '<div class="ro">只读 · 跑 vibetrace tunnel --serve 可回写答案</div>';
   h += '</div>';
   return h;
 }
+// 答案区在「选项组」与「已记录 + 改答↺」两态间切换;改答只是再 post 一次新 outcome
+// (set_capsule_outcome 是 UPDATE,后端天然支持改写)。
+function wireDueAns(k, due){
+  var ans = document.getElementById("due-ans-" + k);
+  if (!ans) return;
+  ans.querySelectorAll(".btn").forEach(function(b){
+    if (!SERVE) return;
+    b.addEventListener("click", function(){
+      answerDue(k, due, b.getAttribute("data-out"));
+    });
+  });
+  var re = ans.querySelector(".reanswer");
+  if (re) onActivate(re, function(){
+    ans.innerHTML = dueBtnsHtml(k); wireDueAns(k, due); });
+}
+function answerDue(k, due, out){
+  // res.ok 确认写回后才落地「已记录」,失败保留选项 + 提示重试,杜绝 UI 假成功。
+  var ans = document.getElementById("due-ans-" + k), d = due[k];
+  post("/capsule", { capsule_id: d.cap.id, outcome: out }).then(function(ok){
+    if (ok){ d.cap.outcome = out; ans.innerHTML = dueDoneHtml(out); wireDueAns(k, due); }
+    else ans.insertAdjacentHTML("beforeend",
+      '<div class="ro" style="color:var(--warn)">写回失败,请重试</div>');
+  });
+}
 function wireDueButtons(){
   if (!SERVE) return;
   var due = dueCaps();
-  document.querySelectorAll(".due .btn").forEach(function(b){
-    b.addEventListener("click", function(){
-      var d = due[+b.getAttribute("data-k")], out = b.getAttribute("data-out");
-      d.cap.outcome = out;                       // 乐观更新
-      post("/capsule", { capsule_id: d.cap.id, outcome: out });
-      var q = document.querySelector('.due .q[data-k="' + b.getAttribute("data-k") + '"]');
-      if (q) q.innerHTML = '<span class="ago">已记录:</span>「' + esc(d.cap.risk)
-        + '」 → <span style="color:var(--ok)">' + esc(out) + '</span>';
-    });
-  });
+  due.forEach(function(d, k){ wireDueAns(k, due); });
 }
 
 function renderFooter(){

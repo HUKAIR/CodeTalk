@@ -30,6 +30,9 @@
     to { opacity: 1; transform: none; } }
   @keyframes growx { from { transform: scaleX(0); } to { transform: scaleX(1); } }
   * { box-sizing: border-box; }
+  /* 键盘焦点可见:给可点击非按钮件(role=button / 页签 / 链接)统一焦点环 */
+  [role="button"]:focus-visible, nav button:focus-visible, .jump:focus-visible,
+  .reanswer:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   body { margin: 0; background: var(--bg); color: var(--fg);
     font-family: var(--sans); line-height: 1.6; -webkit-font-smoothing: antialiased;
     transition: background-color .3s ease, color .3s ease; }
@@ -77,6 +80,9 @@
   .btn:hover:not(:disabled) { border-color: var(--accent); color: #fff; }
   .btn:disabled { opacity: .4; cursor: not-allowed; }
   .ro { font-size: 12px; color: var(--faint); margin-top: 8px; font-family: var(--mono); }
+  .reanswer { font-size: 12px; color: var(--accent); cursor: pointer;
+    font-family: var(--mono); margin-left: 4px; }
+  .reanswer:hover { text-decoration: underline; }
 
   /* 时光轴 */
   .day { font-family: var(--mono); font-size: 11px; color: var(--faint);
@@ -192,10 +198,10 @@
   <nav id="nav"></nav>
 </header>
 <main>
-  <section class="view on" id="v-overview"></section>
-  <section class="view" id="v-timeline"></section>
-  <section class="view" id="v-graph"></section>
-  <section class="view" id="v-debt"></section>
+  <section class="view on" id="v-overview" role="tabpanel" tabindex="0"></section>
+  <section class="view" id="v-timeline" role="tabpanel" tabindex="0"></section>
+  <section class="view" id="v-graph" role="tabpanel" tabindex="0"></section>
+  <section class="view" id="v-debt" role="tabpanel" tabindex="0"></section>
 </main>
 <footer id="foot"></footer>
 <script>
@@ -210,10 +216,18 @@ function store(v){ try {
   if (v === undefined) return JSON.parse(localStorage.getItem(VKEY)) || {};
   localStorage.setItem(VKEY, JSON.stringify(v));
 } catch (e) { return {}; } }
-function post(path, payload){ if (!SERVE) return;
-  fetch(path, {method:"POST", headers:{"Content-Type":"application/json"},
-    body:JSON.stringify(payload)}).catch(function(){}); }
+function post(path, payload){ if (!SERVE) return Promise.resolve(false);
+  return fetch(path, {method:"POST", headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(payload)}).then(function(r){ return r.ok; })
+    .catch(function(){ return false; }); }
 function agoText(n){ return n === 0 ? "今天" : n + " 天前"; }
+// 键盘可达:Enter / Space 激活;Space 阻止默认滚屏。给可点击非按钮元素接键。
+function onActivate(el, fn){
+  el.addEventListener("click", fn);
+  el.addEventListener("keydown", function(e){
+    if (e.key === "Enter" || e.key === " "){ e.preventDefault(); fn(e); }
+  });
+}
 var visited = store();
 
 // ---- 主题(初始偏好已在 head 解析;此处设值 + 同步图标 + 接线)----
@@ -239,24 +253,63 @@ function show(name){
     document.getElementById("v"+"-"+v[0]).classList.toggle("on", v[0]===name);
   });
   document.querySelectorAll("#nav button").forEach(function(b){
-    b.classList.toggle("on", b.getAttribute("data-v")===name);
+    var on = b.getAttribute("data-v")===name;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-selected", on ? "true" : "false");
+    b.tabIndex = on ? 0 : -1;                  // tablist:只 Tab 进当前页签
   });
   // 切到时光轴(display:none→block):先懒挂载 IO,再 rAF 兜底揭示已在首屏的隐藏行
   if (name === "timeline") { tlArm(); requestAnimationFrame(tlRevealVisibleNow); }
 }
 function buildNav(){
-  document.getElementById("nav").innerHTML = VIEWS.map(function(v){
-    return '<button data-v="'+v[0]+'">'+v[1]+'</button>'; }).join("");
+  var nav = document.getElementById("nav");
+  nav.setAttribute("role", "tablist");
+  nav.innerHTML = VIEWS.map(function(v){
+    return '<button role="tab" data-v="'+v[0]+'" aria-controls="v-'+v[0]+'"'
+      + ' aria-selected="false">'+v[1]+'</button>'; }).join("");
   document.querySelectorAll("#nav button").forEach(function(b){
     b.addEventListener("click", function(){ show(b.getAttribute("data-v")); });
   });
 }
 
 // ---- ① 开工概览 ----
-function answerCapsule(capId, outcome, host){
-  post("/capsule", {capsule_id:capId, outcome:outcome});
-  host.innerHTML = '<span class="ago">已记录:</span><span style="color:var(--ok)">'
-    + esc(outcome) + '</span>';
+// 答案区可在「选项组」与「已记录 + 改答↺」两态间来回切换:set_capsule_outcome 是
+// UPDATE,改答只是再 post 一次新 outcome,后端天然支持改写。
+function capBtnsHtml(k){
+  var h = '<div class="btns">';
+  ["想多了","已解决","还在担心"].forEach(function(lb){
+    h += '<button class="btn" data-k="'+k+'" data-out="'+lb+'"'
+      + (SERVE?"":" disabled")+'>'+lb+'</button>';
+  });
+  return h + '</div>';
+}
+function capDoneHtml(outcome){
+  return '<span class="ago">已记录:</span>'
+    + '<span style="color:var(--ok)">' + esc(outcome) + '</span>'
+    + ' <span class="reanswer" role="button" tabindex="0">改答 ↺</span>';
+}
+function wireCapAns(k){           // 给答案区当前内容(按钮 或 改答链接)接事件
+  var ans = document.getElementById("ov-ans-"+k);
+  if (!ans) return;
+  ans.querySelectorAll(".btn").forEach(function(b){
+    if (!SERVE) return;
+    b.addEventListener("click", function(){
+      var p = DATA.overview.pending[k];
+      answerCapsule(p.capsule_id, b.getAttribute("data-out"), k); });
+  });
+  var re = ans.querySelector(".reanswer");
+  if (re) onActivate(re, function(){              // 改答:恢复选项组重选重 post
+    ans.innerHTML = capBtnsHtml(k); wireCapAns(k); });
+}
+function answerCapsule(capId, outcome, k){
+  // 只在服务器确认写回(res.ok)后才落地「已记录」,失败则保留选项 + 提示重试,
+  // 杜绝乐观更新造成的「UI 假成功、库里其实没写」静默数据丢失。
+  var ans = document.getElementById("ov-ans-"+k);
+  post("/capsule", {capsule_id:capId, outcome:outcome}).then(function(ok){
+    if (ok){ ans.innerHTML = capDoneHtml(outcome); wireCapAns(k); }
+    else ans.insertAdjacentHTML("beforeend",
+      '<div class="ro" style="color:var(--warn)">写回失败,请重试</div>');
+  });
 }
 function renderOverview(){
   var o = DATA.overview, h = '<h2 class="vh">开工概览 — 你上次停在哪</h2>';
@@ -271,19 +324,16 @@ function renderOverview(){
     h += '<div class="card"><h3>到期待验证的预测 · '+o.pending.length+' 枚</h3>';
     o.pending.forEach(function(p, k){
       h += '<div class="cap-q" id="ov-cap-'+k+'"><span class="ago">'
-        + '('+p.sha.slice(0,7)+')你曾担心:</span>「'+esc(p.risk)+'」<div class="btns">';
-      ["想多了","已解决","还在担心"].forEach(function(lb){
-        h += '<button class="btn" data-k="'+k+'" data-out="'+lb+'"'
-          + (SERVE?"":" disabled")+'>'+lb+'</button>';
-      });
-      h += '</div></div>';
+        + '('+p.sha.slice(0,7)+')你曾担心:</span>「'+esc(p.risk)+'」'
+        + '<div class="ans" id="ov-ans-'+k+'">'+capBtnsHtml(k)+'</div></div>';
     });
     if (!SERVE) h += '<div class="ro">只读 · 跑 console --serve 可回写</div>';
     h += '</div>';
   }
   // 理解债 top
   if ((o.debt_top||[]).length){
-    h += '<div class="card"><h3>理解债 top 3<span class="jump" data-go="debt">看全部 →</span></h3>';
+    h += '<div class="card"><h3>理解债 top 3<span class="jump" role="button"'
+      + ' tabindex="0" data-go="debt">看全部 →</span></h3>';
     o.debt_top.forEach(function(r){
       h += '<p><span class="sha">'+esc(r.file)+'</span> · 债 '+r.debt
         + ' · 改'+r.churn+'·回看'+r.reviewed+'/'+r.commits+'</p>';
@@ -295,16 +345,14 @@ function renderOverview(){
     h += '<div class="card"><h3>决策面包屑覆盖</h3><p class="muted">近 '+o.coverage[1]
       + ' 个 commit 有 '+o.coverage[0]+' 个带 Vibe-Decision/Watch — ask/graph 据此更准。</p></div>';
   }
-  h += '<div class="card"><h3>更多</h3><p><span class="jump" data-go="timeline">时光轴 →</span>'
-    + ' &nbsp; <span class="jump" data-go="graph">决策图 →</span></p></div>';
+  h += '<div class="card"><h3>更多</h3><p><span class="jump" role="button" tabindex="0"'
+    + ' data-go="timeline">时光轴 →</span>'
+    + ' &nbsp; <span class="jump" role="button" tabindex="0" data-go="graph">决策图 →</span>'
+    + '</p></div>';
   var el = document.getElementById("v-overview"); el.innerHTML = h;
   el.querySelectorAll(".jump").forEach(function(j){
-    j.addEventListener("click", function(){ show(j.getAttribute("data-go")); }); });
-  if (SERVE) el.querySelectorAll(".cap-q .btn").forEach(function(b){
-    b.addEventListener("click", function(){
-      var p = DATA.overview.pending[+b.getAttribute("data-k")];
-      answerCapsule(p.id || (p.sha+":0"), b.getAttribute("data-out"),
-        document.getElementById("ov-cap-"+b.getAttribute("data-k"))); }); });
+    onActivate(j, function(){ show(j.getAttribute("data-go")); }); });
+  (o.pending||[]).forEach(function(p, k){ wireCapAns(k); });
 }
 
 // ---- ② 时光轴 ----
@@ -338,15 +386,18 @@ function renderTimeline(){
     var bd = '<span class="d">'+c.decisions.length+' 决策</span>'
       + (c.risks.length?' · <span class="r">'+c.risks.length+' 待验证</span>':"")
       + ((c.capsules||[]).length?' · <span class="c">'+c.capsules.length+' 胶囊</span>':"");
-    h += '<div class="'+cls+'" id="tr'+i+'"><div class="head" id="th'+i+'"><div class="top">'
+    h += '<div class="'+cls+'" id="tr'+i+'"><div class="head" id="th'+i+'" role="button"'
+      + ' tabindex="0" aria-expanded="false" aria-controls="tb'+i+'"><div class="top">'
       + '<span class="sha">'+c.sha+'</span><span class="subj">'+esc(c.subject)+'</span>'
       + '<span class="badges">'+bd+'</span></div><div class="prev">'
       + esc(c.what || "尚未叙事")+'</div></div><div class="body" id="tb'+i+'"></div></div>';
   });
   document.getElementById("v-timeline").innerHTML = h;
   T.forEach(function(c, i){
-    document.getElementById("th"+i).addEventListener("click", function(){
+    var head = document.getElementById("th"+i);
+    onActivate(head, function(){
       var row = document.getElementById("tr"+i), open = row.classList.toggle("open");
+      head.setAttribute("aria-expanded", open ? "true" : "false");
       if (!open) return;
       var b = document.getElementById("tb"+i);
       if (!b.innerHTML) b.innerHTML = rowBody(c);
@@ -418,17 +469,20 @@ function renderGraph(){
   decs.forEach(function(n, i){
     var d = down[n.id] || [];
     h += '<div class="dec '+(n.kind==="narrative"?"narrative":"")+'" id="gd'+i+'">'
-      + '<div class="t" id="gt'+i+'"><span class="meta">'+n.id+' · '+n.date+' · '
+      + '<div class="t" id="gt'+i+'" role="button" tabindex="0" aria-expanded="false"'
+      + ' aria-controls="gdown'+i+'"><span class="meta">'+n.id+' · '+n.date+' · '
       + (n.kind==="breadcrumb"?"面包屑":"叙事")+(n.badge?" · "+esc(n.badge):"")+'</span><br>'
       + esc(n.text)+' <span class="imp">影响 '+d.length+' 处 ▾</span></div>'
-      + '<div class="down">'+(d.length?d.map(function(t){
+      + '<div class="down" id="gdown'+i+'">'+(d.length?d.map(function(t){
           var tn = byId[t] || {subject:t};
           return '<div>'+t+' '+esc(tn.subject||"")+'</div>'; }).join(""):'<div>无下游</div>')
       + '</div></div>';
   });
   document.getElementById("v-graph").innerHTML = h;
-  decs.forEach(function(n, i){ document.getElementById("gt"+i).addEventListener("click",
-    function(){ document.getElementById("gd"+i).classList.toggle("open"); }); });
+  decs.forEach(function(n, i){ var t = document.getElementById("gt"+i);
+    onActivate(t, function(){
+      var open = document.getElementById("gd"+i).classList.toggle("open");
+      t.setAttribute("aria-expanded", open ? "true" : "false"); }); });
 }
 
 // ---- ④ 理解债 ----

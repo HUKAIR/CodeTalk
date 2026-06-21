@@ -107,6 +107,57 @@ class TestConsoleThemeAndMotion(unittest.TestCase):
         self.assertNotIn("setupTimelineReveal", self.html)          # 旧的 init 即挂已移除
 
 
+class TestAccessibilityAndReanswer(unittest.TestCase):
+    """任务9:键盘/读屏可达 + 改答 + tunnel res.ok 确认写回。"""
+
+    def setUp(self):
+        base = Path(console.__file__).parent
+        self.console = (base / "console.html").read_text(encoding="utf-8")
+        self.tunnel = (base / "tunnel.html").read_text(encoding="utf-8")
+
+    # ---- (a) 无障碍 ----
+    def test_console_clickable_rows_keyboard_accessible(self):
+        # 行展开 .head:可聚焦 + 键盘语义 + aria 状态
+        self.assertIn('role="button"', self.console)
+        self.assertIn('tabindex="0"', self.console)
+        self.assertIn('aria-expanded', self.console)
+        self.assertIn('aria-controls', self.console)
+        # 键盘激活:Enter/Space
+        self.assertIn("keydown", self.console)
+
+    def test_tunnel_clickable_rows_keyboard_accessible(self):
+        self.assertIn('role="button"', self.tunnel)
+        self.assertIn('tabindex="0"', self.tunnel)
+        self.assertIn('aria-expanded', self.tunnel)
+        self.assertIn('aria-controls', self.tunnel)
+        self.assertIn("keydown", self.tunnel)
+
+    def test_keydown_handles_enter_and_space(self):
+        # Enter 与 Space(" ")都要激活,且阻止 Space 滚屏
+        for html in (self.console, self.tunnel):
+            self.assertIn('"Enter"', html)
+            self.assertIn('" "', html)
+            self.assertIn("preventDefault", html)
+
+    # ---- (b) 改答 ----
+    def test_console_offers_reanswer_link(self):
+        self.assertIn("改答", self.console)
+
+    def test_tunnel_offers_reanswer_link(self):
+        self.assertIn("改答", self.tunnel)
+
+    # ---- (c) tunnel res.ok 确认写回(不再乐观更新)----
+    def test_tunnel_post_returns_promise_and_checks_ok(self):
+        # post 不再 fire-and-forget:返回 Promise 且校验 r.ok
+        self.assertIn("return r.ok", self.tunnel)
+        self.assertIn("Promise.resolve", self.tunnel)
+        # 旧的乐观更新注释/路径已移除
+        self.assertNotIn("乐观更新", self.tunnel)
+
+    def test_tunnel_capsule_write_handles_failure(self):
+        self.assertIn("写回失败", self.tunnel)
+
+
 class TestConsoleCLI(unittest.TestCase):
     def test_console_dispatches_render(self):
         called = {}

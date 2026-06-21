@@ -4,6 +4,7 @@ write-time 捕获(commit trailer 面包屑)+ read-time 廉价检索(git log -L �
 叙事 + 面包屑 → 一次轻 LLM)。无 key/失败时降级为打印该代码的原始决策史,绝不崩。
 """
 import hashlib
+import json
 import re
 import sys
 from pathlib import Path
@@ -32,15 +33,29 @@ def _parse_target(target):
     return target, None, None
 
 
-def _retrieve(project_path, file, start, end, cache):
+def _since_args(since):
+    """把 --since 的值分类成 git log 的范围 token(确定性检索,不引向量库):
+    含 '..' → 当 commit 范围(如 abc..def)直接作 rev arg;否则当日期 → --since=<值>。
+    None/空 → 无范围([]),退化为全历史检索。"""
+    since = (since or "").strip()
+    if not since:
+        return []
+    if ".." in since:
+        return [since]
+    return [f"--since={since}"]
+
+
+def _retrieve(project_path, file, start, end, cache, since=None):
     """→ (context_str, shas oldest-first, code_state)。无历史时 context_str 为 ''。
-    code_state = 命中行最新 commit SHA,进缓存键 → 代码一变旧答案自然失效。"""
+    code_state = 命中行最新 commit SHA,进缓存键 → 代码一变旧答案自然失效。
+    since:把检索从空间(文件:行)再叠一层时间范围(日期/commit 范围),确定性过滤。"""
+    extra = _since_args(since)
     if start is not None:
-        shas, err = line_log(project_path, file, start, end)
+        shas, err = line_log(project_path, file, start, end, extra=extra)
         if err:                       # 行级失败 → 文件级降级
-            shas, _ = file_log(project_path, file)
+            shas, _ = file_log(project_path, file, extra=extra)
     else:
-        shas, _ = file_log(project_path, file)
+        shas, _ = file_log(project_path, file, extra=extra)
     blocks = []
     for sha in shas:
         narrative = cache.get_narrative(sha) or {}
@@ -74,6 +89,21 @@ def _format(payload):
     return f"{out}\n\n据此回答的 commit:{cited}"
 
 
+def _json_text(mode, target, question, shas, payload=None, context=None):
+    """组装 agent 可读的结构化结果(与 agent-seed 写时捕获配成读写闭环)。
+    llm/cache:带 LLM payload(answer/cited_shas/unsure);degraded:无 LLM,
+    给出确定性检索结果(context 原始决策史 + shas),降级也不崩。脱敏在上游已做。"""
+    obj = {"mode": mode, "target": target, "question": question,
+           "shas": list(shas or [])}
+    if payload is not None:
+        obj["answer"] = payload.get("answer", "")
+        obj["cited_shas"] = list(payload.get("cited_shas") or [])
+        obj["unsure"] = payload.get("unsure", "")
+    if context is not None:
+        obj["context"] = context
+    return json.dumps(obj, ensure_ascii=False, indent=2)
+
+
 def _write_note(vault_path, project, target, question, payload):
     vault = Path(vault_path).expanduser()
     vault.mkdir(parents=True, exist_ok=True)
@@ -84,11 +114,13 @@ def _write_note(vault_path, project, target, question, payload):
 
 
 def answer_question(cache, llm, project_path, project, target, question,
-                    vault_path=None):
+                    vault_path=None, since=None, as_json=False):
     """核心:解析→检索→(命中缓存/无 key 降级/调 LLM)→脱敏缓存→(可选)写笔记。
-    返回 (text, error_or_None)。llm=None 表示无 key,降级打印原始决策史。"""
+    返回 (text, error_or_None)。llm=None 表示无 key,降级打印原始决策史。
+    since:把检索叠一层时间范围;as_json:text 改为 agent 可读的结构化 JSON。"""
     file, start, end = _parse_target(target)
-    context, shas, code_state = _retrieve(project_path, file, start, end, cache)
+    context, shas, code_state = _retrieve(project_path, file, start, end, cache,
+                                          since=since)
     if not context:
         return None, f"{file} 没有可用的提交历史,无从回答。"
     key = "ask:" + hashlib.sha256(
@@ -96,13 +128,25 @@ def answer_question(cache, llm, project_path, project, target, question,
     ).hexdigest()[:40]
     cached = cache.get_narrative(key)
     if cached:
+        _log_usage(project_path, "cache", llm)
+        if as_json:
+            return _json_text("cache", target, question, shas,
+                              payload=cached), None
         return _format(cached), None
     if llm is None:                       # 无 API key:降级到原始决策史
+        _log_usage(project_path, "degraded", llm)
+        if as_json:
+            return _json_text("degraded", target, question, shas,
+                              context=context), None
         return "(未配置 LLM,以下为这段代码的原始决策史)\n" + context, None
     try:
         raw = llm.narrate(_ask_prompt(context, question),
                           schema=ASK_SCHEMA, system=ASK_SYSTEM_PROMPT)
     except LLMError:
+        _log_usage(project_path, "degraded", llm)
+        if as_json:
+            return _json_text("degraded", target, question, shas,
+                              context=context), None
         return "(LLM 调用失败,以下为原始决策史)\n" + context, None
     payload = {
         "answer": redact_secrets(str(raw.get("answer", ""))),
@@ -110,12 +154,28 @@ def answer_question(cache, llm, project_path, project, target, question,
         "unsure": redact_secrets(str(raw.get("unsure", ""))),
     }
     cache.put_narrative(key, project, llm.model, payload)
+    _log_usage(project_path, "llm", llm)
     if vault_path:
         _write_note(vault_path, project, target, question, payload)
+    if as_json:
+        return _json_text("llm", target, question, shas, payload=payload), None
     return _format(payload), None
 
 
-def ask(project_path, target, question, vault=None):
+def _log_usage(project_path, mode, llm):
+    """记一行 ask 用量(mode=cache/degraded/llm;带 LLM token 省额)。写失败不影响主流程。"""
+    from . import report
+    stats = getattr(llm, "stats", {}) if llm else {}
+    report.append_usage({
+        "command": "ask", "project": str(project_path), "mode": mode,
+        "llm_calls": stats.get("calls", 0),
+        "tokens_in": stats.get("input_tokens", 0),
+        "tokens_out": stats.get("output_tokens", 0),
+        "cache_hit_tokens": stats.get("cache_hit_tokens", 0),
+    })
+
+
+def ask(project_path, target, question, vault=None, since=None, as_json=False):
     """CLI 入口:装配 cache/llm,转 answer_question,打印,返回退出码。"""
     cfg = load_config()
     if vault:
@@ -127,7 +187,8 @@ def ask(project_path, target, question, vault=None):
     except LLMError:
         llm = None                        # 无 key → 降级,不报错退出
     text, err = answer_question(cache, llm, pp, pp.name, target, question,
-                                cfg["vault_path"] if vault else None)
+                                cfg["vault_path"] if vault else None,
+                                since=since, as_json=as_json)
     cache.close()
     if err:
         print(f"错误:{err}", file=sys.stderr)

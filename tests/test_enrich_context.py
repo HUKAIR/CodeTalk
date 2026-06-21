@@ -50,13 +50,29 @@ class TestProjectContext(unittest.TestCase):
 
 
 class TestCommitPromptContext(unittest.TestCase):
-    def test_includes_project_context(self):
-        out = enrich._commit_prompt(_commit(), "我的项目背景ABC")
-        self.assertIn("我的项目背景ABC", out)
-        self.assertIn("项目背景", out)
+    """项目背景已移出 _commit_prompt(每 commit 重传),改走 cache_prefix(缓存前缀)。
+    语义不变:项目背景仍被送达 LLM,只是落在带 cache_control 的稳定前缀里。"""
 
-    def test_omits_when_no_context(self):
-        self.assertNotIn("项目背景", enrich._commit_prompt(_commit(), ""))
+    def test_commit_prompt_no_longer_carries_project_context(self):
+        out = enrich._commit_prompt(_commit())
+        self.assertNotIn("项目背景", out)
+
+    def test_project_context_threaded_via_cache_prefix(self):
+        captured = {}
+
+        class _FakeLLM:
+            model = "m"
+
+            def narrate(self, prompt, **kw):
+                captured["cache_prefix"] = kw.get("cache_prefix", "")
+                return {"what": "x", "why": "y", "decisions": [],
+                        "risks": [], "open_loops": []}
+
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        (Path(d) / "CLAUDE.md").write_text("我的项目背景ABC", encoding="utf-8")
+        enrich.enrich_commits([_commit()], _FakeLLM(), Cache(":memory:"), d)
+        self.assertIn("我的项目背景ABC", captured["cache_prefix"])
 
 
 class TestPriorContext(unittest.TestCase):

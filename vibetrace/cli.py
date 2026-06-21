@@ -1,221 +1,16 @@
-"""vibetrace CLI — single command: digest."""
+"""vibetrace CLI — 解析参数并分发到 commands.py 的各子命令实现。"""
 import argparse
-import calendar
-import json
 import logging
-import sys
-import time
-from datetime import date, datetime, timedelta, timezone
-from pathlib import Path
 
-from . import align, brief, enrich, gitlog, report, sessions
-from .cache import Cache
-from .config import CACHE_DB_PATH, load_config
-from .llm import LLMClient, LLMError
-
-log = logging.getLogger("vibetrace")
-
-
-def _fail(msg):
-    print(f"错误:{msg}", file=sys.stderr)
-    return 2
+from . import commands
+from .config import CACHE_DB_PATH  # commands 经 cli 读取它,沿用既有测试 patch 目标
 
 
 def _proj(p):  # 折叠各子命令重复的 --project
     p.add_argument("--project", default=".", help="项目路径(默认当前目录)"); return p
 
 
-def _render_or_serve(args, render, serve, label):  # tunnel/console 共用:serve 起服务,否则写静态
-    if args.serve:
-        err = serve(args.project, open_browser=not getattr(args, "no_open", False))
-        return _fail(err) if err else 0
-    path, err = render(args.project)
-    if err: return _fail(err)
-    print(f"{label}已写入:{path}")
-    return 0
-
-
-def _since_to_dt(since):
-    """Loose mirror of common 'git --since' phrases, for session file filtering."""
-    parts = since.split()
-    units = {"day": 1, "days": 1, "week": 7, "weeks": 7, "month": 30,
-             "months": 30, "hour": 1 / 24, "hours": 1 / 24}
-    try:
-        if len(parts) >= 2 and parts[-1] == "ago" and parts[1] in units:
-            return datetime.now(timezone.utc) - timedelta(
-                days=float(parts[0]) * units[parts[1]])
-        return datetime.fromisoformat(since).astimezone(timezone.utc)
-    except ValueError:
-        return None  # git understands it; we just skip mtime pre-filtering
-
-
-def _shift(d, *, years=0, months=0):
-    """同一日历日往前推 N 月/年;溢出日(如 3/31→2/28)夹紧到月末。"""
-    m = d.month - 1 - months
-    y = d.year - years + m // 12
-    m = m % 12 + 1
-    return date(y, m, min(d.day, calendar.monthrange(y, m)[1]))
-
-
-def digest(args):
-    started = time.time()
-    cfg = load_config()
-    if args.provider:
-        cfg["provider"] = args.provider
-    if args.model:
-        cfg["model"] = args.model
-    if args.vault:
-        cfg["vault_path"] = args.vault
-    project_path = Path(args.project).resolve()
-    project = project_path.name        # 显示标题 / 输出文件名
-    pkey = str(project_path)            # cache 键:绝对路径,同名项目不串
-
-    commits, git_err = gitlog.collect_commits(
-        project_path, args.since, cfg["diff_token_budget"])
-    if git_err:
-        return _fail(git_err)
-    if not commits:
-        print(f"{args.since} 以来没有 commit,无日报可写。")
-        return 0
-
-    cache = Cache(CACHE_DB_PATH)
-    cache.rekey_project(project, pkey)   # 迁移旧 basename 键数据(一次性,幂等)
-    session_list, session_err = sessions.scan_sessions(
-        project_path, _since_to_dt(args.since), cache)
-    if session_err:
-        log.warning("会话层降级:%s", session_err)
-    align.align(commits, session_list, project_path)
-
-    try:
-        llm = LLMClient(cfg)
-    except LLMError as exc:
-        return _fail(exc)
-    # 回读上次运行后用户在 Obsidian 里勾选的胶囊答案,闭合预测-验证环
-    report.read_capsule_answers(cfg["vault_path"], pkey, cache)
-    # 运行前已缓存的 SHA:用于区分每天的缓存命中 vs 新算(按日页脚统计)
-    pre_cached = {c["sha"] for c in commits if cache.get_narrative(c["sha"])}
-    enrich.enrich_commits(commits, llm, cache, str(project_path))
-
-    # 按 commit 日期分桶,一天一份日报:bound 住报告长度与概览输入,
-    # 并让历史各天都进 daily_digests 缓存(修复回补时 On This Day 查不到)。
-    by_day = {}
-    for commit in commits:
-        by_day.setdefault(commit["date"].date(), []).append(commit)
-
-    days = []  # 先按日生成概览/胶囊,等 LLM 统计齐了再统一渲染
-    for day in sorted(by_day):
-        day_commits = by_day[day]
-        date_str = day.isoformat()
-        overview, decision, calls = enrich.make_overview(
-            day_commits, llm, cache, str(project_path), date_str)
-        cache.put_daily(pkey, date_str, overview, decision)
-        for commit in day_commits:  # 以该天为「今日」封存,忠实重放胶囊时间线
-            sealed = commit["date"].date().isoformat()
-            opens = (commit["date"].date() + timedelta(days=21)).isoformat()
-            if opens <= date_str:
-                continue  # 该天视角下已到期的不补密封,不复活成洪流
-            for idx, risk in enumerate(commit["narrative"]["risks"]):
-                cache.seal_capsule(pkey, commit["sha"], idx, risk,
-                                   sealed, opens)
-        # 仅对真正的「今日」削峰(留次日);历史回放当天全开,天数不失真
-        cap_limit = 3 if day == date.today() else None
-        capsules = cache.open_due_capsules(pkey, date_str, cap_limit)
-        on_this_day = {}
-        for label, shifted in (("上月今日", _shift(day, months=1)),
-                               ("去年今日", _shift(day, years=1))):
-            past = cache.get_daily(pkey, shifted.isoformat())
-            if past:
-                on_this_day[label] = (shifted.isoformat(), past["overview"])
-        hits = sum(1 for c in day_commits if c["sha"] in pre_cached)
-        days.append({
-            "date_str": date_str, "commits": day_commits, "overview": overview,
-            "decision": decision, "capsules": capsules, "today": day,
-            "on_this_day": on_this_day, "llm_calls": len(day_commits) - hits + calls,
-            "cache_hits": hits,
-        })
-
-    opened, filled = cache.capsule_fill_stats(pkey)
-    paths = []
-    for d in days:
-        run_stats = {
-            "commits": len(d["commits"]), "sessions": len(session_list),
-            "cache_hits": d["cache_hits"], "llm_calls": d["llm_calls"],
-            "tokens_in": llm.stats["input_tokens"],
-            "tokens_out": llm.stats["output_tokens"],
-            "model": f"{cfg['provider']}/{cfg['model']}",
-            "elapsed_s": round(time.time() - started, 1),
-            "capsule_opened": opened, "capsule_filled": filled,
-        }
-        content = report.render(project, d["date_str"], d["overview"],
-                                d["commits"], session_list, session_err,
-                                run_stats, decision=d["decision"],
-                                on_this_day=d["on_this_day"],
-                                capsules=d["capsules"], today=d["today"])
-        path = report.write_report(cfg["vault_path"], project, d["date_str"],
-                                   content)
-        paths.append(path)
-        report.append_usage({"command": "digest", "project": str(project_path),
-                             "since": args.since, "report": str(path),
-                             **run_stats})
-    cache.close()
-    print(f"生成 {len(paths)} 份日报:")
-    for p in paths:
-        print(f"  {p}")
-    return 0
-
-
-def brief_cmd(args):
-    cfg = load_config()
-    if args.vault:
-        cfg["vault_path"] = args.vault
-    cache = Cache(CACHE_DB_PATH)
-    if args.all:
-        today = datetime.now(timezone.utc).astimezone().date()
-        content = brief.build_overview(cache, cache.distinct_projects(), today)
-        cache.close()
-        print(content)
-        if args.vault:
-            path = report.write_report(cfg["vault_path"], "overview",
-                                       "brief", content)
-            print(f"总览已写入:{path}")
-        return 0
-    project_path = Path(args.project).resolve()
-    project = project_path.name
-    pkey = str(project_path)
-    cache.rekey_project(project, pkey)   # 迁移旧 basename 键数据(幂等)
-    # 与 digest 对齐:先回读 Obsidian 里勾选的答案,否则简报会反复催问已答胶囊
-    report.read_capsule_answers(cfg["vault_path"], pkey, cache)
-    content = brief.build_brief(cache, project, pkey)
-    cache.close()
-    print(content)
-    if args.vault:
-        path = report.write_report(cfg["vault_path"], project, "brief", content)
-        print(f"简报已写入:{path}")
-    return 0
-
-
-def init_cmd(args):
-    """写配置模板到 ~/.vibetrace/config.json(chmod 600),引导填 key。"""
-    from .config import CONFIG_PATH, DEFAULTS
-    if CONFIG_PATH.exists() and not args.force:
-        print(f"配置已存在:{CONFIG_PATH}(加 --force 覆盖)")
-        return 0
-    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    CONFIG_PATH.write_text(
-        json.dumps(DEFAULTS, ensure_ascii=False, indent=2), encoding="utf-8")
-    try:
-        CONFIG_PATH.chmod(0o600)  # 隐私:配置含 key,仅本人可读
-    except OSError:
-        pass
-    print(f"已写入配置模板:{CONFIG_PATH}")
-    print(f"请填 providers.{DEFAULTS['provider']}.api_key,"
-          f"或设环境变量 {DEFAULTS['provider'].upper()}_API_KEY")
-    return 0
-
-
-def main(argv=None):
-    logging.basicConfig(level=logging.WARNING,
-                        format="vibetrace %(levelname)s: %(message)s")
+def _build_parser():
     parser = argparse.ArgumentParser(
         prog="vibetrace", description="个人 AI 编码认知层:git+会话 → 变更叙事日报")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -232,11 +27,24 @@ def main(argv=None):
     bri.add_argument("--vault", help="同时写入该目录(默认仅打印)")
     bri.add_argument("--all", action="store_true",
                      help="跨项目总览:所有项目里需要注意的(零 LLM,忽略 --project)")
+    wat = sub.add_parser(
+        "watch", help="待验证收件箱:跨项目列出到期未回填的预测(零 LLM)")
+    wat.add_argument("--vault", help="同时写入该目录(默认仅打印)")
+    slf = sub.add_parser(
+        "self", help="自我周报:近 N 天用量/省额/回填率,自证关掉 LLM 仍有价值(零 LLM)")
+    slf.add_argument("--days", type=int, default=7, help="聚合窗口天数(默认 7)")
     _proj(sub.add_parser("course", help="生成演进课程(项目怎么长成的,实验)"))
     asq = _proj(sub.add_parser("ask", help="就某段代码提问(接项目记忆,接地回答)"))
     asq.add_argument("target", help='文件或 文件:起-止,如 vibetrace/llm.py:72-78')
     asq.add_argument("question", help="你的问题")
     asq.add_argument("--vault", help="同时写一份脱敏 Q&A 笔记到该目录")
+    asq.add_argument("--since", help='时间范围:日期(如 "3 days ago"/2026-06-18)'
+                     "或 commit 范围(如 abc..def);把检索从空间叠到时间维度")
+    asq.add_argument("--json", action="store_true", dest="as_json",
+                     help="结构化 JSON 输出(agent 可读;无 key 时给确定性检索结果)")
+    blm = _proj(sub.add_parser("blame",
+                               help="行级决策溯源(零 LLM,确定性罗列,无 key 也能用)"))
+    blm.add_argument("target", help='文件或 文件:起-止,如 vibetrace/llm.py:72-78')
     grp = _proj(sub.add_parser("graph", help="生成决策影响图(时间轴 DAG,零 LLM)"))
     grp.add_argument("--vault", help="覆盖输出目录")
     grp.add_argument("--canvas", action="store_true",
@@ -252,48 +60,29 @@ def main(argv=None):
     _proj(sub.add_parser(
         "install-agent-seed",
         help="把决策捕获约定植入项目 CLAUDE.md,让 AI agent 提交时留推导面包屑"))
-    args = parser.parse_args(argv)
-    if args.command == "course":
-        from .course import build_course
-        path, err = build_course(args.project)
-        if err:
-            return _fail(err)
-        print(f"课程已写入:{path}")
-        return 0
-    if args.command == "tunnel":
-        from .tunnel import render_tunnel, serve_tunnel
-        return _render_or_serve(args, render_tunnel, serve_tunnel, "时光轴")
-    if args.command == "console":
-        from .console import render_console, serve_console
-        return _render_or_serve(args, render_console, serve_console, "控制台")
-    if args.command == "brief":
-        return brief_cmd(args)
-    if args.command == "ask":
-        from .ask import ask
-        return ask(args.project, args.target, args.question, vault=args.vault)
-    if args.command == "graph":
-        from .graph import build_graph
-        path, err = build_graph(args.project, vault=args.vault,
-                                canvas=args.canvas)
-        if err:
-            return _fail(err)
-        print(f"决策图已写入:{path}")
-        return 0
-    if args.command == "install-hook":
-        from .hook import install_hook
-        path, err = install_hook(args.project, force=args.force)
-        if err:
-            return _fail(err)
-        print(f"钩子已装:{path}\n手写 commit 时会提示留 Vibe-Decision/Watch。")
-        return 0
-    if args.command == "install-agent-seed":
-        from .hook import install_agent_seed
-        paths, err = install_agent_seed(args.project)
-        if err:
-            return _fail(err)
-        print("决策捕获种子已就绪:" + "、".join(str(p) for p in paths)
-              + "\nAI agent 提交时会按约定留 Vibe-Decision/Watch,供 vibetrace 长期分析。")
-        return 0
-    if args.command == "init":
-        return init_cmd(args)
-    return digest(args)
+    return parser
+
+
+# 子命令名 → commands.py 中的处理函数;digest 为默认(未匹配时兜底)。
+_DISPATCH = {
+    "digest": commands.digest,
+    "tunnel": commands.tunnel_cmd,
+    "console": commands.console_cmd,
+    "brief": commands.brief_cmd,
+    "watch": commands.watch_cmd,
+    "self": commands.self_cmd,
+    "ask": commands.ask_cmd,
+    "blame": commands.blame_cmd,
+    "graph": commands.graph_cmd,
+    "course": commands.course_cmd,
+    "init": commands.init_cmd,
+    "install-hook": commands.install_hook_cmd,
+    "install-agent-seed": commands.install_agent_seed_cmd,
+}
+
+
+def main(argv=None):
+    logging.basicConfig(level=logging.WARNING,
+                        format="vibetrace %(levelname)s: %(message)s")
+    args = _build_parser().parse_args(argv)
+    return _DISPATCH.get(args.command, commands.digest)(args)

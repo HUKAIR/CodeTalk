@@ -122,18 +122,19 @@ def build_course(project_path):
                      for c in commits}
     subj_by_short = {c["sha"][:7]: c.get("subject", "") for c in commits}
     today = datetime.now(timezone.utc).astimezone().date()
-    debt = debt_board(project_path, project, cache, today, top=5)
+    debt = debt_board(project_path, cache, today, top=5)
 
     # v2:schema 加了 plain 大白话字段,旧缓存无此字段 → 换版本前缀自然失效重算
     key = "course:v2:" + hashlib.sha256(
         "".join(c["sha"] for c in commits).encode()).hexdigest()[:40]
     cached = cache.get_narrative(key)
     degraded = False
+    llm_stats = {}
     if cached and cached.get("chapters"):
         chapters = cached["chapters"]
     else:
-        chapters, degraded = _make_chapters(commits, narr_by_short, debt,
-                                             cfg, cache, key, project)
+        chapters, degraded, llm_stats = _make_chapters(
+            commits, narr_by_short, debt, cfg, cache, key, project)
     cache.close()
 
     for ch in chapters:
@@ -158,15 +159,25 @@ def build_course(project_path):
     vault.mkdir(parents=True, exist_ok=True)
     out = vault / f"{project}-course.html"
     out.write_text(html_text, encoding="utf-8")
+    from . import report  # 记一行用量(章数 / 是否降级 / LLM token 省额),写失败不拖垮主流程
+    report.append_usage({
+        "command": "course", "project": str(project_path),
+        "chapters": len(chapters), "degraded": degraded,
+        "llm_calls": llm_stats.get("calls", 0),
+        "tokens_in": llm_stats.get("input_tokens", 0),
+        "tokens_out": llm_stats.get("output_tokens", 0),
+        "cache_hit_tokens": llm_stats.get("cache_hit_tokens", 0),
+    })
     return out, None
 
 
 def _make_chapters(commits, narr_by_short, debt, cfg, cache, key, project):
-    """Returns (chapters, degraded). LLM 一次出章+测验;无 key/失败则朴素降级。"""
+    """Returns (chapters, degraded, llm_stats). LLM 一次出章+测验;无 key/失败则朴素降级。
+    llm_stats 透传 token 用量给 self 周报;降级路径无 LLM,返回空 dict。"""
     try:
         llm = LLMClient(cfg)
     except LLMError:
-        return _naive_chapters(commits, narr_by_short), True
+        return _naive_chapters(commits, narr_by_short), True, {}
     try:
         # max_tokens 须覆盖『推理 + 大 JSON 输出』:deepseek-v4-pro 等推理模型先花
         # 数千 reasoning token,默认 3000 会被推理吃光、输出为空(实测 finish=length)
@@ -174,8 +185,8 @@ def _make_chapters(commits, narr_by_short, debt, cfg, cache, key, project):
                              schema=COURSE_SCHEMA, max_tokens=16000)
         chapters = result.get("chapters") if isinstance(result, dict) else None
         if not chapters:
-            return _naive_chapters(commits, narr_by_short), True
+            return _naive_chapters(commits, narr_by_short), True, llm.stats
         cache.put_narrative(key, project, llm.model, {"chapters": chapters})
-        return chapters, False
+        return chapters, False, llm.stats
     except LLMError:
-        return _naive_chapters(commits, narr_by_short), True
+        return _naive_chapters(commits, narr_by_short), True, llm.stats

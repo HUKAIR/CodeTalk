@@ -13,7 +13,7 @@ from string import Template
 
 from .cache import Cache
 from .config import CACHE_DB_PATH, load_config, redact_secrets
-from .gitlog import collect_commit_files, commit_body, parse_breadcrumbs
+from .gitlog import collect_commit_files, parse_breadcrumbs
 
 SCAN_LIMIT = 200
 TOP_N = 40
@@ -28,7 +28,8 @@ def _assemble(commits, project_path, project, cache):
         caps_by_sha.setdefault(cap["sha"], []).append(cap)
     info = {}
     for c in commits:
-        decisions, _ = parse_breadcrumbs(commit_body(project_path, c["sha"]))
+        # body 已随批量 collect_commit_files 取回,不再逐 commit 跑 git show
+        decisions, _ = parse_breadcrumbs(c.get("body", ""))
         narr = cache.get_narrative(c["sha"]) or {}
         narr_dec = narr.get("decisions") or []
         if decisions:
@@ -146,4 +147,8 @@ def build_graph(project_path, vault=None, canvas=False):
     if canvas:
         (vault_dir / (project + "-graph.canvas")).write_text(
             json.dumps(_to_canvas(data), ensure_ascii=False), encoding="utf-8")
+    from . import report  # 零 LLM 命令:记一行用量(节点/边),写失败不影响主流程
+    report.append_usage({"command": "graph", "project": str(pp),
+                         "nodes": len(data["nodes"]), "edges": len(data["edges"]),
+                         "cache_hit": bool(cached and "nodes" in cached)})
     return out, None

@@ -59,6 +59,9 @@ def _build_html(project_path, serve):
     cache.close()
     if err:
         return None, pp.name, err
+    from . import report  # 零 LLM 命令:记一行用量(commit 数 / serve 模式),写失败不影响主流程
+    report.append_usage({"command": "console", "project": str(pp),
+                         "commits": len(data["timeline"]), "serve": serve})
     today = datetime.now(timezone.utc).astimezone().date()
     template = Template((Path(__file__).parent / "console.html")
                         .read_text(encoding="utf-8"))

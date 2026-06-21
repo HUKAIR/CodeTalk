@@ -12,7 +12,7 @@ class TestRetrieve(unittest.TestCase):
                             {"why": "因为要省依赖", "decisions": ["LLM决定"],
                              "risks": [], "open_loops": []})
         with mock.patch.object(ask, "line_log",
-                               lambda *a: (["sha1aaaabbbb"], None)), \
+                               lambda *a, **k: (["sha1aaaabbbb"], None)), \
              mock.patch.object(ask, "commit_body",
                                lambda p, s: "Vibe-Watch: 并发待验证"):
             ctx, shas, state = ask._retrieve(".", "f.py", 1, 5, cache)
@@ -26,11 +26,11 @@ class TestRetrieve(unittest.TestCase):
         cache = Cache(":memory:")
         called = {}
 
-        def fake_file_log(*a):
+        def fake_file_log(*a, **k):
             called["hit"] = True
             return ([], None)
 
-        with mock.patch.object(ask, "line_log", lambda *a: ([], "boom")), \
+        with mock.patch.object(ask, "line_log", lambda *a, **k: ([], "boom")), \
              mock.patch.object(ask, "file_log", fake_file_log), \
              mock.patch.object(ask, "commit_body", lambda p, s: ""):
             ctx, shas, state = ask._retrieve(".", "f.py", 1, 5, cache)
@@ -45,7 +45,7 @@ class TestRetrieve(unittest.TestCase):
                             {"why": "", "decisions": ["用 urllib 不引依赖"],
                              "risks": [], "open_loops": []})
         with mock.patch.object(ask, "line_log",
-                               lambda *a: (["sha2ccccdddd"], None)), \
+                               lambda *a, **k: (["sha2ccccdddd"], None)), \
              mock.patch.object(ask, "commit_body",
                                lambda p, s: "Vibe-Decision: 用 urllib 不引依赖"):
             ctx, shas, state = ask._retrieve(".", "f.py", 1, 5, cache)
