@@ -28,6 +28,24 @@ def project_slug(project_path):
     return re.sub(r"[^A-Za-z0-9]", "-", str(Path(project_path).resolve()))
 
 
+def head_tail(value, n):
+    """保留首+尾的截断(靠后的话更接近最终决策,纯 head 截断会丢掉它)。
+    str → 首 + '…' + 尾,长度不超过 n;list → 首若干 + 尾若干,共 n 个元素。
+    未超限原样返回;n<=1 时只留尾。"""
+    if len(value) <= n:
+        return value
+    if isinstance(value, str):
+        if n <= 1:
+            return value[-n:] if n else ""
+        head = n // 2
+        tail = n - head - 1          # 留 1 字符给省略号
+        return value[:head] + "…" + (value[-tail:] if tail else "")
+    if n <= 1:
+        return value[-1:]
+    head = n // 2
+    return value[:head] + value[len(value) - (n - head):]
+
+
 def _parse_ts(value):
     try:
         return datetime.fromisoformat(value.replace("Z", "+00:00"))
@@ -53,15 +71,23 @@ def _human_text(obj):
     if not text or text.startswith(SYNTHETIC_PREFIXES) \
             or text.startswith("[Request interrupted"):
         return None
-    return redact_secrets(text[:PROMPT_CAP])  # 隐私红线:入缓存前脱敏
+    return redact_secrets(head_tail(text, PROMPT_CAP))  # 保留首尾;入缓存前脱敏
 
 
-def _parse_file(path):
-    """Parse one session file into a summary dict. Never raises on bad lines."""
+def _parse_file(path, is_subagent=False):
+    """Parse one session file into a summary dict. Never raises on bad lines.
+
+    is_subagent marks subagent/sidechain transcripts: their session_id comes
+    from the in-record `sessionId` field (the parent session), not the
+    filename stem (which is the agentId). Sidechain "user" strings are
+    orchestrator briefs, not human intent — already filtered in _human_text —
+    but assistant reasoning and tool activity are folded into the summary.
+    """
     summary = {
         "session_id": path.stem, "title": "", "start": None, "end": None,
         "prompts": [], "excerpts": [], "files_written": set(),
         "files_read": set(), "records": 0, "parse_failures": 0,
+        "is_subagent": is_subagent,
         "tokens": {"input": 0, "output": 0, "cache_read": 0},
     }
     usage_by_msg = {}
@@ -96,6 +122,10 @@ def _parse_file(path):
             elif rtype == "assistant":
                 if obj.get("isApiErrorMessage"):
                     continue
+                if is_subagent:
+                    sid = obj.get("sessionId")  # subagent → parent session id
+                    if sid:
+                        summary["session_id"] = sid
                 msg = obj.get("message") or {}
                 if isinstance(msg.get("usage"), dict):
                     usage_by_msg[msg.get("id") or obj.get("uuid")] = msg["usage"]
@@ -106,7 +136,7 @@ def _parse_file(path):
                         text = (block.get("text") or "").strip()
                         if len(text) > 80 and len(summary["excerpts"]) < MAX_EXCERPTS:
                             summary["excerpts"].append(
-                                redact_secrets(text[:EXCERPT_CAP]))
+                                redact_secrets(head_tail(text, EXCERPT_CAP)))
                     elif block.get("type") == "tool_use":
                         inp = block.get("input") or {}
                         target = inp.get("file_path") or inp.get("notebook_path")
@@ -140,17 +170,35 @@ def _thaw(summary):
             "end": _parse_ts(summary["end"])}
 
 
+def _discover(sessions_dir):
+    """(path, is_subagent) for every transcript under a project dir.
+
+    Main: <slug>/*.jsonl. Subagent (sidechain): <slug>/<sessionId>/subagents/
+    **/agent-*.jsonl — reuses the parent sessionId, carries the user's most
+    decision-dense work (superpowers subagents + TDD). journal.jsonl is a
+    different schema family and *.meta.json is a sidecar; both excluded.
+    Format is non-official: glob defensively, never assume the tree exists.
+    """
+    files = [(p, False) for p in sorted(sessions_dir.glob("*.jsonl"))]
+    for p in sorted(sessions_dir.glob("*/subagents/**/agent-*.jsonl")):
+        if p.name == "journal.jsonl" or p.suffix != ".jsonl":
+            continue  # belt-and-suspenders: glob already excludes these
+        files.append((p, True))
+    return files
+
+
 def scan_sessions(project_path, since_dt, cache=None):
     """Return (session summaries, error_or_None). Degrades, never raises.
 
-    Main transcripts only (<sessionId>.jsonl); subagent files are a known
-    M0 limitation. With a cache, unchanged files (mtime+size) skip re-parse.
+    Includes both main transcripts (<sessionId>.jsonl) and subagent/sidechain
+    transcripts (folded into the parent session by its `sessionId` field).
+    With a cache, unchanged files (mtime+size) skip re-parse.
     """
     sessions_dir = CLAUDE_PROJECTS / project_slug(project_path)
     if not sessions_dir.is_dir():
         return [], f"会话目录不存在:{sessions_dir}"
     summaries, failed_files = [], 0
-    for path in sorted(sessions_dir.glob("*.jsonl")):
+    for path, is_subagent in _discover(sessions_dir):
         try:
             stat = path.stat()
             mtime = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc)
@@ -161,7 +209,7 @@ def scan_sessions(project_path, since_dt, cache=None):
                     and cached["size"] == stat.st_size:
                 summaries.append(_thaw(cached["summary"]))
                 continue
-            summary = _parse_file(path)
+            summary = _parse_file(path, is_subagent)
             if summary["parse_failures"]:
                 log.warning("%s:%d 行无法解析,已跳过", path.name,
                             summary["parse_failures"])

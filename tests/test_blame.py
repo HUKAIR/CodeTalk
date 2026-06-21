@@ -1,0 +1,133 @@
+"""blame:零-LLM 行级决策溯源(真 git 临时仓)。
+确定性罗列触达指定行的 commit → 缓存叙事 + Vibe-Decision 面包屑;无 key 也能用。"""
+import io
+import shutil
+import subprocess
+import tempfile
+import unittest
+from contextlib import redirect_stdout
+from pathlib import Path
+from unittest import mock
+
+from vibetrace import blame
+from vibetrace.cache import Cache
+
+
+def _git(args, cwd):
+    subprocess.run(["git", *args], cwd=cwd, check=True,
+                   capture_output=True, text=True)
+
+
+class _Repo:
+    def __init__(self):
+        self.dir = tempfile.mkdtemp()
+        _git(["init", "-q"], self.dir)
+        _git(["config", "user.email", "t@t"], self.dir)
+        _git(["config", "user.name", "t"], self.dir)
+        f = Path(self.dir) / "f.py"
+        f.write_text("a\nb\nc\n")
+        _git(["add", "f.py"], self.dir)
+        _git(["commit", "-q", "-m",
+              "c1 初版\n\nVibe-Decision: 用 urllib 不引依赖"], self.dir)
+        f.write_text("a\nB2\nc\n")  # 改第 2 行
+        _git(["add", "f.py"], self.dir)
+        _git(["commit", "-q", "-m", "c2 改第二行\n\nVibe-Watch: 并发待验证"],
+             self.dir)
+
+    def sha(self, n):  # n=1 最旧
+        out = subprocess.run(["git", "log", "--reverse", "--format=%H"],
+                             cwd=self.dir, capture_output=True, text=True)
+        return out.stdout.splitlines()[n - 1]
+
+    def close(self):
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+
+class TestBlameTarget(unittest.TestCase):
+    def test_parse_reuses_ask_format(self):
+        self.assertEqual(blame._parse_target("f.py:2-4"), ("f.py", 2, 4))
+        self.assertEqual(blame._parse_target("f.py:5"), ("f.py", 5, 5))
+        self.assertEqual(blame._parse_target("f.py"), ("f.py", None, None))
+
+
+class TestBlameSegments(unittest.TestCase):
+    def setUp(self):
+        self.repo = _Repo()
+        self.cache = Cache(":memory:")
+
+    def tearDown(self):
+        self.cache.close()
+        self.repo.close()
+
+    def test_segments_oldest_first_with_breadcrumbs(self):
+        segs = blame.collect_segments(self.cache, self.repo.dir, "f.py", 2, 2)
+        self.assertEqual(len(segs), 2)                  # 两次 commit 都动过第 2 行
+        self.assertEqual([s["subject"] for s in segs],  # 旧→新
+                         ["c1 初版", "c2 改第二行"])
+        self.assertEqual(segs[0]["sha"], self.repo.sha(1))
+        self.assertIn("用 urllib 不引依赖", segs[0]["decisions"])
+        self.assertTrue(segs[0]["date"])               # ISO 日期非空
+
+    def test_cached_narrative_decisions_merge_in(self):
+        self.cache.put_narrative(
+            self.repo.sha(1), "P", "m",
+            {"why": "", "decisions": ["缓存里的决策"], "risks": [],
+             "open_loops": []})
+        segs = blame.collect_segments(self.cache, self.repo.dir, "f.py", 2, 2)
+        self.assertIn("缓存里的决策", segs[0]["decisions"])
+        self.assertIn("用 urllib 不引依赖", segs[0]["decisions"])  # 面包屑也在
+
+    def test_no_duplicate_when_cache_already_folded_breadcrumb(self):
+        self.cache.put_narrative(
+            self.repo.sha(1), "P", "m",
+            {"why": "", "decisions": ["用 urllib 不引依赖"], "risks": [],
+             "open_loops": []})
+        segs = blame.collect_segments(self.cache, self.repo.dir, "f.py", 2, 2)
+        self.assertEqual(
+            segs[0]["decisions"].count("用 urllib 不引依赖"), 1)
+
+    def test_line_log_failure_falls_back_to_file_log(self):
+        # 坏行范围 → 行级失败 → 文件级降级(仍拿到该文件全部 commit)
+        segs = blame.collect_segments(self.cache, self.repo.dir, "f.py",
+                                      999, 999)
+        self.assertEqual(len(segs), 2)
+
+
+class TestBlameRun(unittest.TestCase):
+    def setUp(self):
+        self.repo = _Repo()
+
+    def tearDown(self):
+        self.repo.close()
+
+    def _run(self, target):
+        buf = io.StringIO()
+        with mock.patch.object(blame, "Cache",
+                               lambda _p: Cache(":memory:")), \
+             redirect_stdout(buf):
+            code = blame.blame(self.repo.dir, target)
+        return code, buf.getvalue()
+
+    def test_prints_each_segment_deterministically(self):
+        code, out = self._run("f.py:2-2")
+        self.assertEqual(code, 0)
+        self.assertIn("c1 初版", out)
+        self.assertIn("c2 改第二行", out)
+        self.assertIn("用 urllib 不引依赖", out)         # 决策面包屑
+        self.assertIn(self.repo.sha(1)[:7], out)         # 短 SHA
+        # 零 LLM:确定性 → 同输入两次输出完全一致
+        _, out2 = self._run("f.py:2-2")
+        self.assertEqual(out, out2)
+
+    def test_no_history_returns_error_code(self):
+        code, out = self._run("nope.py")
+        self.assertEqual(code, 2)
+
+    def test_whole_file_when_no_range(self):
+        code, out = self._run("f.py")
+        self.assertEqual(code, 0)
+        self.assertIn("c1 初版", out)
+
+
+if __name__ == "__main__":
+    unittest.main()

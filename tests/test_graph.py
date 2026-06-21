@@ -7,21 +7,19 @@ from vibetrace import graph
 from vibetrace.cache import Cache
 
 
-def _c(sha, day, files, subject="s"):
+def _c(sha, day, files, subject="s", body=""):
+    # body 现由批量 collect_commit_files 提供,直接挂在 commit 上(不再 commit_body 拉取)
     return {"sha": sha, "date": datetime(2026, 6, day, tzinfo=timezone.utc),
-            "subject": subject, "files": files}
+            "subject": subject, "files": files, "body": body}
 
 
 class TestAssemble(unittest.TestCase):
     def test_breadcrumb_decision_file_edge_not_unrelated(self):
-        commits = [_c("d1aaaaaa", 1, ["a.py"]),     # 决策(面包屑)
+        commits = [_c("d1aaaaaa", 1, ["a.py"], body="Vibe-Decision: 用 urllib"),
                    _c("c2bbbbbb", 2, ["a.py"]),     # 后续,碰 a.py → 下游
                    _c("x3cccccc", 3, ["z.py"])]     # 碰无关文件 → 不连
         cache = Cache(":memory:")
-        bodies = {"d1aaaaaa": "Vibe-Decision: 用 urllib",
-                  "c2bbbbbb": "", "x3cccccc": ""}
-        with mock.patch.object(graph, "commit_body", lambda p, s: bodies[s]):
-            data = graph._assemble(commits, ".", "P", cache)
+        data = graph._assemble(commits, ".", "P", cache)
         ids = {n["id"]: n for n in data["nodes"]}
         self.assertEqual(ids["d1aaaaa"]["kind"], "breadcrumb")
         self.assertEqual(ids["d1aaaaa"]["text"], "用 urllib")
@@ -34,31 +32,27 @@ class TestAssemble(unittest.TestCase):
         cache = Cache(":memory:")
         cache.put_narrative("n1aaaaaa", "P", "m",
                             {"decisions": ["叙事决策"], "risks": [], "open_loops": []})
-        with mock.patch.object(graph, "commit_body", lambda p, s: ""):  # 无面包屑
-            data = graph._assemble(commits, ".", "P", cache)
+        data = graph._assemble(commits, ".", "P", cache)   # 无面包屑(body 空)
         n = {x["id"]: x for x in data["nodes"]}["n1aaaaa"]
         self.assertEqual(n["kind"], "narrative")
         self.assertEqual(n["text"], "叙事决策")
 
     def test_capsule_badge_and_redaction(self):
-        commits = [_c("d1aaaaaa", 1, ["a.py"])]
+        commits = [_c("d1aaaaaa", 1, ["a.py"],
+                      body="Vibe-Decision: token=sk-abcdefghijklmnop1234")]
         cache = Cache(":memory:")
         cache.seal_capsule("P", "d1aaaaaa", 0, "并发风险", "2026-06-01", "2026-06-22")
-        with mock.patch.object(graph, "commit_body",
-                               lambda p, s: "Vibe-Decision: token=sk-abcdefghijklmnop1234"):
-            data = graph._assemble(commits, ".", "P", cache)
+        data = graph._assemble(commits, ".", "P", cache)
         n = data["nodes"][0]
         self.assertTrue(n["badge"].startswith("胶囊:"))     # 有胶囊 → 徽标
         self.assertNotIn("sk-abcdefghijklmnop1234", n["text"])  # 决策文案脱敏
         self.assertIn("[REDACTED]", n["text"])
 
     def test_out_edges_capped_at_max_out(self):
-        commits = [_c("d1aaaaaa", 1, ["a.py"])] + [
+        commits = [_c("d1aaaaaa", 1, ["a.py"], body="Vibe-Decision: x")] + [
             _c("c%da" % i, i + 2, ["a.py"]) for i in range(12)]  # 12 个后续都碰 a.py
         cache = Cache(":memory:")
-        with mock.patch.object(graph, "commit_body",
-                               lambda p, s: "Vibe-Decision: x" if s == "d1aaaaaa" else ""):
-            data = graph._assemble(commits, ".", "P", cache)
+        data = graph._assemble(commits, ".", "P", cache)
         out = [e for e in data["edges"] if e["from"] == "d1aaaaa"]
         self.assertEqual(len(out), graph.MAX_OUT)            # ≤8,取最近
         targets = {e["to"] for e in out}
@@ -117,6 +111,34 @@ class TestBuildGraph(unittest.TestCase):
             self.assertTrue(out.exists())
         finally:
             shutil.rmtree(empty, ignore_errors=True)
+
+
+class TestGraphHtmlFeatures(unittest.TestCase):
+    """标记测试:graph.html 模板含 tooltip / 缩放控件 / 移动端适配,且守 $ 纪律。"""
+
+    def _tpl(self):
+        return (Path(graph.__file__).parent / "graph.html").read_text(encoding="utf-8")
+
+    def test_native_title_tooltip(self):
+        # 节点在 SVG <g> 内带原生 <title> 显全名(截断后仍可看全),非文档 <title>
+        tpl = self._tpl()
+        self.assertIn("<title>'", tpl)             # JS 拼出的节点 <title>...</title>
+        self.assertIn("</title>", tpl)
+
+    def test_zoom_controls(self):
+        tpl = self._tpl()
+        self.assertIn('id="controls"', tpl)      # 缩放/适配控件容器
+        self.assertIn("fit", tpl.lower())         # 适配窗口
+
+    def test_mobile_media_query(self):
+        self.assertIn("@media", self._tpl())      # 移动端适配
+
+    def test_dollar_discipline(self):
+        # Template 合法占位符仅 $project $data $serve $generated;别处不得有裸 $
+        import re
+        tpl = self._tpl()
+        bare = re.findall(r"\$(?!project\b|data\b|serve\b|generated\b)\S?", tpl)
+        self.assertEqual(bare, [], "graph.html 出现非法 $:%r" % bare)
 
 
 if __name__ == "__main__":
