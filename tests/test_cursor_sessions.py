@@ -118,5 +118,15 @@ class TestScanSessions(unittest.TestCase):
                 out2, _ = cs.scan_sessions(proj, None, cache)  # 二次命中
             self.assertEqual(len(out2), 1)
 
+class TestNotice(unittest.TestCase):
+    def test_notice_shown_once(self):
+        with tempfile.TemporaryDirectory() as t:
+            sentinel = Path(t) / ".cursor_notice_shown"
+            with unittest.mock.patch.object(cs, "NOTICE_SENTINEL", sentinel):
+                self.assertFalse(sentinel.exists())
+                cs.maybe_notice()
+                self.assertTrue(sentinel.exists())   # 首次创建
+                cs.maybe_notice()                    # 第二次不报错、不重复
+
 if __name__ == "__main__":
     unittest.main()

@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
-from .config import redact_secrets
+from .config import redact_secrets, VIBETRACE_DIR
 from .sessions import (EXCERPT_CAP, MAX_EXCERPTS, MAX_PROMPTS, PROMPT_CAP,
                        _freeze, _thaw, head_tail)
 
@@ -227,3 +227,19 @@ def scan_sessions(project_path, since_dt, cache=None):
         return summaries, None
     finally:
         gcon.close()
+
+
+NOTICE_SENTINEL = VIBETRACE_DIR / ".cursor_notice_shown"
+
+
+def maybe_notice():
+    """首次启用 Cursor 源时一次性告知(本地只读、可关),之后静默。"""
+    try:
+        if NOTICE_SENTINEL.exists():
+            return
+        log.warning("已启用 Cursor 会话源:将读取本地 Cursor 会话(只读、不出本机);"
+                    "可在 ~/.vibetrace/config.json 的 sources 移除 \"cursor\" 关闭。")
+        NOTICE_SENTINEL.parent.mkdir(parents=True, exist_ok=True)
+        NOTICE_SENTINEL.write_text("", encoding="utf-8")
+    except OSError:
+        pass   # sentinel 写不了也不能拖垮主流程
