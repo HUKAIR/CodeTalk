@@ -141,3 +141,89 @@ def _parse_composer(gcon, cid, root):
     s["title"] = (s["prompts"][0][:60] if s["prompts"]
                   else redact_secrets((head.get("text") or "")[:60]))
     return s
+
+
+def _ids_by_file_overlap(gcon, root):
+    """文件兜底:扫全局所有 composer,凡有消息文件落在本仓下即归属。"""
+    root = Path(root).resolve()
+    ids = set()
+    try:
+        rows = gcon.execute(
+            "SELECT key FROM cursorDiskKV WHERE key LIKE 'composerData:%'").fetchall()
+    except sqlite3.Error:
+        return ids
+    for (key,) in rows:
+        cid = key.split(":", 1)[1]
+        try:
+            brows = gcon.execute("SELECT value FROM cursorDiskKV WHERE key LIKE ?",
+                                 (f"bubbleId:{cid}:%",)).fetchall()
+        except sqlite3.Error:
+            continue
+        for (raw,) in brows:
+            try:
+                b = json.loads(raw)
+            except (ValueError, TypeError):
+                continue
+            for f in _abs_files(b, root):
+                try:
+                    Path(f).resolve().relative_to(root)
+                    ids.add(cid)
+                    break
+                except ValueError:
+                    continue
+            if cid in ids:
+                break
+    return ids
+
+
+def scan_sessions(project_path, since_dt, cache=None):
+    """Return (summaries, error_or_None). Degrades, never raises.
+    与 sessions.scan_sessions 同契约,供 digest 无差别合并。"""
+    user = _user_dir()
+    if not user:
+        return [], "未找到 Cursor 数据目录(未安装或路径不同)"
+    gdb = user / "globalStorage" / "state.vscdb"
+    if not gdb.exists():
+        return [], f"Cursor 全局库不存在:{gdb}"
+    try:
+        gcon = _open_ro(gdb)
+    except sqlite3.Error as exc:
+        return [], f"Cursor 全局库打开失败:{exc}"
+    root = Path(project_path).resolve()
+    summaries = []
+    try:
+        ids, matched = project_composer_ids(user, project_path)
+        if not matched:
+            ids = _ids_by_file_overlap(gcon, root)
+        for cid in sorted(ids):
+            try:
+                n = gcon.execute("SELECT COUNT(*) FROM cursorDiskKV WHERE key LIKE ?",
+                                 (f"bubbleId:{cid}:%",)).fetchone()[0]
+                last = gcon.execute(
+                    "SELECT value FROM cursorDiskKV WHERE key LIKE ? ",
+                    (f"bubbleId:{cid}:%",)).fetchall()
+                last_ms = 0
+                for (raw,) in last:
+                    try:
+                        last_ms = max(last_ms, json.loads(raw).get("createdAt") or 0)
+                    except (ValueError, TypeError):
+                        continue
+                cached = cache.get_session(cid) if cache else None
+                if cached and cached["mtime"] == last_ms and cached["size"] == n:
+                    s = _thaw(cached["summary"])
+                else:
+                    s = _parse_composer(gcon, cid, root)
+                    if cache and s["records"]:
+                        cache.put_session(
+                            cid, s["end"].isoformat() if s["end"] else "",
+                            last_ms, n, _freeze(s))
+                if not s["records"]:
+                    continue
+                if since_dt and s["end"] and s["end"] < since_dt:
+                    continue
+                summaries.append(s)
+            except Exception as exc:   # 单会话容错,不拖垮整体
+                log.warning("Cursor 会话 %s 解析失败:%r", cid[:8], exc)
+        return summaries, None
+    finally:
+        gcon.close()

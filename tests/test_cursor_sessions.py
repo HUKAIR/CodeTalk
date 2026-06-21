@@ -1,5 +1,6 @@
 # tests/test_cursor_sessions.py
 import json, sqlite3, tempfile, unittest
+import unittest.mock
 from pathlib import Path
 from urllib.parse import quote
 from vibetrace import cursor_sessions as cs
@@ -77,6 +78,45 @@ class TestParseComposer(unittest.TestCase):
             con = cs._open_ro(db); s = cs._parse_composer(con, "c", root); con.close()
             self.assertIn("[REDACTED]", s["prompts"][0])
             self.assertNotIn("sk-abcdef0123456789ABCD", s["prompts"][0])
+
+from vibetrace.cache import Cache
+
+class TestScanSessions(unittest.TestCase):
+    def _setup(self, t):
+        user = Path(t) / "User"; user.mkdir()
+        proj = Path(t) / "repo"; proj.mkdir()
+        make_workspace(user, proj, ["cid"])
+        make_global(user, "cid", [(1, "问题", 1000, ["a.py"]),
+                                  (2, "回答" + "y" * 90, 2000, ["a.py"])])
+        return user, proj
+
+    def test_scan_returns_session_for_project(self):
+        with tempfile.TemporaryDirectory() as t:
+            user, proj = self._setup(t)
+            with unittest.mock.patch.object(cs, "_USER_DIRS", [user]):
+                out, err = cs.scan_sessions(proj, None, None)
+            self.assertIsNone(err)
+            self.assertEqual(len(out), 1)
+            self.assertEqual(out[0]["session_id"], "cid")
+            self.assertIn("files_written", out[0])
+
+    def test_no_cursor_dir_degrades(self):
+        with unittest.mock.patch.object(cs, "_USER_DIRS",
+                                        [Path("/nonexistent/x")]):
+            out, err = cs.scan_sessions("/tmp/whatever", None, None)
+        self.assertEqual(out, [])
+        self.assertIsNotNone(err)
+
+    def test_cache_incremental_hit(self):
+        with tempfile.TemporaryDirectory() as t:
+            user, proj = self._setup(t)
+            cache = Cache(":memory:")
+            with unittest.mock.patch.object(cs, "_USER_DIRS", [user]):
+                cs.scan_sessions(proj, None, cache)          # 首次写缓存
+                hit = cache.get_session("cid")
+                self.assertIsNotNone(hit)
+                out2, _ = cs.scan_sessions(proj, None, cache)  # 二次命中
+            self.assertEqual(len(out2), 1)
 
 if __name__ == "__main__":
     unittest.main()
