@@ -148,6 +148,76 @@ class TestReviewFixes(unittest.TestCase):
         self.assertIs(cs._blank_summary("x")["is_subagent"], False)
 
 
+class TestStringCreatedAt(unittest.TestCase):
+    """dogfood 发现:真实 Cursor 数据 createdAt 偶为字符串,scan 不得因类型比较崩/丢会话。"""
+
+    def test_string_createdat_bubble_not_dropped(self):
+        with tempfile.TemporaryDirectory() as t:
+            user = Path(t) / "User"; user.mkdir()
+            proj = Path(t) / "repo"; proj.mkdir()
+            make_workspace(user, proj, ["cid"])
+            make_global(user, "cid", [(1, "为什么", "1763395490552", [])])  # createdAt 是字符串
+            with unittest.mock.patch.object(cs, "_USER_DIRS", [user]):
+                out, err = cs.scan_sessions(proj, None, None)
+            self.assertEqual(len(out), 1)            # 字符串 createdAt 不致整条丢失
+            self.assertEqual(out[0]["prompts"], ["为什么"])
+
+
+class TestRealDataTypeHardening(unittest.TestCase):
+    """同 createdAt 一类:Cursor 非官方 schema 的字段类型异构不得让整条会话静默丢失
+    (对抗审查 sweep 实证可复现的 silent_session_drop)。"""
+
+    def test_nonstr_bubble_text_not_dropped(self):
+        with tempfile.TemporaryDirectory() as t:
+            user = Path(t) / "User"; user.mkdir()
+            proj = Path(t) / "repo"; proj.mkdir()
+            make_workspace(user, proj, ["cid"])
+            make_global(user, "cid", [(1, "正常问题", 1000, []),
+                                      (2, {"rich": "x"}, 2000, [])])  # text 为 dict
+            with unittest.mock.patch.object(cs, "_USER_DIRS", [user]):
+                out, err = cs.scan_sessions(proj, None, None)
+            self.assertEqual(len(out), 1)            # 非 str text 的 bubble 不拖垮整条会话
+            self.assertEqual(out[0]["prompts"], ["正常问题"])
+
+    def test_nonstr_head_text_not_dropped(self):
+        with tempfile.TemporaryDirectory() as t:
+            user = Path(t) / "User"; user.mkdir()
+            proj = Path(t) / "repo"; proj.mkdir()
+            make_workspace(user, proj, ["cid"])
+            # 只有 type2 → prompts 空 → title 兜底读 head.get("text");草稿为 dict
+            make_global(user, "cid", [(2, "助手回答", 1000, [])],
+                        head_text={"rich": "draft"})
+            with unittest.mock.patch.object(cs, "_USER_DIRS", [user]):
+                out, err = cs.scan_sessions(proj, None, None)
+            self.assertEqual(len(out), 1)            # 非 str 草稿不拖垮会话
+            self.assertEqual(out[0]["title"], "")    # 降级为空 title
+
+    def test_nondict_composerdata_not_dropped(self):
+        with tempfile.TemporaryDirectory() as t:
+            user = Path(t) / "User"; user.mkdir()
+            proj = Path(t) / "repo"; proj.mkdir()
+            make_workspace(user, proj, ["cid"])
+            db = make_global(user, "cid", [(2, "助手回答", 1000, [])])
+            con = sqlite3.connect(db)   # composerData 损坏成非 dict JSON(部分写/版本变)
+            con.execute("INSERT OR REPLACE INTO cursorDiskKV VALUES (?,?)",
+                        ("composerData:cid", "[1, 2, 3]"))
+            con.commit(); con.close()
+            with unittest.mock.patch.object(cs, "_USER_DIRS", [user]):
+                out, err = cs.scan_sessions(proj, None, None)
+            self.assertEqual(len(out), 1)            # 非 dict composerData 不拖垮会话
+
+    def test_overflow_string_createdat_not_dropped(self):
+        with tempfile.TemporaryDirectory() as t:
+            user = Path(t) / "User"; user.mkdir()
+            proj = Path(t) / "repo"; proj.mkdir()
+            make_workspace(user, proj, ["cid"])
+            make_global(user, "cid", [(1, "为什么", "1e400", [])])  # 溢出数字串
+            with unittest.mock.patch.object(cs, "_USER_DIRS", [user]):
+                out, err = cs.scan_sessions(proj, None, None)
+            self.assertEqual(len(out), 1)            # _epoch 按其契约降级为 0,不上抛丢会话
+            self.assertEqual(out[0]["prompts"], ["为什么"])
+
+
 class TestNotice(unittest.TestCase):
     def test_notice_shown_once(self):
         with tempfile.TemporaryDirectory() as t:
