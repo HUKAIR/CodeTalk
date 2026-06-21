@@ -19,6 +19,7 @@ DEFAULTS = {
     "model": "deepseek-v4-pro",
     "diff_token_budget": 3000,
     "output_lang": "中文",   # 叙事/回答的输出语言;英文项目可设 "English"
+    "sources": ["claude"],   # 会话源;加 "cursor" 启用 Cursor(opt-in,数据仍不出本机)
     "providers": {
         "deepseek": {"base_url": "https://api.deepseek.com/v1", "api_key": ""},
         "openai": {"base_url": "https://api.openai.com/v1", "api_key": ""},
