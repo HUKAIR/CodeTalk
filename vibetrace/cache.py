@@ -1,11 +1,35 @@
 """SQLite cache: commit narratives are immutable by SHA; session summaries
 update incrementally by (session_id, last_msg_ts)."""
 import json
+import logging
+import re
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
 from .config import redact_secrets
+
+log = logging.getLogger("vibetrace")
+_FTS_STRIP = re.compile(r'["*():\-^]')          # FTS5 查询语法元字符,须先剥离
+_FTS_KEYWORDS = {"AND", "OR", "NOT", "NEAR"}    # 裸布尔关键字,当普通 term 剥掉
+
+def _build_match(query):
+    # 安全 FTS5 MATCH(唯一确定方案):strip 元字符 → 切 term → 有效 term(≥3、非
+    # AND/OR/NOT/NEAR)切重叠 trigram phrase(无空格 CJK 整句引用召不回,故按 3 字子串
+    # 切;=3 字本身即一 trigram。内部 " 已 strip)→ ' OR ' 连(命中任一即召回)。
+    phrases = []
+    for term in _FTS_STRIP.sub(" ", query or "").split():
+        if len(term) < 3 or term.upper() in _FTS_KEYWORDS:
+            continue
+        phrases += ['"' + term[i:i + 3] + '"' for i in range(max(1, len(term) - 2))]
+    return " OR ".join(phrases)
+
+def _fts_body(narrative):
+    """可全文检索文本(先窄:why + decisions);字段缺/非 list 降空,绝不崩。"""
+    n = narrative if isinstance(narrative, dict) else {}
+    why = [n["why"]] if isinstance(n.get("why"), str) and n["why"].strip() else []
+    decs = n["decisions"] if isinstance(n.get("decisions"), list) else []
+    return "\n".join(why + [str(d) for d in decs if str(d).strip()])
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS commit_narratives (
@@ -37,6 +61,21 @@ class Cache:
         self.conn.execute("PRAGMA busy_timeout=5000")
         self._migrate()
         self.conn.executescript(SCHEMA)
+        self.fts_ok = self._init_fts()
+
+    def _init_fts(self):
+        """建 trigram FTS5 表 + 最小 MATCH 自检(防 fts5 编进但 trigram 未编);失败禁用。"""
+        try:
+            self.conn.execute(
+                "CREATE VIRTUAL TABLE IF NOT EXISTS narrative_fts USING "
+                "fts5(sha UNINDEXED, body, tokenize='trigram')")
+            self.conn.execute(                          # 自检:trigram 真能查
+                "SELECT sha FROM narrative_fts WHERE narrative_fts MATCH ? "
+                "LIMIT 1", ('"aaa"',)).fetchone()
+            return True
+        except sqlite3.OperationalError as exc:
+            log.warning("FTS5 不可用(%s),全文召回禁用", exc)
+            return False
 
     def _migrate(self):
         # 旧版 capsules 缺 opened_date / outcome 列。CREATE IF NOT EXISTS 不
@@ -66,6 +105,30 @@ class Cache:
             "INSERT OR REPLACE INTO commit_narratives VALUES (?,?,?,?,?)",
             (sha, project, model, payload, self._now()))
         self.conn.commit()
+        # 主表 commit 后同步 FTS 派生索引(DELETE+INSERT 幂等);写失败只 warning 不回滚主
+        # 写(M0 容错红线);body 取原始 dict 此处再脱敏(主表存的 JSON 才已脱敏)。
+        if self.fts_ok:
+            try:
+                self.conn.execute("DELETE FROM narrative_fts WHERE sha=?", (sha,))
+                self.conn.execute("INSERT INTO narrative_fts(sha, body) VALUES(?,?)",
+                                  (sha, redact_secrets(_fts_body(narrative))))
+                self.conn.commit()
+            except Exception as exc:
+                log.warning("FTS 写入 %s 失败(%s),已跳过全文索引", sha[:7], exc)
+
+    def search_narratives(self, query, limit=8):
+        """主题级内容召回 → 命中 sha(bm25 排序)。零 LLM、确定性。
+        fts_ok=False / 0 有效 term → [];任何 sqlite3.Error → []。"""
+        if not (self.fts_ok and (match := _build_match(query))):
+            return []
+        try:
+            rows = self.conn.execute(
+                "SELECT sha FROM narrative_fts WHERE narrative_fts MATCH ? "
+                "ORDER BY bm25(narrative_fts) LIMIT ?", (match, limit)).fetchall()
+            return [r[0] for r in rows]
+        except sqlite3.Error as exc:
+            log.warning("FTS 检索失败(%s),返回空", exc)
+            return []
 
     def get_session(self, session_id):
         row = self.conn.execute(
