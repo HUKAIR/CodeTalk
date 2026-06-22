@@ -2,34 +2,14 @@
 update incrementally by (session_id, last_msg_ts)."""
 import json
 import logging
-import re
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
 from .config import redact_secrets
+from .fts import build_match, fts_body
 
 log = logging.getLogger("vibetrace")
-_FTS_STRIP = re.compile(r'["*():\-^]')          # FTS5 查询语法元字符,须先剥离
-_FTS_KEYWORDS = {"AND", "OR", "NOT", "NEAR"}    # 裸布尔关键字,当普通 term 剥掉
-
-def _build_match(query):
-    # 安全 FTS5 MATCH(唯一确定方案):strip 元字符 → 切 term → 有效 term(≥3、非
-    # AND/OR/NOT/NEAR)切重叠 trigram phrase(无空格 CJK 整句引用召不回,故按 3 字子串
-    # 切;=3 字本身即一 trigram。内部 " 已 strip)→ ' OR ' 连(命中任一即召回)。
-    phrases = []
-    for term in _FTS_STRIP.sub(" ", query or "").split():
-        if len(term) < 3 or term.upper() in _FTS_KEYWORDS:
-            continue
-        phrases += ['"' + term[i:i + 3] + '"' for i in range(max(1, len(term) - 2))]
-    return " OR ".join(phrases)
-
-def _fts_body(narrative):
-    """可全文检索文本(先窄:why + decisions);字段缺/非 list 降空,绝不崩。"""
-    n = narrative if isinstance(narrative, dict) else {}
-    why = [n["why"]] if isinstance(n.get("why"), str) and n["why"].strip() else []
-    decs = n["decisions"] if isinstance(n.get("decisions"), list) else []
-    return "\n".join(why + [str(d) for d in decs if str(d).strip()])
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS commit_narratives (
@@ -109,17 +89,19 @@ class Cache:
         # 写(M0 容错红线);body 取原始 dict 此处再脱敏(主表存的 JSON 才已脱敏)。
         if self.fts_ok:
             try:
+                body = redact_secrets(fts_body(narrative))  # 先构建:失败则根本不动 FTS 表
                 self.conn.execute("DELETE FROM narrative_fts WHERE sha=?", (sha,))
                 self.conn.execute("INSERT INTO narrative_fts(sha, body) VALUES(?,?)",
-                                  (sha, redact_secrets(_fts_body(narrative))))
+                                  (sha, body))
                 self.conn.commit()
             except Exception as exc:
+                self.conn.rollback()  # 撤销挂起的 DELETE,免被下次 put 的 commit 误刷丢索引
                 log.warning("FTS 写入 %s 失败(%s),已跳过全文索引", sha[:7], exc)
 
     def search_narratives(self, query, limit=8):
         """主题级内容召回 → 命中 sha(bm25 排序)。零 LLM、确定性。
         fts_ok=False / 0 有效 term → [];任何 sqlite3.Error → []。"""
-        if not (self.fts_ok and (match := _build_match(query))):
+        if not (self.fts_ok and (match := build_match(query))):
             return []
         try:
             rows = self.conn.execute(

@@ -59,6 +59,14 @@ class TestTopicSearch(unittest.TestCase):
         out = topic_search(c, "/tmp/proj", "幂等去重")
         self.assertNotIn("sk-abcdefghijklmnop1234", out)
 
+    def test_question_with_secret_redacted_in_header(self):
+        # 出口脱敏:question 回显进 header,含 secret 须脱敏(CLI 与 MCP 同口径)
+        c = Cache(":memory:")
+        c.put_narrative("sha_q00001", "P", "m", {"why": "用乐观锁避免超时"})
+        out = topic_search(c, "/tmp/proj", "乐观锁 sk-secretkeyABCDEFGH123456")
+        self.assertNotIn("sk-secretkeyABCDEFGH123456", out)
+        self.assertIn("[REDACTED]", out)
+
 
 if __name__ == "__main__":
     unittest.main()

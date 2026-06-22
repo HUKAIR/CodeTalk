@@ -107,10 +107,22 @@ class TestFtsWriteFaultTolerant(unittest.TestCase):
         from vibetrace import cache as cache_mod
         c = Cache(":memory:")
         # 让 FTS body 拼接崩,主表写仍须成功(派生索引绝不拖垮主写)
-        with mock.patch.object(cache_mod, "_fts_body",
+        with mock.patch.object(cache_mod, "fts_body",
                                side_effect=RuntimeError("boom")):
             c.put_narrative("s_main", "P", "m", {"why": "正常意图"})
         self.assertIsNotNone(c.get_narrative("s_main"))   # 主写未回滚
+
+    def test_reput_body_failure_keeps_existing_fts_row(self):
+        # 已索引 SHA 再 put 时 body 构建失败,不得丢掉原 FTS 行(body 先建 + 回滚保护)
+        from vibetrace import cache as cache_mod
+        c = Cache(":memory:")
+        c.put_narrative("s_keep", "P", "m", {"why": "用乐观锁避免超时"})
+        self.assertIn("s_keep", c.search_narratives("乐观锁"))   # 原本可召回
+        with mock.patch.object(cache_mod, "fts_body",
+                               side_effect=RuntimeError("boom")):
+            c.put_narrative("s_keep", "P", "m", {"why": "改写"})  # body 崩
+        c.put_narrative("s_other", "P", "m", {"why": "幂等去重"})  # 触发后续 commit
+        self.assertIn("s_keep", c.search_narratives("乐观锁"))   # 原 FTS 行仍在
 
 
 class TestFtsUpsert(unittest.TestCase):
