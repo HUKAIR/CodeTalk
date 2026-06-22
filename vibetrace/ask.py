@@ -5,32 +5,19 @@ write-time 捕获(commit trailer 面包屑)+ read-time 廉价检索(git log -L �
 """
 import hashlib
 import json
-import re
 import sys
 from pathlib import Path
 
+from . import grounding_render as gr
 from .cache import Cache
 from .config import CACHE_DB_PATH, load_config, redact_secrets
-from .gitlog import line_log, file_log, commit_body, parse_breadcrumbs
+from .gitlog import line_log, file_log, merge_breadcrumbs, parse_target
 from .llm import LLMClient, LLMError
 from .prompts import ASK_SCHEMA, ASK_SYSTEM_PROMPT
 
 EXCERPT = 200
 CONTEXT_BUDGET = 6000
-_RANGE_RE = re.compile(r"^(\d+)(?:-(\d+))?$")
-
-
-def _parse_target(target):
-    """'foo.py' → ('foo.py', None, None);'foo.py:42-60' → ('foo.py', 42, 60);
-    'foo.py:42' → ('foo.py', 42, 42)。冒号右侧不是行号则整串当文件(路径含冒号罕见)。"""
-    if ":" in target:
-        file, _, tail = target.rpartition(":")
-        match = _RANGE_RE.match(tail)
-        if file and match:
-            start = int(match.group(1))
-            end = int(match.group(2)) if match.group(2) else start
-            return file, start, end
-    return target, None, None
+_parse_target = parse_target          # 与 blame 同口径,搬到 gitlog 共享
 
 
 def _since_args(since):
@@ -59,13 +46,16 @@ def _retrieve(project_path, file, start, end, cache, since=None):
     else:
         shas, _ = file_log(project_path, file, extra=extra)
     blocks, evidence, test_refs, pr_refs = [], [], [], []
-    _seen_test, _seen_pr = set(), set()
+    _seen_ev, _seen_test, _seen_pr = set(), set(), set()
     for sha in shas:
         narrative = cache.get_narrative(sha) or {}
-        decisions, watches = parse_breadcrumbs(commit_body(project_path, sha))
-        decs = list(dict.fromkeys((narrative.get("decisions") or []) + decisions))
-        risks = list(dict.fromkeys((narrative.get("risks") or []) + watches))
-        evidence.extend(narrative.get("evidence") or [])
+        decs, risks = merge_breadcrumbs(narrative, project_path, sha)
+        for ev in narrative.get("evidence") or []:    # 原话锚点,按 (session_id, ts) 去重
+            key_ev = (ev.get("session_id"), ev.get("ts")) if (
+                ev.get("session_id") or ev.get("ts")) else str(ev)
+            if key_ev not in _seen_ev:
+                _seen_ev.add(key_ev)
+                evidence.append(ev)
         for tr in narrative.get("test_refs") or []:   # 本地测试接地源,按 path 去重
             if tr.get("path") not in _seen_test:
                 _seen_test.add(tr.get("path"))
@@ -107,7 +97,7 @@ def format_evidence(evidence):
     无 evidence → 返回 ''(调用方不追加该块,旧缓存无键经上游 .get 兼容)。脱敏在上游已做。"""
     if not evidence:
         return ""
-    lines = ["原话佐证(可自行核验):"]
+    lines = [gr.EVIDENCE_TITLE]
     for ev in evidence:
         sid = (ev.get("session_id") or "")[:7]
         head = f"- [{ev.get('source', '?')}·{sid}·{ev.get('ts', '')}" \
@@ -117,8 +107,8 @@ def format_evidence(evidence):
             lines.append(f"  原话:{p}")
         for e in ev.get("excerpts") or []:
             lines.append(f"  AI:{e}")
-    if not any(ev.get("confidence") == "high" for ev in evidence):
-        lines.append("(基于软关联会话,置信较低,请核对原话)")
+    if gr.evidence_low_confidence(evidence):
+        lines.append(gr.EVIDENCE_LOW_WARN)
     return "\n".join(lines)
 
 
@@ -127,7 +117,7 @@ def format_test_refs(test_refs):
     无 → ''(调用方不追加)。对位用户1「看测试用例反推设计」(问卷一 Q3)。"""
     if not test_refs:
         return ""
-    lines = ["相关测试(从测试场景反推设计):"]
+    lines = [gr.TEST_REFS_TITLE]
     for tr in test_refs:
         names = "、".join(tr.get("names") or []) or "(无显式 test_ 用例)"
         lines.append(f"- {tr.get('path', '')} — {names}")
@@ -139,7 +129,7 @@ def format_pr_refs(pr_refs):
     无 → ''(调用方不追加)。对位用户1「看 PR 描述找需求背景」(问卷一 Q3,最强 why 源)。"""
     if not pr_refs:
         return ""
-    lines = ["相关 PR 讨论(当初的需求背景):"]
+    lines = [gr.PR_REFS_TITLE]
     for pr in pr_refs:
         lines.append(f"- #{pr.get('number')} {pr.get('title', '')} — "
                      f"{pr.get('snippet', '')}")
@@ -189,7 +179,7 @@ def answer_question(cache, llm, project_path, project, target, question,
     if not context:
         return None, f"{file} 没有可用的提交历史,无从回答。"
     key = "ask:" + hashlib.sha256(
-        f"{file}|{start}-{end}|{question}|{code_state}".encode()
+        f"{file}|{start}-{end}|{question}|{code_state}|{since or ''}".encode()
     ).hexdigest()[:40]
     cached = cache.get_narrative(key)
     if cached:
