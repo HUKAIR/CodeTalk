@@ -64,6 +64,9 @@ def _build_parser():
     _proj(sub.add_parser(
         "install-agent-seed",
         help="把决策捕获约定植入项目 CLAUDE.md,让 AI agent 提交时留推导面包屑"))
+    _proj(sub.add_parser(
+        "mcp-serve",
+        help="起 MCP server(stdio):把 ask/blame/graph 暴露给 MCP 客户端(零 LLM 接地)"))
     return parser
 
 
@@ -82,6 +85,7 @@ _DISPATCH = {
     "init": commands.init_cmd,
     "install-hook": commands.install_hook_cmd,
     "install-agent-seed": commands.install_agent_seed_cmd,
+    "mcp-serve": commands.mcp_serve_cmd,
 }
 
 
