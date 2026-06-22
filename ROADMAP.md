@@ -42,6 +42,26 @@
 markdown(digest/brief/ask)与 JSON Canvas(graph)。web 层只是叠在同一份本地
 数据上的可选视图,不是唯一入口,也不引入服务端/账号。
 
+## 已做 —— 指令回看 `vibetrace prompts`(零 LLM)
+
+对位「vibecoding 健忘」场景:今天让 AI 实现了一堆功能,忘了当初具体提了什么,想回看。
+- `vibetrace prompts [--since "1 day ago"] [--source claude|cursor|both]`:按天/会话时间线
+  列出你发给 AI 的原始指令 + 这会话改过的文件。复用 sessions/cursor_sessions 已抓的 prompts
+  (采集即脱敏),零 LLM、不触网(本地 git only)、双重脱敏、degrade-never-raise;新增
+  `prompts_view.py`(<100 行)。
+- **commit 关联仅作「软对齐」弱提示**(align 时间窗 ±30min + 文件交集),显式标注「可能不准」,
+  绝不渲染「✓已提交」—— 软对齐冒充因果会砸「对抗反推式幻觉」招牌(对抗审查定的红线)。
+- 待办(v2):接 evidence 锚点做「指令→AI 当时怎么回应→落成哪个 commit」三段接地;console 第五视图。
+
+## 决策:零-LLM 边界 + `--no-llm` 缺口(2026-06-23 多 agent 分析)
+
+纯零-LLM **不能「完全解决」三问卷**:它守住护城河本体(确定性接地/对抗编造/隐私无 egress),
+但 ask 综合答 / 周报叙事 / course 结构上需 LLM,无 key 只降级为「带 SHA 原始材料自己读」;
+旗舰痛「找回 why」的高质量接地隐含依赖 enrich(要 LLM)+ 面包屑覆盖(常为 0)。
+安全性:零-LLM ≠ 零风险(cache.db/vault 明文聚合、误配回退、脱敏只防 secret 模式不防业务语义、
+usage.log 漏项目绝对路径)。**建设缺口:无 `--no-llm`/本地 provider 硬开关**(providers 现 4 家全云端)。
+详见 `docs/discovery/2026-06-23-产品技术问答.md`。
+
 ## 发现驱动的方向修正(问卷1 · N=1 暂定)
 
 来源:`docs/discovery/gap-analysis-问卷1.md`(已过 4 视角对抗复审,minor-revision)+

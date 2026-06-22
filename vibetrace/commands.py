@@ -157,6 +157,37 @@ def search_cmd(args):
     return 0
 
 
+def prompts_cmd(args):
+    """指令回看(零 LLM):scan 会话 → 本地 commit 软对齐 → 时间线视图。无 key 也能用、不出网。"""
+    from . import align, cursor_sessions, gitlog, sessions
+    from .digest import _since_to_dt, _sources
+    from .prompts_view import build_prompts_view
+    cfg = load_config()
+    pp = Path(args.project).resolve()
+    since_dt = _since_to_dt(args.since)
+    cache = Cache(_cache_db_path())
+    cache.rekey_project(pp.name, str(pp))   # 迁移旧 basename 键(幂等)
+    srcs = _sources(cfg, args)
+    sess = []
+    if "claude" in srcs:
+        s_list, s_err = sessions.scan_sessions(pp, since_dt, cache)
+        if s_err:
+            log.warning("会话层降级:%s", s_err)
+        sess += s_list
+    if "cursor" in srcs:
+        cursor_sessions.maybe_notice()
+        c_list, c_err = cursor_sessions.scan_sessions(pp, since_dt, cache)
+        if c_err:
+            log.warning("Cursor 会话层降级:%s", c_err)
+        sess += c_list
+    commits, _err = gitlog.collect_commits(
+        pp, args.since, cfg.get("diff_token_budget", 6000))  # 本地 git,不出网
+    align.align(commits or [], sess, pp)
+    cache.close()
+    print(build_prompts_view(sess, commits or [], pp))
+    return 0
+
+
 def graph_cmd(args):
     from .graph import build_graph
     path, err = build_graph(args.project, vault=args.vault, canvas=args.canvas)

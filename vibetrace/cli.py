@@ -52,6 +52,13 @@ def _build_parser():
     sea = _proj(sub.add_parser(
         "search", help="主题级『当初为什么』召回:全仓按关键词找相关 commit(零 LLM)"))
     sea.add_argument("question", help="主题/关键词(需 ≥3 字符)")
+    prm = _proj(sub.add_parser(
+        "prompts",
+        help="指令回看:按会话时间线列出你发给 AI 的指令 + 改过的文件(零 LLM)"))
+    prm.add_argument("--since", default="1 day ago",
+                     help='如 "3 days ago"/2026-06-20(默认近 1 天)')
+    prm.add_argument("--source", choices=["claude", "cursor", "both"],
+                     help="会话源(默认按 config.sources;cursor 需 opt-in)")
     grp = _proj(sub.add_parser("graph", help="生成决策影响图(时间轴 DAG,零 LLM)"))
     grp.add_argument("--vault", help="覆盖输出目录")
     grp.add_argument("--canvas", action="store_true",
@@ -90,6 +97,7 @@ _DISPATCH = {
     "ask": commands.ask_cmd,
     "blame": commands.blame_cmd,
     "search": commands.search_cmd,
+    "prompts": commands.prompts_cmd,
     "graph": commands.graph_cmd,
     "course": commands.course_cmd,
     "init": commands.init_cmd,
