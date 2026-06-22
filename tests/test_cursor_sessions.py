@@ -67,7 +67,9 @@ class TestParseComposer(unittest.TestCase):
             self.assertEqual(s["prompts"], ["为什么用乐观锁"])
             self.assertEqual(len(s["excerpts"]), 1)
             self.assertLessEqual(len(s["excerpts"][0]), cs.EXCERPT_CAP)
-            self.assertEqual(s["files_written"], {str(root / "a.py"), str(root / "b.py")})
+            # Task2:relevantFiles 是上下文 → files_read,非真实编辑 → files_written 空
+            self.assertEqual(s["files_read"], {str(root / "a.py"), str(root / "b.py")})
+            self.assertEqual(s["files_written"], set())
             self.assertEqual(s["start"].year, cs._ms(1000).year)
             self.assertTrue(s["start"] < s["end"])
 
@@ -118,6 +120,101 @@ class TestScanSessions(unittest.TestCase):
                 self.assertIsNone(cache.get_session("cid"))  # 旧裸键不再使用
                 out2, _ = cs.scan_sessions(proj, None, cache)  # 二次命中
             self.assertEqual(len(out2), 1)
+
+def make_global_rich(user_dir, composer_id, head, bubbles, created=1000):
+    """像 make_global,但 head=composerData 整体 dict、bubbles=完整 bubble dict 列表。
+    用于注入 addedFiles/removedFiles(编辑)与 assistantSuggestedDiffs/relevantFiles。"""
+    g = Path(user_dir) / "globalStorage"; g.mkdir(parents=True, exist_ok=True)
+    con = sqlite3.connect(g / "state.vscdb")
+    con.execute("CREATE TABLE IF NOT EXISTS cursorDiskKV (key TEXT PRIMARY KEY, value TEXT)")
+    head = {"createdAt": created, **head}
+    con.execute("INSERT OR REPLACE INTO cursorDiskKV VALUES (?,?)",
+                (f"composerData:{composer_id}", json.dumps(head)))
+    for i, b in enumerate(bubbles):
+        con.execute("INSERT OR REPLACE INTO cursorDiskKV VALUES (?,?)",
+                    (f"bubbleId:{composer_id}:b{i}", json.dumps(b)))
+    con.commit(); con.close()
+    return g / "state.vscdb"
+
+
+from datetime import datetime, timezone
+from vibetrace import align
+
+
+class TestEditContextSeparation(unittest.TestCase):
+    """Task2:composerData addedFiles/removedFiles=编辑→files_written;
+    relevantFiles/attachedCodeChunks=上下文→files_read(不计 align high)。"""
+
+    def test_edited_files_go_to_files_written(self):
+        with tempfile.TemporaryDirectory() as t:
+            user = Path(t) / "User"; user.mkdir(); root = Path(t) / "r"; root.mkdir()
+            db = make_global_rich(user, "c",
+                head={"text": "改一下", "addedFiles": ["new.py"],
+                      "removedFiles": ["old.py"]},
+                bubbles=[{"type": 1, "text": "请新增", "createdAt": 1000,
+                          "relevantFiles": ["ctx.py"]}])
+            con = cs._open_ro(db); s = cs._parse_composer(con, "c", root); con.close()
+            self.assertEqual(s["files_written"],
+                             {str(root / "new.py"), str(root / "old.py")})
+            self.assertNotIn(str(root / "ctx.py"), s["files_written"])
+
+    def test_context_files_go_to_files_read(self):
+        with tempfile.TemporaryDirectory() as t:
+            user = Path(t) / "User"; user.mkdir(); root = Path(t) / "r"; root.mkdir()
+            db = make_global_rich(user, "c",
+                head={"text": "q"},
+                bubbles=[{"type": 1, "text": "看下", "createdAt": 1000,
+                          "relevantFiles": ["ctx.py"],
+                          "attachedCodeChunks": [{"uri": "chunk.py"}]}])
+            con = cs._open_ro(db); s = cs._parse_composer(con, "c", root); con.close()
+            self.assertEqual(s["files_read"],
+                             {str(root / "ctx.py"), str(root / "chunk.py")})
+            self.assertEqual(s["files_written"], set())
+
+    def test_suggested_diffs_fallback_when_no_added_removed(self):
+        # composerData 无 addedFiles/removedFiles → 退取 bubble assistantSuggestedDiffs
+        with tempfile.TemporaryDirectory() as t:
+            user = Path(t) / "User"; user.mkdir(); root = Path(t) / "r"; root.mkdir()
+            db = make_global_rich(user, "c",
+                head={"text": "q"},
+                bubbles=[{"type": 2, "text": "已改", "createdAt": 1000,
+                          "assistantSuggestedDiffs": [{"relativeWorkspacePath": "diff.py"}]}])
+            con = cs._open_ro(db); s = cs._parse_composer(con, "c", root); con.close()
+            self.assertEqual(s["files_written"], {str(root / "diff.py")})
+
+    def test_context_only_session_not_high_confidence(self):
+        # 关键回归:文件仅作上下文(relevantFiles)未编辑 →
+        # 与触碰该文件的 commit 不得 high(应 low,只命中时间窗)。
+        with tempfile.TemporaryDirectory() as t:
+            user = Path(t) / "User"; user.mkdir()
+            root = (Path(t) / "r"); root.mkdir(); root = root.resolve()
+            db = make_global_rich(user, "c",
+                head={"text": "无关问题"},
+                bubbles=[{"type": 1, "text": "问个无关的", "createdAt": 2000,
+                          "relevantFiles": ["hot.py"]}])
+            con = cs._open_ro(db); s = cs._parse_composer(con, "c", root); con.close()
+            commit_date = cs._ms(2000)  # 落在会话时间窗内
+            commits = [{"date": commit_date, "files": ["hot.py"], "sha": "x"}]
+            align.align(commits, [s], str(root))
+            matches = commits[0]["matches"]
+            self.assertEqual(len(matches), 1)
+            # 文件仅上下文 → files_written 无 hot.py → 仅时间窗命中 → low,非 high
+            self.assertEqual(matches[0]["confidence"], "low")
+
+    def test_edited_file_in_window_is_high_confidence(self):
+        # 对照:真实编辑该文件 + 落时间窗 → 应 high。
+        with tempfile.TemporaryDirectory() as t:
+            user = Path(t) / "User"; user.mkdir()
+            root = (Path(t) / "r"); root.mkdir(); root = root.resolve()
+            db = make_global_rich(user, "c",
+                head={"text": "改 hot", "addedFiles": ["hot.py"]},
+                bubbles=[{"type": 1, "text": "改它", "createdAt": 2000,
+                          "relevantFiles": []}])
+            con = cs._open_ro(db); s = cs._parse_composer(con, "c", root); con.close()
+            commits = [{"date": cs._ms(2000), "files": ["hot.py"], "sha": "x"}]
+            align.align(commits, [s], str(root))
+            self.assertEqual(commits[0]["matches"][0]["confidence"], "high")
+
 
 class TestReviewFixes(unittest.TestCase):
     """PR#29 评审发现的修复回归。"""

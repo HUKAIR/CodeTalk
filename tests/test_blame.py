@@ -93,6 +93,67 @@ class TestBlameSegments(unittest.TestCase):
         self.assertEqual(len(segs), 2)
 
 
+class TestBlameEvidence(unittest.TestCase):
+    """blame 在每段决策史后附 evidence 原话(确定性,零 LLM);仅 low 加警示。"""
+
+    def setUp(self):
+        self.repo = _Repo()
+        self.cache = Cache(":memory:")
+
+    def tearDown(self):
+        self.cache.close()
+        self.repo.close()
+
+    def _ev(self, sid, source, confidence, prompts, excerpts):
+        return {"session_id": sid, "source": source,
+                "ts": "2026-06-17T10:00:00+00:00", "confidence": confidence,
+                "prompts": prompts, "excerpts": excerpts}
+
+    def test_segment_carries_evidence_from_narrative(self):
+        self.cache.put_narrative(
+            self.repo.sha(1), "P", "m",
+            {"why": "", "decisions": [], "risks": [], "open_loops": [],
+             "evidence": [self._ev("highsess1", "claude", "high",
+                                   ["原话锚点A"], ["陈述B"])]})
+        segs = blame.collect_segments(self.cache, self.repo.dir, "f.py", 2, 2)
+        self.assertEqual(segs[0]["evidence"][0]["session_id"], "highsess1")
+        self.assertEqual(segs[1].get("evidence"), [])     # 无缓存段为空
+
+    def test_format_lists_evidence_prompts_high(self):
+        self.cache.put_narrative(
+            self.repo.sha(1), "P", "m",
+            {"why": "", "decisions": [], "risks": [], "open_loops": [],
+             "evidence": [self._ev("highsess1", "claude", "high",
+                                   ["原话锚点A"], ["陈述B"])]})
+        segs = blame.collect_segments(self.cache, self.repo.dir, "f.py", 2, 2)
+        out = blame._format("f.py", 2, 2, segs)
+        self.assertIn("原话佐证", out)
+        self.assertIn("原话锚点A", out)
+        self.assertIn("陈述B", out)
+        self.assertIn("highses", out)             # 短 id
+        self.assertNotIn("置信较低", out)          # high → 无警示
+
+    def test_format_low_evidence_warns(self):
+        self.cache.put_narrative(
+            self.repo.sha(1), "P", "m",
+            {"why": "", "decisions": [], "risks": [], "open_loops": [],
+             "evidence": [self._ev("lowsess99", "cursor", "low",
+                                   ["顺手一问"], [])]})
+        segs = blame.collect_segments(self.cache, self.repo.dir, "f.py", 2, 2)
+        out = blame._format("f.py", 2, 2, segs)
+        self.assertIn("顺手一问", out)
+        self.assertIn("置信较低", out)
+
+    def test_old_cache_without_evidence_compatible(self):
+        self.cache.put_narrative(
+            self.repo.sha(1), "P", "m",
+            {"why": "", "decisions": [], "risks": [], "open_loops": []})
+        segs = blame.collect_segments(self.cache, self.repo.dir, "f.py", 2, 2)
+        self.assertEqual(segs[0]["evidence"], [])     # .get 兼容
+        out = blame._format("f.py", 2, 2, segs)
+        self.assertNotIn("原话佐证", out)             # 无 evidence 不输出块
+
+
 class TestBlameRun(unittest.TestCase):
     def setUp(self):
         self.repo = _Repo()
