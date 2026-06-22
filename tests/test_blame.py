@@ -180,6 +180,25 @@ class TestBlameRun(unittest.TestCase):
         _, out2 = self._run("f.py:2-2")
         self.assertEqual(out, out2)
 
+    def test_output_redacts_secret_in_subject(self):
+        # subject 来自 git 原始元数据,经 _format → print 出 stdout,须在出口脱敏
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        _git(["init", "-q"], d)
+        _git(["config", "user.email", "t@t"], d)
+        _git(["config", "user.name", "t"], d)
+        (Path(d) / "g.py").write_text("x\n")
+        _git(["add", "g.py"], d)
+        _git(["commit", "-q", "-m", "leak sk-ABCDEF0123456789ABCD"], d)
+        buf = io.StringIO()
+        with mock.patch.object(blame, "Cache", lambda _p: Cache(":memory:")), \
+             redirect_stdout(buf):
+            code = blame.blame(d, "g.py")
+        self.assertEqual(code, 0)
+        out = buf.getvalue()
+        self.assertNotIn("sk-ABCDEF0123456789ABCD", out)
+        self.assertIn("[REDACTED]", out)
+
     def test_no_history_returns_error_code(self):
         code, out = self._run("nope.py")
         self.assertEqual(code, 2)

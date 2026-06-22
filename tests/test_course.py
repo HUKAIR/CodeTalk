@@ -41,6 +41,22 @@ class TestCourseRedaction(unittest.TestCase):
         self.assertNotIn("sk-ABCDEF0123456789ABCD", html)   # secret 不进落盘 HTML
         self.assertIn("[REDACTED]", html)                   # 脱敏生效
 
+    def test_written_html_redacts_quoted_keyvalue_in_subject(self):
+        # key="value" 形式:经 inline_json(json.dumps)转义引号后,只靠整页 redact 会漏。
+        # redact_data 须在 inline_json 之前对数据脱敏(fresh subject 不走 cache 脱敏)。
+        _git(["commit", "-q", "--allow-empty", "-m",
+              'set api_key="QwErTy123456Zx" ZZMARKER'], self.d)
+        cfg = {"vault_path": self.vault, "provider": "anthropic",
+               "model": "x", "providers": {"anthropic": {}}}
+        with mock.patch.object(course, "CACHE_DB_PATH", self.dbfile), \
+             mock.patch.object(course, "load_config", return_value=cfg), \
+             mock.patch.dict("os.environ", {"ANTHROPIC_API_KEY": ""}, clear=False):
+            out, err = course.build_course(self.d)
+        self.assertIsNone(err)
+        html = out.read_text(encoding="utf-8")
+        self.assertIn("ZZMARKER", html)                  # subject 确已渲染
+        self.assertNotIn("QwErTy123456Zx", html)         # 引号定界 secret 不漏
+
 
 if __name__ == "__main__":
     unittest.main()
