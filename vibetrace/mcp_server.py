@@ -124,7 +124,8 @@ def _handle(req, cache, cfg, llm, default_project=".", stderr=sys.stderr):
     所有 error/result 透传 req.get('id')。"""
     req_id = req.get("id")
     method = req.get("method")
-    is_notification = "id" not in req
+    if "id" not in req:                     # JSON-RPC 通知(无 id):任何 method 都不回、不执行请求型操作
+        return None
     if method == "initialize":
         params = req.get("params") or {}
         return _result(req_id, {
@@ -140,8 +141,6 @@ def _handle(req, cache, cfg, llm, default_project=".", stderr=sys.stderr):
         result = _call_tool(params.get("name"), params.get("arguments"),
                             cache, cfg, llm, default_project, stderr)
         return _result(req_id, result)
-    if is_notification:                    # notifications/initialized 及任意无 id 通知
-        return None
     return _err(req_id, -32601, f"未知 method:{method}")
 
 

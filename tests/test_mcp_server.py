@@ -5,7 +5,10 @@
 """
 import io
 import json
+import subprocess
+import tempfile
 import unittest
+from pathlib import Path
 from unittest import mock
 
 from vibetrace import mcp_server
@@ -239,6 +242,39 @@ class TestServeLoop(unittest.TestCase):
         for line in out.splitlines():
             json.loads(line)                   # stdout 纯净
         self.assertEqual(len(out.splitlines()), 1)
+
+
+class TestServeRealPath(unittest.TestCase):
+    """真实路径(非 mock)e2e:真 git 仓跑 blame,验 stdout 纯净 + 出口脱敏走真实业务路径
+    (mock 版只验框架,这条防『有人往真实 collect_segments/_log_usage 加 print』的回归)。"""
+
+    def _git(self, cwd, *args):
+        subprocess.run(["git", *args], cwd=cwd, check=True,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    def test_real_blame_stdout_pure_and_exit_redacted(self):
+        with tempfile.TemporaryDirectory() as t:
+            repo = Path(t) / "repo"; repo.mkdir()
+            self._git(repo, "init"); self._git(repo, "config", "user.email", "t@t.t")
+            self._git(repo, "config", "user.name", "t")
+            (repo / "a.py").write_text("x = 1\n", encoding="utf-8")
+            self._git(repo, "add", "a.py")
+            self._git(repo, "commit", "-m", "fix leak sk-abcdef0123456789ABCD")
+            init = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize",
+                               "params": {}})
+            call = json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/call",
+                               "params": {"name": "vibetrace_blame",
+                                          "arguments": {"target": "a.py",
+                                                        "project": str(repo)}}})
+            stdin = io.StringIO("\n".join([init, call]) + "\n")
+            out, err = io.StringIO(), io.StringIO()
+            mcp_server.serve(stdin, out, Cache(":memory:"), _cfg(), None, stderr=err)
+            lines = out.getvalue().splitlines()
+            for line in lines:
+                self.assertEqual(json.loads(line)["jsonrpc"], "2.0")  # 真实路径 stdout 纯净
+            text = json.loads(lines[1])["result"]["content"][0]["text"]
+            self.assertNotIn("sk-abcdef0123456789ABCD", text)   # 真实 blame 出口脱敏
+            self.assertIn("[REDACTED]", text)
 
 
 if __name__ == "__main__":
