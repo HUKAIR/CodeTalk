@@ -64,28 +64,19 @@
   .row.read::before { background: var(--dim); border-color: var(--dim); }
   .row.risky::before { border-color: var(--warn); }
   .head { cursor: pointer; padding: 9px 0;
-    transform-origin: left center; border-radius: 12px;
-    transition: background .25s ease, box-shadow .25s ease, padding .25s ease; }
+    transform-origin: center center; border-radius: 12px;
+    transition: transform .5s ease-out, background .3s ease, box-shadow .3s ease; }
   .head .top { display: flex; gap: 10px; align-items: baseline; }
   .sha { font-family: var(--mono); font-size: 12px; color: var(--faint); }
   .subj { font-size: 15px; flex: 1; min-width: 0; }
   .head:hover .subj { color: #fff; }
-  /* 悬停:这一条记录像泡泡一样鼓起来 —— 放大 1.5x,放大过程带双下心跳的鼓动感,
-     浮于时间轴之上(z 提升 + 投影/微光晕)。transform-origin 锚在左侧时间轴脊,向外鼓出。 */
+  /* 悬停:这一条像气球一样慢慢鼓起来 —— 向中心平滑放大 1.25x(无震动),浮于时间轴之上。 */
   .row:hover { z-index: 30; }
-  .head:hover { background: var(--card2); padding: 9px 16px;
-    box-shadow: 0 12px 34px rgba(0,0,0,.5), 0 0 0 1px var(--line),
-      0 0 22px rgba(91,156,255,.18); }
-  @media (prefers-reduced-motion: no-preference) {
-    .head:hover { animation: bubble-throb .6s ease-out forwards; }
-    @keyframes bubble-throb {
-      0%   { transform: scale(1); }
-      30%  { transform: scale(1.58); }   /* 鼓:冲过 1.5 */
-      48%  { transform: scale(1.40); }   /* 动:回弹 */
-      66%  { transform: scale(1.54); }   /* 第二下心跳 */
-      82%  { transform: scale(1.47); }
-      100% { transform: scale(1.5); }    /* 落定在 1.5x */
-    }
+  .head:hover { transform: scale(1.25); background: var(--card2);
+    box-shadow: 0 10px 28px rgba(0,0,0,.45), 0 0 0 1px var(--line),
+      0 0 18px rgba(91,156,255,.15); }
+  @media (prefers-reduced-motion: reduce) {
+    .head:hover { transform: none; }   /* 偏好减少动效:只高亮,不放大 */
   }
   .badges { font-family: var(--mono); font-size: 11px; color: var(--faint);
     white-space: nowrap; }
