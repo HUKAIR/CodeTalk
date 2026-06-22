@@ -57,13 +57,17 @@ def _retrieve(project_path, file, start, end, cache, since=None):
             shas, _ = file_log(project_path, file, extra=extra)
     else:
         shas, _ = file_log(project_path, file, extra=extra)
-    blocks, evidence = [], []
+    blocks, evidence, test_refs, _seen = [], [], [], set()
     for sha in shas:
         narrative = cache.get_narrative(sha) or {}
         decisions, watches = parse_breadcrumbs(commit_body(project_path, sha))
         decs = list(dict.fromkeys((narrative.get("decisions") or []) + decisions))
         risks = list(dict.fromkeys((narrative.get("risks") or []) + watches))
         evidence.extend(narrative.get("evidence") or [])
+        for tr in narrative.get("test_refs") or []:   # 本地测试接地源,按 path 去重
+            if tr.get("path") not in _seen:
+                _seen.add(tr.get("path"))
+                test_refs.append(tr)
         parts = [f"[{sha[:7]}]"]
         if narrative.get("why"):
             parts.append("意图:" + narrative["why"][:EXCERPT])
@@ -74,7 +78,7 @@ def _retrieve(project_path, file, start, end, cache, since=None):
         blocks.append(" / ".join(parts))
     context = "\n".join(blocks)[:CONTEXT_BUDGET]
     code_state = shas[-1] if shas else ""
-    return context, shas, code_state, evidence
+    return context, shas, code_state, evidence, test_refs
 
 
 def _ask_prompt(context, question):
@@ -112,9 +116,23 @@ def format_evidence(evidence):
     return "\n".join(lines)
 
 
-def _with_evidence(text, evidence):
-    block = format_evidence(evidence)
-    return f"{text}\n\n{block}" if block else text
+def format_test_refs(test_refs):
+    """「相关测试(从测试场景反推设计)」块:列相关测试文件 + 用例名,供用户反推设计。
+    无 → ''(调用方不追加)。对位用户1「看测试用例反推设计」(问卷一 Q3)。"""
+    if not test_refs:
+        return ""
+    lines = ["相关测试(从测试场景反推设计):"]
+    for tr in test_refs:
+        names = "、".join(tr.get("names") or []) or "(无显式 test_ 用例)"
+        lines.append(f"- {tr.get('path', '')} — {names}")
+    return "\n".join(lines)
+
+
+def _with_evidence(text, evidence, test_refs=()):
+    for block in (format_evidence(evidence), format_test_refs(test_refs)):
+        if block:
+            text = f"{text}\n\n{block}"
+    return text
 
 
 def _json_text(mode, target, question, shas, payload=None, context=None):
@@ -147,7 +165,7 @@ def answer_question(cache, llm, project_path, project, target, question,
     返回 (text, error_or_None)。llm=None 表示无 key,降级打印原始决策史。
     since:把检索叠一层时间范围;as_json:text 改为 agent 可读的结构化 JSON。"""
     file, start, end = _parse_target(target)
-    context, shas, code_state, evidence = _retrieve(
+    context, shas, code_state, evidence, test_refs = _retrieve(
         project_path, file, start, end, cache, since=since)
     if not context:
         return None, f"{file} 没有可用的提交历史,无从回答。"
@@ -160,14 +178,14 @@ def answer_question(cache, llm, project_path, project, target, question,
         if as_json:
             return _json_text("cache", target, question, shas,
                               payload=cached), None
-        return _with_evidence(_format(cached), evidence), None
+        return _with_evidence(_format(cached), evidence, test_refs), None
     if llm is None:                       # 无 API key:降级到原始决策史
         _log_usage(project_path, "degraded", llm)
         if as_json:
             return _json_text("degraded", target, question, shas,
                               context=context), None
         return _with_evidence(
-            "(未配置 LLM,以下为这段代码的原始决策史)\n" + context, evidence), None
+            "(未配置 LLM,以下为这段代码的原始决策史)\n" + context, evidence, test_refs), None
     try:
         raw = llm.narrate(_ask_prompt(context, question),
                           schema=ASK_SCHEMA, system=ASK_SYSTEM_PROMPT)
@@ -177,7 +195,7 @@ def answer_question(cache, llm, project_path, project, target, question,
             return _json_text("degraded", target, question, shas,
                               context=context), None
         return _with_evidence(
-            "(LLM 调用失败,以下为原始决策史)\n" + context, evidence), None
+            "(LLM 调用失败,以下为原始决策史)\n" + context, evidence, test_refs), None
     payload = {
         "answer": redact_secrets(str(raw.get("answer", ""))),
         "cited_shas": [str(s) for s in (raw.get("cited_shas") or [])],
@@ -189,7 +207,7 @@ def answer_question(cache, llm, project_path, project, target, question,
         _write_note(vault_path, project, target, question, payload)
     if as_json:
         return _json_text("llm", target, question, shas, payload=payload), None
-    return _with_evidence(_format(payload), evidence), None
+    return _with_evidence(_format(payload), evidence, test_refs), None
 
 
 def _log_usage(project_path, mode, llm):
