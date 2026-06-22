@@ -99,6 +99,19 @@ class TestBriefingRedaction(unittest.TestCase):
         self.assertNotIn("sk-ABCDEF0123456789ABCD", html)
         self.assertIn("[REDACTED]", html)
 
+    def test_secret_split_across_bold_in_roadmap_redacted(self):
+        # secret 被 ROADMAP 里的 ** 劈断,也不得逃过出口脱敏(_bold 先在去标记文本上脱敏)
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        (Path(d) / "ROADMAP.md").write_text(
+            "## 发现驱动的方向修正(问卷1)\n\n"
+            "- key sk-ABCDEF01**2345**6789ABCDEF 别泄漏\n\n"
+            "## 明确不做\n", encoding="utf-8")
+        html, err = briefing._build_briefing(d)
+        self.assertIsNone(err)
+        self.assertNotIn("sk-ABCDEF01", html)   # 可见前缀片段也不得出现
+        self.assertIn("[REDACTED]", html)
+
 
 class TestBriefingDegrade(unittest.TestCase):
     def test_no_roadmap_no_docs_no_crash(self):

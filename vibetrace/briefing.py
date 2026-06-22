@@ -25,8 +25,14 @@ def _esc(text):
 
 
 def _bold(text):
-    """轻量把 **...** 转成 <strong>...</strong>(先转义,后注入安全标签)。"""
-    return re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", _esc(text))
+    """轻量把 **...** 转成 <strong>...</strong>(先转义,后注入安全标签)。
+    脱敏须在"去 ** 标记的连续文本"上做:secret 若被 ** 劈断会逃过最终整页脱敏,
+    故去标记后命中 secret 则放弃该行加粗、回退脱敏纯文本(安全 > 装饰)。"""
+    raw = str(text or "")
+    demarked = re.sub(r"\*\*(.+?)\*\*", r"\1", raw)
+    if redact_secrets(demarked) != demarked:        # secret(可能被 ** 劈断)→ 安全回退
+        return _esc(redact_secrets(demarked))
+    return re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", _esc(raw))
 
 
 def _changelog_section(commits):
