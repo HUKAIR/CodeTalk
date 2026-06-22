@@ -256,7 +256,7 @@ def scan_sessions(project_path, since_dt, cache=None):
                     if isinstance(obj, dict):       # 非对象 JSON 不抛 AttributeError
                         last_ms = max(last_ms, _epoch(obj.get("createdAt")))  # 可能是字符串
                 m = _ms(last_ms)
-                if since_dt and m and m < since_dt:  # 早剪枝:窗口外会话免解析全部 bubble
+                if since_dt and last_ms and m and m < since_dt:  # 早剪枝;无时间戳不剪,交完整解析
                     continue
                 ckey = "cursor:" + cid              # 源前缀:与 Claude session 键隔离、列语义不混
                 cached = cache.get_session(ckey) if cache else None

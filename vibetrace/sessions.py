@@ -111,7 +111,7 @@ def _parse_file(path, is_subagent=False):
                 summary["start"] = min(summary["start"] or ts, ts)
                 summary["end"] = max(summary["end"] or ts, ts)
             if rtype == "ai-title":
-                summary["title"] = obj.get("aiTitle") or summary["title"]
+                summary["title"] = redact_secrets(obj.get("aiTitle") or "") or summary["title"]
             elif rtype == "user":
                 sid = obj.get("sessionId")
                 if sid:

@@ -314,6 +314,18 @@ class TestRealDataTypeHardening(unittest.TestCase):
             self.assertEqual(len(out), 1)            # _epoch 按其契约降级为 0,不上抛丢会话
             self.assertEqual(out[0]["prompts"], ["为什么"])
 
+    def test_no_timestamp_session_not_early_pruned(self):
+        # 所有 createdAt 不可解析 → last_ms=0 → 不得被 since_dt 早剪枝静默丢弃
+        with tempfile.TemporaryDirectory() as t:
+            user = Path(t) / "User"; user.mkdir()
+            proj = Path(t) / "repo"; proj.mkdir()
+            make_workspace(user, proj, ["cid"])
+            make_global(user, "cid", [(1, "为什么", "abc", [])])  # createdAt 不可解析
+            since = datetime(2030, 1, 1, tzinfo=timezone.utc)
+            with unittest.mock.patch.object(cs, "_USER_DIRS", [user]):
+                out, err = cs.scan_sessions(proj, since, None)
+            self.assertEqual(len(out), 1)            # 无时间戳不被早剪枝丢弃
+
 
 class TestNotice(unittest.TestCase):
     def test_notice_shown_once(self):

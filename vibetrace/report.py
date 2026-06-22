@@ -152,6 +152,6 @@ def append_usage(record):
     try:
         record["ts"] = datetime.now(timezone.utc).isoformat()
         with open(USAGE_LOG_PATH, "a", encoding="utf-8") as fh:
-            fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+            fh.write(redact_secrets(json.dumps(record, ensure_ascii=False)) + "\n")
     except Exception as exc:  # noqa: BLE001 — 旁路埋点不得让主流程崩
         log.warning("usage.log 写入失败:%s", exc)
