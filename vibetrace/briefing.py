@@ -178,6 +178,42 @@ r.setAttribute('data-theme',nxt);};
 """
 
 
+def _direction_section(project):
+    """④ 问卷处理前后对比:渲染 docs/discovery/方向对比.md 的 markdown 表(维度|前|后)。
+    内容为人工策划、可编辑(非自动推导);文件缺失/无表 → 省略该段(降级,不崩)。
+    单元格走 _bold(含脱敏),secret 不外泄。"""
+    try:
+        text = (project / "docs" / "discovery" / "方向对比.md").read_text(
+            encoding="utf-8")
+    except OSError:
+        return []
+    rows = []
+    for line in text.splitlines():
+        s = line.strip()
+        if not (s.startswith("|") and s.endswith("|")):
+            continue
+        cells = [c.strip() for c in s.strip("|").split("|")]
+        if len(cells) < 3 or set("".join(cells)) <= set("-: "):  # 跳过分隔/空行
+            continue
+        rows.append(cells[:3])
+    if len(rows) < 2:                     # 至少表头 + 1 行
+        return []
+    out = ['<section><h2>问卷处理前后对比</h2>',
+           '<p class="sub">人工策划、可编辑(<code>docs/discovery/方向对比.md</code>),'
+           '非自动推导;N=2 暂定。</p>',
+           '<style>.ba{border-collapse:collapse;width:100%;font-size:14px}'
+           '.ba th,.ba td{border:1px solid var(--line,#888);padding:8px 10px;'
+           'text-align:left;vertical-align:top}'
+           '.ba th{background:rgba(127,127,127,.10)}</style>',
+           '<table class="ba"><thead><tr>']
+    out += [f'<th>{_bold(h)}</th>' for h in rows[0]]
+    out.append('</tr></thead><tbody>')
+    for r in rows[1:]:
+        out.append('<tr>' + "".join(f'<td>{_bold(c)}</td>' for c in r) + '</tr>')
+    out.append('</tbody></table></section>')
+    return out
+
+
 def _build_briefing(project_path):
     """从当前仓状态确定性生成自包含汇报 HTML。→ (html_text, err)。
     任何读取失败 → 返回(降级 HTML, None),绝不抛。出口前整页脱敏。"""
@@ -192,6 +228,7 @@ def _build_briefing(project_path):
 
     body += _changelog_section(commits)
     body += _coverage_section(commits)
+    body += _direction_section(project)
     body += _discovery_section(project)
 
     generated = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M")
@@ -224,9 +261,10 @@ def render_report(project_path):
 
 def serve_report(project_path, open_browser=True):
     """起本地服务托管汇报 HTML(127.0.0.1)。→ err_or_None(阻塞到 Ctrl+C)。
-    实时性:每次启动从当前仓状态重建(快照,与 console 一致)。"""
+    实时:传 builder,浏览器每次刷新都从当前仓状态重建(随新 commit/问卷/ROADMAP 变化)。"""
     html_text, err = _build_briefing(project_path)
     if err:
         return err
     from .webserve import serve_html
-    return serve_html(html_text, project_path, open_browser)
+    return serve_html(html_text, project_path, open_browser,
+                      builder=lambda: _build_briefing(project_path)[0])

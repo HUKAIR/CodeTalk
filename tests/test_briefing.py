@@ -190,5 +190,43 @@ class TestReportCLIParse(unittest.TestCase):
         self.assertFalse(kwargs["open_browser"])
 
 
+class TestDirectionSection(unittest.TestCase):
+    def test_renders_before_after_table(self):
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        disc = Path(d) / "docs" / "discovery"
+        disc.mkdir(parents=True)
+        (disc / "方向对比.md").write_text(
+            "# 对比\n\n| 维度 | 前 | 后 |\n|---|---|---|\n"
+            "| 定位 | 记决策 | 问为什么 |\n", encoding="utf-8")
+        html, err = briefing._build_briefing(d)
+        self.assertIsNone(err)
+        self.assertIn("问卷处理前后对比", html)
+        self.assertIn("<table", html)
+        self.assertIn("记决策", html)        # 前
+        self.assertIn("问为什么", html)      # 后
+
+    def test_no_table_file_section_omitted(self):
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        html, err = briefing._build_briefing(d)   # 无 方向对比.md
+        self.assertIsNone(err)
+        self.assertNotIn("问卷处理前后对比", html)
+
+
+class TestServeBuilder(unittest.TestCase):
+    def test_serve_report_passes_live_builder(self):
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        _repo_with_commits(d)
+        with mock.patch("vibetrace.webserve.serve_html",
+                        return_value=None) as srv:
+            briefing.serve_report(d, open_browser=False)
+        srv.assert_called_once()
+        _, kwargs = srv.call_args
+        self.assertIn("builder", kwargs)          # 实时:传了 builder 回调
+        self.assertIn("<html", kwargs["builder"]().lower())  # 每请求重建出新 HTML
+
+
 if __name__ == "__main__":
     unittest.main()
