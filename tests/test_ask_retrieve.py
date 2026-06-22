@@ -15,7 +15,7 @@ class TestRetrieve(unittest.TestCase):
                                lambda *a, **k: (["sha1aaaabbbb"], None)), \
              mock.patch.object(ask, "commit_body",
                                lambda p, s: "Vibe-Watch: 并发待验证"):
-            ctx, shas, state = ask._retrieve(".", "f.py", 1, 5, cache)
+            ctx, shas, state, evidence = ask._retrieve(".", "f.py", 1, 5, cache)
         self.assertIn("sha1aaa", ctx)        # 短 sha
         self.assertIn("因为要省依赖", ctx)     # 缓存叙事 why
         self.assertIn("LLM决定", ctx)         # 缓存决策
@@ -33,7 +33,7 @@ class TestRetrieve(unittest.TestCase):
         with mock.patch.object(ask, "line_log", lambda *a, **k: ([], "boom")), \
              mock.patch.object(ask, "file_log", fake_file_log), \
              mock.patch.object(ask, "commit_body", lambda p, s: ""):
-            ctx, shas, state = ask._retrieve(".", "f.py", 1, 5, cache)
+            ctx, shas, state, evidence = ask._retrieve(".", "f.py", 1, 5, cache)
         self.assertTrue(called.get("hit"))
         self.assertEqual(ctx, "")
 
@@ -48,8 +48,27 @@ class TestRetrieve(unittest.TestCase):
                                lambda *a, **k: (["sha2ccccdddd"], None)), \
              mock.patch.object(ask, "commit_body",
                                lambda p, s: "Vibe-Decision: 用 urllib 不引依赖"):
-            ctx, shas, state = ask._retrieve(".", "f.py", 1, 5, cache)
+            ctx, shas, state, evidence = ask._retrieve(".", "f.py", 1, 5, cache)
         self.assertEqual(ctx.count("用 urllib 不引依赖"), 1)
+
+    def test_collects_evidence_from_narratives(self):
+        # _retrieve 汇总命中 SHA narrative 的 evidence;旧缓存无键 .get 兼容不崩
+        cache = Cache(":memory:")
+        cache.put_narrative(
+            "shaaaa11", "P", "m",
+            {"why": "", "decisions": [], "risks": [], "open_loops": [],
+             "evidence": [{"session_id": "s1", "source": "claude",
+                           "ts": "t", "confidence": "high",
+                           "prompts": ["原话X"], "excerpts": []}]})
+        cache.put_narrative(    # 旧缓存:无 evidence 键
+            "shabbb22", "P", "m",
+            {"why": "", "decisions": [], "risks": [], "open_loops": []})
+        with mock.patch.object(ask, "line_log",
+                               lambda *a, **k: (["shaaaa11", "shabbb22"], None)), \
+             mock.patch.object(ask, "commit_body", lambda p, s: ""):
+            ctx, shas, state, evidence = ask._retrieve(".", "f.py", 1, 5, cache)
+        self.assertEqual(len(evidence), 1)
+        self.assertEqual(evidence[0]["session_id"], "s1")
 
 
 if __name__ == "__main__":
