@@ -131,6 +131,11 @@ def console_cmd(args):
     return _render_or_serve(args, render_console, serve_console, "控制台")
 
 
+def report_cmd(args):
+    from .briefing import render_report, serve_report
+    return _render_or_serve(args, render_report, serve_report, "汇报")
+
+
 def ask_cmd(args):
     from .ask import ask
     return ask(args.project, args.target, args.question, vault=args.vault,
