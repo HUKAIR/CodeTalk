@@ -9,6 +9,7 @@ from . import brief, report
 from .cache import Cache
 from .config import USAGE_LOG_PATH, load_config
 from .digest import digest  # noqa: F401 — cli._DISPATCH 经 commands.digest 分发
+from .search import topic_search
 
 log = logging.getLogger("vibetrace")
 
@@ -139,6 +140,16 @@ def ask_cmd(args):
 def blame_cmd(args):
     from .blame import blame
     return blame(args.project, args.target)
+
+
+def search_cmd(args):
+    """主题级零-LLM 召回:装配 cache → topic_search → 打印。无 key 也能用。"""
+    pp = Path(args.project).resolve()
+    cache = Cache(_cache_db_path())
+    text = topic_search(cache, pp, args.question)
+    cache.close()
+    print(text)
+    return 0
 
 
 def graph_cmd(args):
