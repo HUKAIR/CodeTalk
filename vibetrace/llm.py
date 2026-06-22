@@ -79,13 +79,14 @@ class LLMClient:
             try:
                 with urllib.request.urlopen(request, timeout=180) as resp:
                     data = json.loads(resp.read().decode("utf-8"))
+                content = data["choices"][0]["message"]["content"]
+                result = json.loads(content)   # 先解析成功再计数,失败重试不重复累加
                 usage = data.get("usage") or {}
                 self.stats["calls"] += 1
                 self.stats["input_tokens"] += usage.get("prompt_tokens") or 0
                 self.stats["output_tokens"] += usage.get("completion_tokens") or 0
                 self.stats["cache_hit_tokens"] += usage.get("prompt_cache_hit_tokens") or 0
-                content = data["choices"][0]["message"]["content"]
-                return json.loads(content)
+                return result
             except urllib.error.HTTPError as exc:
                 detail = exc.read().decode("utf-8", "replace")[:200]
                 last_err = f"HTTP {exc.code}: {detail}"

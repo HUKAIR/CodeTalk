@@ -169,7 +169,7 @@ class TestRetrievePrRefs(unittest.TestCase):
                                           "snippet": "s"}]})
         with mock.patch.object(ask, "line_log",
                                lambda *a, **k: (["shaaaa11", "shabbb22"], None)), \
-             mock.patch.object(ask, "commit_body", lambda p, s: ""):
+             mock.patch.object(gitlog, "commit_body", lambda p, s: ""):
             res = ask._retrieve(".", "f.py", 1, 5, cache)
         self.assertEqual(len(res), 6)            # 契约扩到 6 元组
         pr_refs = res[5]

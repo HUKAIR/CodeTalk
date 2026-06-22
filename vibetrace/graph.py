@@ -14,6 +14,7 @@ from string import Template
 from .cache import Cache
 from .config import CACHE_DB_PATH, load_config, redact_secrets
 from .gitlog import collect_commit_files, parse_breadcrumbs
+from .webserve import inline_json
 
 SCAN_LIMIT = 200
 TOP_N = 40
@@ -51,7 +52,7 @@ def _assemble(commits, project_path, project, cache):
     ranked_set = set(ranked)
     node_ids, edges = set(ranked), []
     for d in ranked:
-        for t in full_out[d][:MAX_OUT]:                    # 时间最近的 8 个
+        for t in full_out[d][-MAX_OUT:]:                   # full_out 升序,尾部=时间最近
             edges.append((d, t))
             node_ids.add(t)
 
@@ -138,8 +139,8 @@ def build_graph(project_path, vault=None, canvas=False):
                         .read_text(encoding="utf-8"))
     html = template.substitute(
         project=project,
-        data=json.dumps(data, ensure_ascii=False).replace("</", "<\\/"),
-        generated="%04d.%02d.%02d" % (today.year, today.month, today.day))
+        data=inline_json(data),
+        generated=f"{today:%Y.%m.%d}")
     vault_dir = Path(cfg["vault_path"]).expanduser()
     vault_dir.mkdir(parents=True, exist_ok=True)
     out = vault_dir / (project + "-graph.html")

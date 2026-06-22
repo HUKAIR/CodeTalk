@@ -15,14 +15,14 @@ Two run modes (Issue #4 — single cache.db source of truth):
                    cache.db live (/capsule, /reviewed). cache.db is the only
                    capsule store — the page keeps no answers in localStorage.
 """
-import json
 from datetime import datetime, timezone
 from pathlib import Path
 from string import Template
 
 from .cache import Cache
-from .config import CACHE_DB_PATH, load_config
+from .config import CACHE_DB_PATH, load_config, redact_secrets
 from .gitlog import collect_commits
+from .webserve import inline_json
 
 EXCERPT = 220
 
@@ -80,12 +80,12 @@ def _build_html(project_path, serve):
                         .read_text(encoding="utf-8"))
     html_text = template.substitute(
         project=project_path.name,
-        # "</" must not appear inside a <script> block
-        data=json.dumps(data, ensure_ascii=False).replace("</", "<\\/"),
+        data=inline_json(data),
         generated=f"{today:%Y.%m.%d}",
         serve="true" if serve else "false",
     )
-    return html_text, project_path.name, None
+    # 隐私红线:落盘前对整页脱敏,render/serve 两条路径都覆盖
+    return redact_secrets(html_text), project_path.name, None
 
 
 def render_tunnel(project_path):
@@ -104,7 +104,7 @@ def render_tunnel(project_path):
 def serve_tunnel(project_path, open_browser=True):
     """Serve the tunnel on 127.0.0.1 so answers write back to cache live.
     Returns error_or_None (blocks until Ctrl+C)。服务器逻辑复用 webserve.serve_html。"""
-    html_text, project, err = _build_html(project_path, serve=True)
+    html_text, _, err = _build_html(project_path, serve=True)
     if err:
         return err
     from .webserve import serve_html

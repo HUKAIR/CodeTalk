@@ -67,7 +67,7 @@ def _build_parser():
     return parser
 
 
-# 子命令名 → commands.py 中的处理函数;digest 为默认(未匹配时兜底)。
+# 子命令名 → commands.py 中的处理函数(add_subparsers required=True,必命中)。
 _DISPATCH = {
     "digest": commands.digest,
     "tunnel": commands.tunnel_cmd,
@@ -89,4 +89,4 @@ def main(argv=None):
     logging.basicConfig(level=logging.WARNING,
                         format="vibetrace %(levelname)s: %(message)s")
     args = _build_parser().parse_args(argv)
-    return _DISPATCH.get(args.command, commands.digest)(args)
+    return _DISPATCH[args.command](args)

@@ -43,6 +43,9 @@ def load_config():
         log.warning("config %s 不存在,使用默认配置", CONFIG_PATH)
     except (json.JSONDecodeError, OSError) as exc:
         log.warning("config 读取失败(%s),使用默认配置", exc)
+    if not isinstance(cfg["providers"], dict):   # 非法 providers(标量/null)回退默认,免 LLMClient .get 崩
+        log.warning("config.providers 类型非法,回退默认")
+        cfg["providers"] = copy.deepcopy(DEFAULTS["providers"])
     return cfg
 
 
@@ -58,7 +61,7 @@ SECRET_PATTERNS = [
     re.compile(r"xox[baprs]-[A-Za-z0-9-]{10,}"),
     re.compile(r"AKIA[0-9A-Z]{16}"),
     re.compile(r"(?i)bearer\s+[A-Za-z0-9._=-]{20,}"),
-    re.compile(r"(?i)(api[_-]?key|token|secret|password)(\"?\s*[:=]\s*[\"']?)[A-Za-z0-9._-]{12,}"),
+    re.compile(r"((?i:api[_-]?key|token|secret|password))(\"?\s*[:=]\s*[\"']?)(?=[A-Za-z0-9._-]*(?:[0-9]|[a-z][A-Z]|[A-Z][a-z]))[A-Za-z0-9._-]{12,}"),  # 关键词大小写不敏感;value 段须含数字或真实大小写转换(case-sensitive),降散文假阳又不漏 mixed-case key
     # 借 trivy builtin rules 扩充(故意不收 AWS 裸 40 位 base64 secret——假阳性灾难)
     re.compile(r"AIza[0-9A-Za-z_\-]{35}"),                              # Google API key
     re.compile(r"[0-9]+-[0-9A-Za-z_]{32}\.apps\.googleusercontent\.com"),  # Google OAuth

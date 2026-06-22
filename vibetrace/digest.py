@@ -126,18 +126,22 @@ def digest(args):
         by_day.setdefault(commit["date"].date(), []).append(commit)
 
     days = []  # 先按日生成概览/胶囊,等 LLM 统计齐了再统一渲染
+    tok_in0, tok_out0 = 0, 0  # 按日 token 差分基线(运行前 enrich 增量并入首日)
     for day in sorted(by_day):
         day_commits = by_day[day]
         date_str = day.isoformat()
         overview, decision, calls = enrich.make_overview(
             day_commits, llm, cache, str(project_path), date_str)
+        day_tok_in = llm.stats["input_tokens"] - tok_in0     # 本日 token=累计差分,非整轮和
+        day_tok_out = llm.stats["output_tokens"] - tok_out0
+        tok_in0, tok_out0 = llm.stats["input_tokens"], llm.stats["output_tokens"]
         cache.put_daily(pkey, date_str, overview, decision)
         for commit in day_commits:  # 以该天为「今日」封存,忠实重放胶囊时间线
             sealed = commit["date"].date().isoformat()
             opens = (commit["date"].date() + timedelta(days=21)).isoformat()
             if opens <= date_str:
                 continue  # 该天视角下已到期的不补密封,不复活成洪流
-            for idx, risk in enumerate(commit["narrative"]["risks"]):
+            for idx, risk in enumerate(commit["narrative"].get("risks") or []):
                 cache.seal_capsule(pkey, commit["sha"], idx, risk,
                                    sealed, opens)
         # 仅对真正的「今日」削峰(留次日);历史回放当天全开,天数不失真
@@ -154,7 +158,7 @@ def digest(args):
             "date_str": date_str, "commits": day_commits, "overview": overview,
             "decision": decision, "capsules": capsules, "today": day,
             "on_this_day": on_this_day, "llm_calls": len(day_commits) - hits + calls,
-            "cache_hits": hits,
+            "cache_hits": hits, "tokens_in": day_tok_in, "tokens_out": day_tok_out,
         })
 
     opened, filled = cache.capsule_fill_stats(pkey)
@@ -163,8 +167,8 @@ def digest(args):
         run_stats = {
             "commits": len(d["commits"]), "sessions": len(session_list),
             "cache_hits": d["cache_hits"], "llm_calls": d["llm_calls"],
-            "tokens_in": llm.stats["input_tokens"],
-            "tokens_out": llm.stats["output_tokens"],
+            "tokens_in": d["tokens_in"],
+            "tokens_out": d["tokens_out"],
             "model": f"{cfg['provider']}/{cfg['model']}",
             "elapsed_s": round(time.time() - started, 1),
             "capsule_opened": opened, "capsule_filled": filled,

@@ -13,6 +13,12 @@ from .config import CACHE_DB_PATH
 from .report import _OUTCOMES
 
 
+def inline_json(data):
+    # 把数据嵌进 <script> 块时,序列里出现的 "</" 会让浏览器以为 </script> 提前闭合,
+    # 转义成 "<\/" 即可安全内联(对 JSON 解析无影响)。
+    return json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
+
+
 def serve_html(html_text, project_path, open_browser=True):
     """起本地服务托管 html_text;/capsule、/reviewed 即时写回 cache。阻塞到 Ctrl+C,返回 None。"""
     pkey = str(Path(project_path).resolve())   # 胶囊/reviewed 回写键:绝对路径

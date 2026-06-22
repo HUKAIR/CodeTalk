@@ -13,8 +13,10 @@ CHARS_PER_TOKEN = 4  # rough budget heuristic; exact counting needs no extra dep
 
 
 def _git(args, cwd):
-    out = subprocess.run(["git", *args], cwd=cwd, capture_output=True,
-                         text=True, timeout=60)
+    # core.quotepath=false:让 git 对中文/重音文件名输出原始 UTF-8 而非 C 转义
+    # ("\303\274ber.py"),恢复文件级交集;对已用 -z 的调用无副作用。
+    out = subprocess.run(["git", "-c", "core.quotepath=false", *args], cwd=cwd,
+                         capture_output=True, text=True, timeout=60)
     if out.returncode != 0:
         raise RuntimeError(out.stderr.strip()[:200])
     return out.stdout
@@ -99,6 +101,9 @@ def collect_commit_files(project_path, since="30 years ago"):
         parts = meta.split(FIELD_SEP)
         if len(parts) < 3:
             continue
+        if not _SHA_RE.match(parts[0]):    # 分隔符异变时静默错切的防御:首段须是 40 hex SHA
+            log.warning("跳过疑似错切的 git log 记录(首段非 SHA)")
+            continue
         try:
             date = datetime.fromisoformat(parts[1])
         except ValueError:
@@ -144,6 +149,31 @@ def parse_breadcrumbs(body):
             if text:
                 watches.append(text)
     return decisions, watches
+
+
+def merge_breadcrumbs(narrative, project_path, sha):
+    """命中 SHA 的缓存叙事决策/风险 ∪ commit body 面包屑(去重,叙事在前、面包屑在后)。
+    返回 (decisions, risks);供 ask/blame 共用,缓存已折入的面包屑不会重复一份。"""
+    decisions, watches = parse_breadcrumbs(commit_body(project_path, sha))
+    decs = list(dict.fromkeys((narrative.get("decisions") or []) + decisions))
+    risks = list(dict.fromkeys((narrative.get("risks") or []) + watches))
+    return decs, risks
+
+
+_RANGE_RE = re.compile(r"^(\d+)(?:-(\d+))?$")
+
+
+def parse_target(target):
+    """'foo.py' → ('foo.py', None, None);'foo.py:42-60' → ('foo.py', 42, 60);
+    'foo.py:42' → ('foo.py', 42, 42)。冒号右侧不是行号则整串当文件(路径含冒号罕见)。"""
+    if ":" in target:
+        file, _, tail = target.rpartition(":")
+        match = _RANGE_RE.match(tail)
+        if file and match:
+            start = int(match.group(1))
+            end = int(match.group(2)) if match.group(2) else start
+            return file, start, end
+    return target, None, None
 
 
 LINE_LOG_LIMIT = 12

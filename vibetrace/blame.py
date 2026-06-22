@@ -4,29 +4,15 @@
 行的 commit,映射到已缓存叙事 + Vibe-Decision 面包屑,确定性打印每段决策史
 (SHA·日期·subject·decisions)。ask 用 LLM 综合,blame 只如实罗列;无 key 也能用。
 """
-import re
 import sys
 from pathlib import Path
 
+from . import grounding_render as gr
 from .cache import Cache
 from .config import CACHE_DB_PATH
-from .gitlog import (commit_body, commit_meta, file_log, line_log,
-                     parse_breadcrumbs)
+from .gitlog import commit_meta, file_log, line_log, merge_breadcrumbs, parse_target
 
-_RANGE_RE = re.compile(r"^(\d+)(?:-(\d+))?$")
-
-
-def _parse_target(target):
-    """与 ask 同口径:'f.py'→(f.py,None,None);'f.py:2-4'→(f.py,2,4);'f.py:5'→(f.py,5,5)。
-    冒号右侧不是行号则整串当文件(路径含冒号罕见)。"""
-    if ":" in target:
-        file, _, tail = target.rpartition(":")
-        match = _RANGE_RE.match(tail)
-        if file and match:
-            start = int(match.group(1))
-            end = int(match.group(2)) if match.group(2) else start
-            return file, start, end
-    return target, None, None
+_parse_target = parse_target          # 与 ask 同口径,搬到 gitlog 共享
 
 
 def collect_segments(cache, project_path, file, start, end):
@@ -41,9 +27,7 @@ def collect_segments(cache, project_path, file, start, end):
     segments = []
     for sha in shas:
         narrative = cache.get_narrative(sha) or {}
-        decisions, watches = parse_breadcrumbs(commit_body(project_path, sha))
-        decs = list(dict.fromkeys((narrative.get("decisions") or []) + decisions))
-        risks = list(dict.fromkeys((narrative.get("risks") or []) + watches))
+        decs, risks = merge_breadcrumbs(narrative, project_path, sha)
         date_iso, subject = commit_meta(project_path, sha)
         segments.append({
             "sha": sha, "date": date_iso, "subject": subject,
@@ -61,7 +45,7 @@ def _emit_evidence(lines, evidence):
     支撑全为 low 时加置信度警示。无 evidence 不输出块。脱敏已在 enrich 上游做。"""
     if not evidence:
         return
-    lines.append("  原话佐证(可自行核验):")
+    lines.append("  " + gr.EVIDENCE_TITLE)
     for ev in evidence:
         sid = (ev.get("session_id") or "")[:7]
         lines.append(f"    [{ev.get('source', '?')}·{sid}·{ev.get('ts', '')}"
@@ -70,15 +54,15 @@ def _emit_evidence(lines, evidence):
             lines.append(f"      原话:{p}")
         for e in ev.get("excerpts") or []:
             lines.append(f"      AI:{e}")
-    if not any(ev.get("confidence") == "high" for ev in evidence):
-        lines.append("    (基于软关联会话,置信较低,请核对原话)")
+    if gr.evidence_low_confidence(evidence):
+        lines.append("    " + gr.EVIDENCE_LOW_WARN)
 
 
 def _emit_test_refs(lines, test_refs):
     """「相关测试(从测试场景反推设计)」确定性追加(零 LLM)。无则不输出。"""
     if not test_refs:
         return
-    lines.append("  相关测试(从测试场景反推设计):")
+    lines.append("  " + gr.TEST_REFS_TITLE)
     for tr in test_refs:
         names = "、".join(tr.get("names") or []) or "(无显式 test_ 用例)"
         lines.append(f"    {tr.get('path', '')} — {names}")
@@ -88,7 +72,7 @@ def _emit_pr_refs(lines, pr_refs):
     """「相关 PR 讨论(当初的需求背景)」确定性追加(零 LLM)。无则不输出。"""
     if not pr_refs:
         return
-    lines.append("  相关 PR 讨论(当初的需求背景):")
+    lines.append("  " + gr.PR_REFS_TITLE)
     for pr in pr_refs:
         lines.append(f"    #{pr.get('number')} {pr.get('title', '')} — "
                      f"{pr.get('snippet', '')}")
