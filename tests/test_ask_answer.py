@@ -19,7 +19,7 @@ class _FakeLLM:
 
 def _patch_retrieve(ctx="[sha1aaa] 决策:用 urllib", state="sha1aaaabbbb"):
     return mock.patch.object(ask, "_retrieve",
-                             lambda *a, **k: (ctx, ["sha1aaaabbbb"], state, []))
+                             lambda *a, **k: (ctx, ["sha1aaaabbbb"], state, [], []))
 
 
 class TestAnswerQuestion(unittest.TestCase):
@@ -44,7 +44,7 @@ class TestAnswerQuestion(unittest.TestCase):
 
     def test_no_history_returns_error(self):
         cache = Cache(":memory:")
-        with mock.patch.object(ask, "_retrieve", lambda *a, **k: ("", [], "", [])):
+        with mock.patch.object(ask, "_retrieve", lambda *a, **k: ("", [], "", [], [])):
             text, err = ask.answer_question(cache, _FakeLLM(), ".", "P", "x.py", "Q")
         self.assertIsNone(text)
         self.assertTrue(err)
