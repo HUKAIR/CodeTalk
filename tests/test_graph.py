@@ -1,3 +1,4 @@
+import json
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
@@ -109,6 +110,53 @@ class TestBuildGraph(unittest.TestCase):
             out, err = graph.build_graph(empty, vault=self.vault)
             self.assertIsNone(err)               # LOW-3:空仓不报错
             self.assertTrue(out.exists())
+        finally:
+            shutil.rmtree(empty, ignore_errors=True)
+
+
+class TestBuildGraphJson(unittest.TestCase):
+    """build_graph_json:纯内存装配(MCP graph 工具复用),绝不写盘。"""
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        _git(["init", "-q"], self.dir)
+        _git(["config", "user.email", "t@t"], self.dir)
+        _git(["config", "user.name", "t"], self.dir)
+        p = Path(self.dir)
+        (p / "a.py").write_text("x\n")
+        _git(["add", "."], self.dir)
+        _git(["commit", "-q", "-m", "c1\n\nVibe-Decision: 决策一"], self.dir)
+        (p / "a.py").write_text("y\n")
+        _git(["add", "."], self.dir)
+        _git(["commit", "-q", "-m", "c2 改 a.py"], self.dir)
+
+    def tearDown(self):
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def test_returns_json_with_nodes_and_edges(self):
+        cache = Cache(":memory:")
+        before = set(Path(self.dir).iterdir())
+        js, err = graph.build_graph_json(self.dir, cache)
+        self.assertIsNone(err)
+        data = json.loads(js)
+        self.assertIn("nodes", data)
+        self.assertIn("edges", data)
+        self.assertTrue(any(n["text"] == "决策一" for n in data["nodes"]))
+        # 不写盘:项目目录不新增文件
+        self.assertEqual(set(Path(self.dir).iterdir()), before)
+
+    def test_json_ensure_ascii_false_keeps_chinese(self):
+        js, err = graph.build_graph_json(self.dir, Cache(":memory:"))
+        self.assertIsNone(err)
+        self.assertIn("决策一", js)              # 非 \uXXXX 转义
+
+    def test_empty_repo_returns_empty_graph_no_error(self):
+        empty = tempfile.mkdtemp()
+        _git(["init", "-q"], empty)
+        try:
+            js, err = graph.build_graph_json(empty, Cache(":memory:"))
+            self.assertIsNone(err)               # 空仓不报错
+            self.assertEqual(json.loads(js), {"nodes": [], "edges": []})
         finally:
             shutil.rmtree(empty, ignore_errors=True)
 

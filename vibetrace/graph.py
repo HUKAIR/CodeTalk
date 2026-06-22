@@ -108,6 +108,38 @@ def _to_canvas(data):
     return {"nodes": nodes, "edges": edges}
 
 
+def _graph_data(pp, project, cache):
+    """纯内存装配决策影响图数据 → (data_dict | None, cache_hit, error_or_None)。
+    collect→截断最近 SCAN_LIMIT→空仓兜底→缓存命中/(_assemble 并缓存)。不写盘。
+    data 以 head SHA 为键缓存(immutable,与 build_graph/MCP 工具共用)。"""
+    commits, err = collect_commit_files(pp)
+    if err:
+        # 空仓(尚无 commit)→ 空图,不报错;其他 git 错误才上报
+        if "does not have any commits" in err or "bad default revision" in err:
+            commits = []
+        else:
+            return None, False, err
+    commits = commits[-SCAN_LIMIT:]                 # graph.py 自己截断最近 200
+    head = commits[-1]["sha"] if commits else "empty"
+    key = "graph:" + head[:40]
+    cached = cache.get_narrative(key)
+    if cached and "nodes" in cached:
+        return cached, True, None
+    data = _assemble(commits, pp, project, cache)
+    cache.put_narrative(key, project, "graph", data)
+    return data, False, None
+
+
+def build_graph_json(project_path, cache):
+    """MCP/agent 复用的纯内存入口 → (json_str | None, error_or_None)。绝不写盘。
+    内部走 _graph_data;json.dumps(ensure_ascii=False) 保中文叙事不转义。"""
+    pp = Path(project_path).resolve()
+    data, _hit, err = _graph_data(pp, pp.name, cache)
+    if err:
+        return None, err
+    return json.dumps(data, ensure_ascii=False), None
+
+
 def build_graph(project_path, vault=None, canvas=False):
     """→ (output_path, error_or_None)。无 git 历史→空图 exit 0(不报错)。
     canvas=True 时额外写 <project>-graph.canvas(Obsidian JSON Canvas)。"""
@@ -116,24 +148,11 @@ def build_graph(project_path, vault=None, canvas=False):
         cfg["vault_path"] = vault
     pp = Path(project_path).resolve()
     project = pp.name
-    commits, err = collect_commit_files(pp)
-    if err:
-        # 空仓(尚无 commit)→ 空图,不报错;其他 git 错误才上报
-        if "does not have any commits" in err or "bad default revision" in err:
-            commits = []
-        else:
-            return None, err
-    commits = commits[-SCAN_LIMIT:]                 # graph.py 自己截断最近 200
     cache = Cache(CACHE_DB_PATH)
-    head = commits[-1]["sha"] if commits else "empty"
-    key = "graph:" + head[:40]
-    cached = cache.get_narrative(key)
-    if cached and "nodes" in cached:
-        data = cached
-    else:
-        data = _assemble(commits, pp, project, cache)
-        cache.put_narrative(key, project, "graph", data)
+    data, cache_hit, err = _graph_data(pp, project, cache)
     cache.close()
+    if err:
+        return None, err
     today = datetime.now(timezone.utc).astimezone().date()
     template = Template((Path(__file__).parent / "graph.html")
                         .read_text(encoding="utf-8"))
@@ -151,5 +170,5 @@ def build_graph(project_path, vault=None, canvas=False):
     from . import report  # 零 LLM 命令:记一行用量(节点/边),写失败不影响主流程
     report.append_usage({"command": "graph", "project": str(pp),
                          "nodes": len(data["nodes"]), "edges": len(data["edges"]),
-                         "cache_hit": bool(cached and "nodes" in cached)})
+                         "cache_hit": cache_hit})
     return out, None

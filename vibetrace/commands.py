@@ -159,6 +159,13 @@ def install_hook_cmd(args):
     return 0
 
 
+def mcp_serve_cmd(args):
+    """起 MCP server(stdio):共用 mcp_server.run 装配 cache/cfg/llm。阻塞至 EOF。"""
+    from . import mcp_server
+    mcp_server.run(args.project)
+    return 0
+
+
 def install_agent_seed_cmd(args):
     from .hook import install_agent_seed
     paths, err = install_agent_seed(args.project)
