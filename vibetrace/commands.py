@@ -7,7 +7,7 @@ from pathlib import Path
 
 from . import brief, report
 from .cache import Cache
-from .config import CACHE_DB_PATH, USAGE_LOG_PATH, load_config
+from .config import USAGE_LOG_PATH, load_config
 from .digest import digest  # noqa: F401 — cli._DISPATCH 经 commands.digest 分发
 
 log = logging.getLogger("vibetrace")
@@ -26,7 +26,7 @@ def _fail(msg):
 
 def _render_or_serve(args, render, serve, label):  # tunnel/console 共用:serve 起服务,否则写静态
     if args.serve:
-        err = serve(args.project, open_browser=not getattr(args, "no_open", False))
+        err = serve(args.project, open_browser=not args.no_open)
         return _fail(err) if err else 0
     path, err = render(args.project)
     if err: return _fail(err)
@@ -76,7 +76,7 @@ def watch_cmd(args):
     content = brief.build_watch(cache, cache.distinct_projects(), today)
     cache.close()
     print(content)
-    if getattr(args, "vault", None):
+    if args.vault:
         path = report.write_report(cfg["vault_path"], "watch", "watch", content)
         print(f"收件箱已写入:{path}")
     return 0
