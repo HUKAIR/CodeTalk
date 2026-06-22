@@ -63,11 +63,21 @@
     border: 1px solid var(--faint); }
   .row.read::before { background: var(--dim); border-color: var(--dim); }
   .row.risky::before { border-color: var(--warn); }
-  .head { cursor: pointer; padding: 9px 0; }
+  .head { cursor: pointer; padding: 9px 0;
+    transform-origin: center center; border-radius: 12px;
+    transition: transform .5s ease-out, background .3s ease, box-shadow .3s ease; }
   .head .top { display: flex; gap: 10px; align-items: baseline; }
   .sha { font-family: var(--mono); font-size: 12px; color: var(--faint); }
   .subj { font-size: 15px; flex: 1; min-width: 0; }
   .head:hover .subj { color: #fff; }
+  /* 悬停:这一条像气球一样慢慢鼓起来 —— 向中心平滑放大 1.25x(无震动),浮于时间轴之上。 */
+  .row:hover { z-index: 30; }
+  .head:hover { transform: scale(1.25); background: var(--card2);
+    box-shadow: 0 10px 28px rgba(0,0,0,.45), 0 0 0 1px var(--line),
+      0 0 18px rgba(91,156,255,.15); }
+  @media (prefers-reduced-motion: reduce) {
+    .head:hover { transform: none; }   /* 偏好减少动效:只高亮,不放大 */
+  }
   .badges { font-family: var(--mono); font-size: 11px; color: var(--faint);
     white-space: nowrap; }
   .badges .d { color: var(--accent); }
