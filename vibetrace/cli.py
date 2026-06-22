@@ -59,6 +59,11 @@ def _build_parser():
     con = _proj(sub.add_parser("console", help="统一控制台:四视图单页 web(零 LLM)"))
     con.add_argument("--serve", action="store_true", help="起本地服务,回答写回 cache")
     con.add_argument("--no-open", action="store_true", help="--serve 时不自动开浏览器")
+    rep = _proj(sub.add_parser(
+        "report", help="实时汇报:从当前仓状态生成单页 web(变更/面包屑/发现,零 LLM)"))
+    rep.add_argument("--serve", action="store_true",
+                     help="起本地服务并自动开浏览器(否则写静态 HTML)")
+    rep.add_argument("--no-open", action="store_true", help="--serve 时不自动开浏览器")
     ini = sub.add_parser("init", help="生成配置模板到 ~/.vibetrace/config.json")
     ini.add_argument("--force", action="store_true", help="已存在时覆盖")
     ihk = _proj(sub.add_parser("install-hook",
@@ -78,6 +83,7 @@ _DISPATCH = {
     "digest": commands.digest,
     "tunnel": commands.tunnel_cmd,
     "console": commands.console_cmd,
+    "report": commands.report_cmd,
     "brief": commands.brief_cmd,
     "watch": commands.watch_cmd,
     "self": commands.self_cmd,

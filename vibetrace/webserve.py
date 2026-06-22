@@ -19,8 +19,9 @@ def inline_json(data):
     return json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
 
 
-def serve_html(html_text, project_path, open_browser=True):
-    """起本地服务托管 html_text;/capsule、/reviewed 即时写回 cache。阻塞到 Ctrl+C,返回 None。"""
+def serve_html(html_text, project_path, open_browser=True, builder=None):
+    """起本地服务托管 html_text;/capsule、/reviewed 即时写回 cache。阻塞到 Ctrl+C,返回 None。
+    builder:可选无参回调,给定则每次 GET 都调它重建页面(真·实时刷新),失败回退首帧快照。"""
     pkey = str(Path(project_path).resolve())   # 胶囊/reviewed 回写键:绝对路径
 
     class Handler(BaseHTTPRequestHandler):
@@ -30,7 +31,10 @@ def serve_html(html_text, project_path, open_browser=True):
         def do_GET(self):
             if self.path != "/":
                 self.send_response(404); self.end_headers(); return
-            body = html_text.encode("utf-8")
+            try:                              # builder 给定→每请求重建(实时);失败回退快照
+                body = (builder() if builder else html_text).encode("utf-8")
+            except Exception:                 # noqa: BLE001 — 重建失败不拖垮服务
+                body = html_text.encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
