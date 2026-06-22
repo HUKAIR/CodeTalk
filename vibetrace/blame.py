@@ -51,6 +51,7 @@ def collect_segments(cache, project_path, file, start, end):
             "decisions": decs, "risks": risks,
             "evidence": narrative.get("evidence") or [],  # 旧缓存无键 .get 兼容
             "test_refs": narrative.get("test_refs") or [],
+            "pr_refs": narrative.get("pr_refs") or [],
         })
     return segments
 
@@ -83,6 +84,16 @@ def _emit_test_refs(lines, test_refs):
         lines.append(f"    {tr.get('path', '')} — {names}")
 
 
+def _emit_pr_refs(lines, pr_refs):
+    """「相关 PR 讨论(当初的需求背景)」确定性追加(零 LLM)。无则不输出。"""
+    if not pr_refs:
+        return
+    lines.append("  相关 PR 讨论(当初的需求背景):")
+    for pr in pr_refs:
+        lines.append(f"    #{pr.get('number')} {pr.get('title', '')} — "
+                     f"{pr.get('snippet', '')}")
+
+
 def _format(file, start, end, segments):
     span = f"{file}:{start}-{end}" if start is not None else file
     lines = [f"# blame {span}(旧→新,共 {len(segments)} 个 commit 触达)\n"]
@@ -97,6 +108,7 @@ def _format(file, start, end, segments):
             lines.append(f"  待验证:{risk}")
         _emit_evidence(lines, seg.get("evidence") or [])
         _emit_test_refs(lines, seg.get("test_refs") or [])
+        _emit_pr_refs(lines, seg.get("pr_refs") or [])
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 
