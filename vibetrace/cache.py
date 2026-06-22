@@ -6,7 +6,7 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .config import redact_secrets
+from .config import redact_data, redact_secrets
 from .fts import build_match, fts_body
 
 log = logging.getLogger("vibetrace")
@@ -80,7 +80,9 @@ class Cache:
     def put_narrative(self, sha, project, model, narrative):
         # 落盘前统一脱敏:无论叙事来自哪条路径(LLM/trivial stub/digest/course),
         # secret 都不进 cache.db —— M0 隐私红线对缓存存储这一面的单点收口。
-        payload = redact_secrets(json.dumps(narrative, ensure_ascii=False))
+        # 脱敏在 json.dumps 之前(对原始字符串叶子):dumps 会把 " 转义成 \\",
+        # 若先 dumps 后 redact,key="value" 形式的 secret 会因引号被转义而漏网。
+        payload = json.dumps(redact_data(narrative), ensure_ascii=False)
         self.conn.execute(
             "INSERT OR REPLACE INTO commit_narratives VALUES (?,?,?,?,?)",
             (sha, project, model, payload, self._now()))

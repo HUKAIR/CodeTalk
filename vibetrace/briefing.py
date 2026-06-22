@@ -21,7 +21,9 @@ DISCOVERY_HEADING = "发现驱动的方向修正"
 
 
 def _esc(text):
-    return _html.escape(str(text or ""))
+    # 先脱敏再转义(与 _bold 同口径):key="value" 形式的 secret 若先被 HTML 转义,
+    # 引号变 &quot; 会让出口整页脱敏的定界模式匹配不到而漏掉。脱敏须在原始连续文本上做。
+    return _html.escape(redact_secrets(str(text or "")))
 
 
 def _bold(text):

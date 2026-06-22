@@ -9,7 +9,7 @@ from pathlib import Path
 
 from . import grounding_render as gr
 from .cache import Cache
-from .config import CACHE_DB_PATH
+from .config import CACHE_DB_PATH, redact_secrets
 from .gitlog import commit_meta, file_log, line_log, merge_breadcrumbs, parse_target
 
 _parse_target = parse_target          # 与 ask 同口径,搬到 gitlog 共享
@@ -107,5 +107,6 @@ def blame(project_path, target):
     if not segments:
         print(f"错误:{file} 没有可用的提交历史,无从溯源。", file=sys.stderr)
         return 2
-    print(_format(file, start, end, segments), end="")
+    # 出口脱敏:subject / 决策面包屑来自 git 原始元数据,未经 cache 脱敏,出 stdout 前兜底
+    print(redact_secrets(_format(file, start, end, segments)), end="")
     return 0

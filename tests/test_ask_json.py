@@ -104,6 +104,17 @@ class TestAskJson(unittest.TestCase):
         self.assertNotIn("sk-abcdefghijklmnop1234", text)
         self.assertIn("[REDACTED]", text)
 
+    def test_json_redacts_secret_in_question(self):
+        # question 是用户原始输入,经 _json_text 内联进 JSON 出 stdout,须在入口脱敏
+        cache, llm = Cache(":memory:"), _FakeLLM()
+        with _patch_retrieve():
+            text, err = ask.answer_question(
+                cache, llm, ".", "P", "f.py:1-2",
+                "why sk-ABCDEF0123456789ABCD here", as_json=True)
+        self.assertIsNone(err)
+        self.assertNotIn("sk-ABCDEF0123456789ABCD", text)
+        self.assertIn("[REDACTED]", text)
+
 
 if __name__ == "__main__":
     unittest.main()

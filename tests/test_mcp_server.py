@@ -174,6 +174,22 @@ class TestToolsCallAsk(unittest.TestCase):
             resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
         self.assertTrue(resp["result"]["isError"])
 
+    def test_error_egress_redacted(self):
+        # 错误内容同样经 MCP 出本机:异常原文里的 secret(如 git remote URL 内嵌
+        # token)必须在 _err_content 出口脱敏,与成功路径同口径。
+        def _boom(*a, **k):
+            raise RuntimeError(
+                "git failed: https://x:ghp_ABCDEFGHIJKLMNOP1234@github.com")
+        with mock.patch.object(mcp_server, "answer_question", _boom):
+            req = {"jsonrpc": "2.0", "id": 18, "method": "tools/call",
+                   "params": {"name": "vibetrace_ask",
+                              "arguments": {"target": "x.py", "question": "Q"}}}
+            resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
+        self.assertTrue(resp["result"]["isError"])
+        text = resp["result"]["content"][0]["text"]
+        self.assertNotIn("ghp_ABCDEFGHIJKLMNOP1234", text)
+        self.assertIn("[REDACTED]", text)
+
 
 class TestToolsCallValidation(unittest.TestCase):
     def test_unknown_tool_is_error(self):

@@ -112,6 +112,22 @@ class TestBriefingRedaction(unittest.TestCase):
         self.assertNotIn("sk-ABCDEF01", html)   # 可见前缀片段也不得出现
         self.assertIn("[REDACTED]", html)
 
+    def test_quoted_keyvalue_secret_in_subject_redacted(self):
+        # key="value" 形式:引号被 _esc 转成 &quot; 后,只靠整页脱敏会漏(模式需
+        # 引号定界 value)。_esc 须先脱敏再转义(与 _bold 同口径)。
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        _git(["init", "-q"], d)
+        _git(["config", "user.email", "t@t"], d)
+        _git(["config", "user.name", "t"], d)
+        (Path(d) / "a.py").write_text("1\n")
+        _git(["add", "."], d)
+        _git(["commit", "-q", "-m", 'set password="hunter2hunter2hunter2" oops'], d)
+        html, err = briefing._build_briefing(d)
+        self.assertIsNone(err)
+        self.assertNotIn("hunter2hunter2hunter2", html)
+        self.assertIn("[REDACTED]", html)
+
 
 class TestBriefingDegrade(unittest.TestCase):
     def test_no_roadmap_no_docs_no_crash(self):

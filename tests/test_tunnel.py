@@ -34,6 +34,16 @@ class TestTunnelRedaction(unittest.TestCase):
         self.assertNotIn("sk-ABCDEF0123456789ABCD", html)   # secret 不进 HTML
         self.assertIn("[REDACTED]", html)                   # 脱敏生效
 
+    def test_build_html_redacts_quoted_keyvalue_in_subject(self):
+        # key="value" 形式:inline_json 转义引号后,只靠整页 redact 会漏 → redact_data 须先脱敏
+        _git(["commit", "-q", "--allow-empty", "-m",
+              'set token="ZxCvB12345Mn" ZZMARKER'], self.d)
+        with mock.patch.object(tunnel, "CACHE_DB_PATH", self.dbfile):
+            html, project, err = tunnel._build_html(self.d, serve=False)
+        self.assertIsNone(err)
+        self.assertIn("ZZMARKER", html)                     # subject 确已渲染
+        self.assertNotIn("ZxCvB12345Mn", html)              # 引号定界 secret 不漏
+
 
 if __name__ == "__main__":
     unittest.main()
