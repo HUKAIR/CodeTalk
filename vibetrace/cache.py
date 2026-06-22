@@ -1,11 +1,15 @@
 """SQLite cache: commit narratives are immutable by SHA; session summaries
 update incrementally by (session_id, last_msg_ts)."""
 import json
+import logging
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
 from .config import redact_secrets
+from .fts import build_match, fts_body
+
+log = logging.getLogger("vibetrace")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS commit_narratives (
@@ -37,6 +41,21 @@ class Cache:
         self.conn.execute("PRAGMA busy_timeout=5000")
         self._migrate()
         self.conn.executescript(SCHEMA)
+        self.fts_ok = self._init_fts()
+
+    def _init_fts(self):
+        """建 trigram FTS5 表 + 最小 MATCH 自检(防 fts5 编进但 trigram 未编);失败禁用。"""
+        try:
+            self.conn.execute(
+                "CREATE VIRTUAL TABLE IF NOT EXISTS narrative_fts USING "
+                "fts5(sha UNINDEXED, body, tokenize='trigram')")
+            self.conn.execute(                          # 自检:trigram 真能查
+                "SELECT sha FROM narrative_fts WHERE narrative_fts MATCH ? "
+                "LIMIT 1", ('"aaa"',)).fetchone()
+            return True
+        except sqlite3.OperationalError as exc:
+            log.warning("FTS5 不可用(%s),全文召回禁用", exc)
+            return False
 
     def _migrate(self):
         # 旧版 capsules 缺 opened_date / outcome 列。CREATE IF NOT EXISTS 不
@@ -66,6 +85,32 @@ class Cache:
             "INSERT OR REPLACE INTO commit_narratives VALUES (?,?,?,?,?)",
             (sha, project, model, payload, self._now()))
         self.conn.commit()
+        # 主表 commit 后同步 FTS 派生索引(DELETE+INSERT 幂等);写失败只 warning 不回滚主
+        # 写(M0 容错红线);body 取原始 dict 此处再脱敏(主表存的 JSON 才已脱敏)。
+        if self.fts_ok:
+            try:
+                body = redact_secrets(fts_body(narrative))  # 先构建:失败则根本不动 FTS 表
+                self.conn.execute("DELETE FROM narrative_fts WHERE sha=?", (sha,))
+                self.conn.execute("INSERT INTO narrative_fts(sha, body) VALUES(?,?)",
+                                  (sha, body))
+                self.conn.commit()
+            except Exception as exc:
+                self.conn.rollback()  # 撤销挂起的 DELETE,免被下次 put 的 commit 误刷丢索引
+                log.warning("FTS 写入 %s 失败(%s),已跳过全文索引", sha[:7], exc)
+
+    def search_narratives(self, query, limit=8):
+        """主题级内容召回 → 命中 sha(bm25 排序)。零 LLM、确定性。
+        fts_ok=False / 0 有效 term → [];任何 sqlite3.Error → []。"""
+        if not (self.fts_ok and (match := build_match(query))):
+            return []
+        try:
+            rows = self.conn.execute(
+                "SELECT sha FROM narrative_fts WHERE narrative_fts MATCH ? "
+                "ORDER BY bm25(narrative_fts) LIMIT ?", (match, limit)).fetchall()
+            return [r[0] for r in rows]
+        except sqlite3.Error as exc:
+            log.warning("FTS 检索失败(%s),返回空", exc)
+            return []
 
     def get_session(self, session_id):
         row = self.conn.execute(
