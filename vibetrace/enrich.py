@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 from pathlib import Path
 
 from .config import redact_secrets
@@ -96,6 +97,31 @@ def _evidence(commit):
     return out
 
 
+_TEST_FUNC = re.compile(r"^\s*(?:async\s+)?def (test_\w+)", re.M)
+
+
+def _test_refs(project, commit):
+    """commit 改动文件对应的仓内测试(本地 why 接地源:从测试场景反推设计,对位问卷一 Q3)。
+    源→测试按约定映射(X/foo.py→tests/test_foo.py),改动本身是测试也算;取 test_ 函数名。
+    纯本地、无 LLM、至多 5 个文件。"""
+    base = Path(project)
+    paths = set()
+    for f in commit.get("files") or []:
+        name = os.path.basename(f)
+        if name.startswith("test_") and name.endswith(".py"):
+            paths.add(f)
+        elif name.endswith(".py") and (base / ("tests/test_" + name)).is_file():
+            paths.add("tests/test_" + name)
+    out = []
+    for p in sorted(paths)[:5]:
+        try:
+            text = (base / p).read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        out.append({"path": p, "names": _TEST_FUNC.findall(text)[:8]})
+    return out
+
+
 def _normalize(narrative):
     clean = {"what": str(narrative.get("what", "")),
              "why": str(narrative.get("why", ""))}
@@ -155,6 +181,7 @@ def enrich_commits(commits, llm, cache, project):
             if watches:    # Vibe-Watch 进 risks → 复用现有 risks→seal_capsule 环
                 normalized["risks"] = normalized["risks"] + watches
             normalized["evidence"] = _evidence(commit)  # 原话接地锚点(可核验)
+            normalized["test_refs"] = _test_refs(project, commit)  # 本地测试接地源
             narrative = json.loads(redact_secrets(
                 json.dumps(normalized, ensure_ascii=False)))
             stats["llm_calls"] += 1
@@ -166,7 +193,7 @@ def enrich_commits(commits, llm, cache, project):
             commit["narrative"] = {
                 "what": commit["subject"], "why": f"(LLM 富集失败:{exc})",
                 "decisions": [], "risks": [], "open_loops": [],
-                "evidence": [], "degraded": True}
+                "evidence": [], "test_refs": [], "degraded": True}
     return stats
 
 
