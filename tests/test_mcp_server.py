@@ -64,17 +64,57 @@ class TestInitialize(unittest.TestCase):
 
 
 class TestToolsList(unittest.TestCase):
-    def test_lists_three_tools_with_input_schema(self):
+    def test_lists_four_tools_with_input_schema(self):
         req = {"jsonrpc": "2.0", "id": 4, "method": "tools/list"}
         resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
         tools = resp["result"]["tools"]
         names = {t["name"] for t in tools}
         self.assertEqual(names, {"vibetrace_ask", "vibetrace_blame",
-                                 "vibetrace_graph"})
+                                 "vibetrace_graph", "vibetrace_search"})
         for t in tools:
             self.assertIn("inputSchema", t)
             self.assertEqual(t["inputSchema"]["type"], "object")
             self.assertIn("description", t)
+
+    def test_search_tool_requires_question_only(self):
+        req = {"jsonrpc": "2.0", "id": 41, "method": "tools/list"}
+        resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
+        search = next(t for t in resp["result"]["tools"]
+                      if t["name"] == "vibetrace_search")
+        self.assertEqual(search["inputSchema"]["required"], ["question"])
+        self.assertIn("question", search["inputSchema"]["properties"])
+        self.assertIn("project", search["inputSchema"]["properties"])
+
+
+class TestToolsCallSearch(unittest.TestCase):
+    def test_search_hit_returns_why_not_error(self):
+        with mock.patch.object(mcp_server, "topic_search",
+                               lambda *a, **k: "# 主题召回\n[abc1234]\n  意图:用乐观锁"):
+            req = {"jsonrpc": "2.0", "id": 42, "method": "tools/call",
+                   "params": {"name": "vibetrace_search",
+                              "arguments": {"question": "乐观锁"}}}
+            resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
+        self.assertFalse(resp["result"]["isError"])
+        self.assertIn("用乐观锁", resp["result"]["content"][0]["text"])
+
+    def test_search_missing_question_is_error(self):
+        req = {"jsonrpc": "2.0", "id": 43, "method": "tools/call",
+               "params": {"name": "vibetrace_search", "arguments": {}}}
+        resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
+        self.assertTrue(resp["result"]["isError"])
+        self.assertIn("question", resp["result"]["content"][0]["text"])
+
+    def test_search_egress_redacted(self):
+        with mock.patch.object(
+                mcp_server, "topic_search",
+                lambda *a, **k: "[abc1234]\n  意图:key sk-abcdefghijklmnop1234"):
+            req = {"jsonrpc": "2.0", "id": 44, "method": "tools/call",
+                   "params": {"name": "vibetrace_search",
+                              "arguments": {"question": "key"}}}
+            resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
+        text = resp["result"]["content"][0]["text"]
+        self.assertNotIn("sk-abcdefghijklmnop1234", text)
+        self.assertIn("[REDACTED]", text)
 
 
 class TestToolsCallAsk(unittest.TestCase):

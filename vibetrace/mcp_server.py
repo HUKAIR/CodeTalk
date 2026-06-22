@@ -24,6 +24,7 @@ from .cache import Cache
 from .config import CACHE_DB_PATH, load_config, redact_secrets
 from .graph import build_graph_json
 from .llm import LLMClient, LLMError
+from .search import topic_search
 
 log = logging.getLogger("vibetrace")
 
@@ -53,6 +54,13 @@ _TOOLS = [
      "inputSchema": {"type": "object", "properties": {
          "project": {"type": "string", "description": "项目路径(默认当前目录)"}},
          "required": []}},
+    {"name": "vibetrace_search",
+     "description": "主题级『当初为什么』召回(零 LLM,确定性接地):不带文件目标,在整个"
+                    "项目记忆里按关键词找相关 commit,返回真实 why/决策/原话锚点(不重述)。",
+     "inputSchema": {"type": "object", "properties": {
+         "question": {"type": "string", "description": "主题/关键词(需 ≥3 字符)"},
+         "project": {"type": "string", "description": "项目路径(默认当前目录)"}},
+         "required": ["question"]}},
 ]
 
 
@@ -109,6 +117,8 @@ def _call_tool(name, arguments, cache, cfg, llm, default_project, stderr):
             if not segments:
                 return _err_content(f"{file} 没有可用的提交历史,无从溯源。")
             return _ok_content(_blame_format(file, start, end, segments))
+        if name == "vibetrace_search":         # 主题级零-LLM 召回,出口同样脱敏
+            return _ok_content(topic_search(cache, pp, arguments["question"]))
         # vibetrace_graph
         text, err = build_graph_json(pp, cache)
         if err:

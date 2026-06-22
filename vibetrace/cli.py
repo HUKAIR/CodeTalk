@@ -49,6 +49,9 @@ def _build_parser():
     blm = _proj(sub.add_parser("blame",
                                help="行级决策溯源(零 LLM,确定性罗列,无 key 也能用)"))
     blm.add_argument("target", help='文件或 文件:起-止,如 vibetrace/llm.py:72-78')
+    sea = _proj(sub.add_parser(
+        "search", help="主题级『当初为什么』召回:全仓按关键词找相关 commit(零 LLM)"))
+    sea.add_argument("question", help="主题/关键词(需 ≥3 字符)")
     grp = _proj(sub.add_parser("graph", help="生成决策影响图(时间轴 DAG,零 LLM)"))
     grp.add_argument("--vault", help="覆盖输出目录")
     grp.add_argument("--canvas", action="store_true",
@@ -80,6 +83,7 @@ _DISPATCH = {
     "self": commands.self_cmd,
     "ask": commands.ask_cmd,
     "blame": commands.blame_cmd,
+    "search": commands.search_cmd,
     "graph": commands.graph_cmd,
     "course": commands.course_cmd,
     "init": commands.init_cmd,
