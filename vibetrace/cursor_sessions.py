@@ -87,23 +87,25 @@ def _epoch(value):
         return 0
 
 
-def _abs_files(bubble, root):
-    """从一条消息抠出涉及文件,统一成绝对路径(供 align 与 commit 文件求交)。"""
+def _paths_from(items):
+    """从字符串或 dict(uri/relativeWorkspacePath/fsPath)列表抠出原始路径串。"""
     out = set()
-    for fld in ("relevantFiles", "recentlyViewedFiles"):
-        for x in bubble.get(fld) or []:
-            if isinstance(x, str):
-                out.add(x)
-    for fld in ("attachedCodeChunks", "attachedFileCodeChunksMetadataOnly"):
-        for x in bubble.get(fld) or []:
-            if isinstance(x, dict):
-                u = (x.get("uri") or x.get("relativeWorkspacePath") or x.get("fsPath"))
-                if isinstance(u, dict):
-                    u = u.get("path") or u.get("fsPath")
-                if isinstance(u, str):
-                    out.add(u)
+    for x in items or []:
+        if isinstance(x, str):
+            out.add(x)
+        elif isinstance(x, dict):
+            u = (x.get("uri") or x.get("relativeWorkspacePath") or x.get("fsPath"))
+            if isinstance(u, dict):
+                u = u.get("path") or u.get("fsPath")
+            if isinstance(u, str):
+                out.add(u)
+    return out
+
+
+def _absolutize(paths, root):
+    """原始路径串(可能 file:// 或相对)→ 绝对路径集合。"""
     abs_out = set()
-    for p in out:
+    for p in paths:
         if p.startswith("file://"):
             p = unquote(urlparse(p).path)
         pp = Path(p)
@@ -111,11 +113,31 @@ def _abs_files(bubble, root):
     return abs_out
 
 
+def _context_files(bubble, root):
+    """一条消息的上下文文件(AI 看过/附带,非真实编辑)→ 绝对路径。"""
+    raw = (_paths_from(bubble.get("relevantFiles"))
+           | _paths_from(bubble.get("recentlyViewedFiles"))
+           | _paths_from(bubble.get("attachedCodeChunks"))
+           | _paths_from(bubble.get("attachedFileCodeChunksMetadataOnly")))
+    return _absolutize(raw, root)
+
+
+def _edited_files(head, bubbles, root):
+    """真实编辑文件:优先 composerData addedFiles/removedFiles;
+    为空则退取各 bubble assistantSuggestedDiffs 涉及文件。"""
+    raw = _paths_from(head.get("addedFiles")) | _paths_from(head.get("removedFiles"))
+    if not raw:
+        for b in bubbles:
+            raw |= _paths_from(b.get("assistantSuggestedDiffs"))
+    return _absolutize(raw, root)
+
+
 def _blank_summary(cid):
     return {"session_id": cid, "title": "", "prompts": [], "excerpts": [],
             "files_written": set(), "files_read": set(),
             "start": None, "end": None, "records": 0, "parse_failures": 0,
             "is_subagent": False,   # 与 Claude summary 契约对齐(Cursor 会话非 subagent)
+            "source": "cursor",     # evidence 透传:区分原话来自哪个工具
             "tokens": {"input": 0, "output": 0, "cache_read": 0}}
 
 
@@ -138,12 +160,14 @@ def _parse_composer(gcon, cid, root):
             bubbles.append(obj)
     bubbles.sort(key=lambda b: _epoch(b.get("createdAt")))   # createdAt 可能是字符串
     s = _blank_summary(cid)
+    rootp = Path(root)
+    s["files_written"] = _edited_files(head, bubbles, rootp)  # 真实编辑
     for b in bubbles:
         ts = _ms(b.get("createdAt"))
         if ts:
             s["start"] = min(s["start"] or ts, ts)
             s["end"] = max(s["end"] or ts, ts)
-        s["files_written"] |= _abs_files(b, Path(root))
+        s["files_read"] |= _context_files(b, rootp)          # 上下文(不计 align high)
         raw_text = b.get("text")   # 非 str(富内容 dict/list)降级为空,免 .strip() 崩掉整条会话
         text = raw_text.strip() if isinstance(raw_text, str) else ""
         if not text:
@@ -181,9 +205,12 @@ def _ids_by_file_overlap(gcon, root):
                 b = json.loads(raw)
             except (ValueError, TypeError):
                 continue
-            if not isinstance(b, dict):   # 非对象 JSON 跳过,_abs_files 才不会 AttributeError
+            if not isinstance(b, dict):   # 非对象 JSON 跳过,避免 AttributeError
                 continue
-            for f in _abs_files(b, root):
+            # 归属判定取上下文 + 该 bubble 的编辑建议(任一落本仓即归属)
+            bfiles = _context_files(b, root) | _absolutize(
+                _paths_from(b.get("assistantSuggestedDiffs")), root)
+            for f in bfiles:
                 try:
                     Path(f).resolve().relative_to(root)
                     ids.add(cid)

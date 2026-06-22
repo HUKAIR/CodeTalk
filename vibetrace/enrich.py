@@ -73,6 +73,29 @@ def _commit_prompt(commit, prior_context=""):
     return "\n\n".join(parts)
 
 
+def _ts(value):
+    """会话时间 → ISO 串:datetime 取 isoformat,已是串则透传,缺失返回 ''。"""
+    if value is None:
+        return ""
+    return value.isoformat() if hasattr(value, "isoformat") else str(value)
+
+
+def _evidence(commit):
+    """从已排序的 matches(high 优先)取前 ≤2,结构化原话锚点供 ask/blame 核验。
+    原话来自已脱敏 summary;落盘再走 put_narrative 二次脱敏。无 matches → []。"""
+    out = []
+    for match in commit.get("matches", [])[:2]:
+        session = match["session"]
+        out.append({
+            "session_id": session.get("session_id", ""),
+            "source": session.get("source", "?"),
+            "ts": _ts(session.get("end")),
+            "confidence": match["confidence"],
+            "prompts": list(session.get("prompts", []))[:3],
+            "excerpts": list(session.get("excerpts", []))[:2]})
+    return out
+
+
 def _normalize(narrative):
     clean = {"what": str(narrative.get("what", "")),
              "why": str(narrative.get("why", ""))}
@@ -131,6 +154,7 @@ def enrich_commits(commits, llm, cache, project):
                     normalized["decisions"] + decisions))
             if watches:    # Vibe-Watch 进 risks → 复用现有 risks→seal_capsule 环
                 normalized["risks"] = normalized["risks"] + watches
+            normalized["evidence"] = _evidence(commit)  # 原话接地锚点(可核验)
             narrative = json.loads(redact_secrets(
                 json.dumps(normalized, ensure_ascii=False)))
             stats["llm_calls"] += 1
@@ -141,7 +165,8 @@ def enrich_commits(commits, llm, cache, project):
             stats["failures"] += 1
             commit["narrative"] = {
                 "what": commit["subject"], "why": f"(LLM 富集失败:{exc})",
-                "decisions": [], "risks": [], "open_loops": [], "degraded": True}
+                "decisions": [], "risks": [], "open_loops": [],
+                "evidence": [], "degraded": True}
     return stats
 
 
