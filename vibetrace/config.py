@@ -61,7 +61,7 @@ SECRET_PATTERNS = [
     re.compile(r"xox[baprs]-[A-Za-z0-9-]{10,}"),
     re.compile(r"AKIA[0-9A-Z]{16}"),
     re.compile(r"(?i)bearer\s+[A-Za-z0-9._=-]{20,}"),
-    re.compile(r"(?i)(api[_-]?key|token|secret|password)(\"?\s*[:=]\s*[\"']?)(?=[A-Za-z0-9._-]*[0-9])[A-Za-z0-9._-]{12,}"),  # value 段要求含数字,降散文假阳
+    re.compile(r"((?i:api[_-]?key|token|secret|password))(\"?\s*[:=]\s*[\"']?)(?=[A-Za-z0-9._-]*(?:[0-9]|[a-z][A-Z]|[A-Z][a-z]))[A-Za-z0-9._-]{12,}"),  # 关键词大小写不敏感;value 段须含数字或真实大小写转换(case-sensitive),降散文假阳又不漏 mixed-case key
     # 借 trivy builtin rules 扩充(故意不收 AWS 裸 40 位 base64 secret——假阳性灾难)
     re.compile(r"AIza[0-9A-Za-z_\-]{35}"),                              # Google API key
     re.compile(r"[0-9]+-[0-9A-Za-z_]{32}\.apps\.googleusercontent\.com"),  # Google OAuth

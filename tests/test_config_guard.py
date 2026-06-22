@@ -35,6 +35,10 @@ class TestRedactProseFalsePositive(unittest.TestCase):
     def test_real_value_with_digit_still_redacted(self):
         self.assertIn("[REDACTED]", cfgmod.redact_secrets("api_key: ab12cd34ef56gh78"))
 
+    def test_mixed_case_secret_without_digit_still_redacted(self):
+        # 无数字但有大小写转换的 key 仍脱敏(复审回归补丁,避免漏纯字母 mixed-case secret)
+        self.assertIn("[REDACTED]", cfgmod.redact_secrets("token: AbCdEfGhIjKlMnOp"))
+
 
 if __name__ == "__main__":
     unittest.main()
