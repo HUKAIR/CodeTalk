@@ -46,9 +46,10 @@ def _since_args(since):
 
 
 def _retrieve(project_path, file, start, end, cache, since=None):
-    """→ (context_str, shas oldest-first, code_state, evidence)。无历史时 context_str 为 ''。
-    code_state = 命中行最新 commit SHA,进缓存键 → 代码一变旧答案自然失效。
-    evidence = 命中 SHA narrative 的原话锚点汇总(供 LLM 答案旁核验,旧缓存无键 .get 兼容)。
+    """→ (context_str, shas oldest-first, code_state, evidence, test_refs, pr_refs)。
+    无历史时 context_str 为 ''。code_state = 命中行最新 commit SHA,进缓存键 →
+    代码一变旧答案自然失效。evidence = 命中 SHA narrative 的原话锚点汇总;
+    pr_refs = 命中 narrative 的 PR 讨论汇总(按 number 去重);旧缓存无键 .get 兼容。
     since:把检索从空间(文件:行)再叠一层时间范围(日期/commit 范围),确定性过滤。"""
     extra = _since_args(since)
     if start is not None:
@@ -57,7 +58,8 @@ def _retrieve(project_path, file, start, end, cache, since=None):
             shas, _ = file_log(project_path, file, extra=extra)
     else:
         shas, _ = file_log(project_path, file, extra=extra)
-    blocks, evidence, test_refs, _seen = [], [], [], set()
+    blocks, evidence, test_refs, pr_refs = [], [], [], []
+    _seen_test, _seen_pr = set(), set()
     for sha in shas:
         narrative = cache.get_narrative(sha) or {}
         decisions, watches = parse_breadcrumbs(commit_body(project_path, sha))
@@ -65,9 +67,13 @@ def _retrieve(project_path, file, start, end, cache, since=None):
         risks = list(dict.fromkeys((narrative.get("risks") or []) + watches))
         evidence.extend(narrative.get("evidence") or [])
         for tr in narrative.get("test_refs") or []:   # 本地测试接地源,按 path 去重
-            if tr.get("path") not in _seen:
-                _seen.add(tr.get("path"))
+            if tr.get("path") not in _seen_test:
+                _seen_test.add(tr.get("path"))
                 test_refs.append(tr)
+        for pr in narrative.get("pr_refs") or []:     # PR 讨论接地源,按 number 去重
+            if pr.get("number") not in _seen_pr:
+                _seen_pr.add(pr.get("number"))
+                pr_refs.append(pr)
         parts = [f"[{sha[:7]}]"]
         if narrative.get("why"):
             parts.append("意图:" + narrative["why"][:EXCERPT])
@@ -78,7 +84,7 @@ def _retrieve(project_path, file, start, end, cache, since=None):
         blocks.append(" / ".join(parts))
     context = "\n".join(blocks)[:CONTEXT_BUDGET]
     code_state = shas[-1] if shas else ""
-    return context, shas, code_state, evidence, test_refs
+    return context, shas, code_state, evidence, test_refs, pr_refs
 
 
 def _ask_prompt(context, question):
@@ -128,8 +134,21 @@ def format_test_refs(test_refs):
     return "\n".join(lines)
 
 
-def _with_evidence(text, evidence, test_refs=()):
-    for block in (format_evidence(evidence), format_test_refs(test_refs)):
+def format_pr_refs(pr_refs):
+    """「相关 PR 讨论(当初的需求背景)」块:列 #N title — snippet,供反推需求背景。
+    无 → ''(调用方不追加)。对位用户1「看 PR 描述找需求背景」(问卷一 Q3,最强 why 源)。"""
+    if not pr_refs:
+        return ""
+    lines = ["相关 PR 讨论(当初的需求背景):"]
+    for pr in pr_refs:
+        lines.append(f"- #{pr.get('number')} {pr.get('title', '')} — "
+                     f"{pr.get('snippet', '')}")
+    return "\n".join(lines)
+
+
+def _with_evidence(text, evidence, test_refs=(), pr_refs=()):
+    for block in (format_evidence(evidence), format_test_refs(test_refs),
+                  format_pr_refs(pr_refs)):
         if block:
             text = f"{text}\n\n{block}"
     return text
@@ -165,7 +184,7 @@ def answer_question(cache, llm, project_path, project, target, question,
     返回 (text, error_or_None)。llm=None 表示无 key,降级打印原始决策史。
     since:把检索叠一层时间范围;as_json:text 改为 agent 可读的结构化 JSON。"""
     file, start, end = _parse_target(target)
-    context, shas, code_state, evidence, test_refs = _retrieve(
+    context, shas, code_state, evidence, test_refs, pr_refs = _retrieve(
         project_path, file, start, end, cache, since=since)
     if not context:
         return None, f"{file} 没有可用的提交历史,无从回答。"
@@ -178,14 +197,15 @@ def answer_question(cache, llm, project_path, project, target, question,
         if as_json:
             return _json_text("cache", target, question, shas,
                               payload=cached), None
-        return _with_evidence(_format(cached), evidence, test_refs), None
+        return _with_evidence(_format(cached), evidence, test_refs, pr_refs), None
     if llm is None:                       # 无 API key:降级到原始决策史
         _log_usage(project_path, "degraded", llm)
         if as_json:
             return _json_text("degraded", target, question, shas,
                               context=context), None
         return _with_evidence(
-            "(未配置 LLM,以下为这段代码的原始决策史)\n" + context, evidence, test_refs), None
+            "(未配置 LLM,以下为这段代码的原始决策史)\n" + context,
+            evidence, test_refs, pr_refs), None
     try:
         raw = llm.narrate(_ask_prompt(context, question),
                           schema=ASK_SCHEMA, system=ASK_SYSTEM_PROMPT)
@@ -195,7 +215,8 @@ def answer_question(cache, llm, project_path, project, target, question,
             return _json_text("degraded", target, question, shas,
                               context=context), None
         return _with_evidence(
-            "(LLM 调用失败,以下为原始决策史)\n" + context, evidence, test_refs), None
+            "(LLM 调用失败,以下为原始决策史)\n" + context,
+            evidence, test_refs, pr_refs), None
     payload = {
         "answer": redact_secrets(str(raw.get("answer", ""))),
         "cited_shas": [str(s) for s in (raw.get("cited_shas") or [])],
@@ -207,7 +228,7 @@ def answer_question(cache, llm, project_path, project, target, question,
         _write_note(vault_path, project, target, question, payload)
     if as_json:
         return _json_text("llm", target, question, shas, payload=payload), None
-    return _with_evidence(_format(payload), evidence, test_refs), None
+    return _with_evidence(_format(payload), evidence, test_refs, pr_refs), None
 
 
 def _log_usage(project_path, mode, llm):

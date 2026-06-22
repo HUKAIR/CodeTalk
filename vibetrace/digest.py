@@ -11,10 +11,25 @@ from pathlib import Path
 
 from . import align, cursor_sessions, enrich, gitlog, report, sessions
 from .cache import Cache
-from .config import load_config
+from .config import VIBETRACE_DIR, load_config
 from .llm import LLMClient, LLMError
 
 log = logging.getLogger("vibetrace")
+
+_PR_NOTICE_SENTINEL = VIBETRACE_DIR / ".pr_notice_shown"
+
+
+def _maybe_pr_notice():
+    """首次启用 PR 源时一次性告知(数据出本机、可关),之后静默。写不了 sentinel 也不崩。"""
+    try:
+        if _PR_NOTICE_SENTINEL.exists():
+            return
+        log.warning("已启用 PR 讨论源:将向 GitHub 查询本仓 PR 讨论,数据出本机;"
+                    "可在 ~/.vibetrace/config.json 的 sources 移除 \"pr\" 关闭。")
+        _PR_NOTICE_SENTINEL.parent.mkdir(parents=True, exist_ok=True)
+        _PR_NOTICE_SENTINEL.write_text("", encoding="utf-8")
+    except OSError:
+        pass
 
 
 def _since_to_dt(since):
@@ -98,7 +113,11 @@ def digest(args):
     report.read_capsule_answers(cfg["vault_path"], pkey, cache)
     # 运行前已缓存的 SHA:用于区分每天的缓存命中 vs 新算(按日页脚统计)
     pre_cached = {c["sha"] for c in commits if cache.get_narrative(c["sha"])}
-    enrich.enrich_commits(commits, llm, cache, str(project_path))
+    with_pr = bool(getattr(args, "with_pr", False)) or (
+        "pr" in (cfg.get("sources") or []))
+    if with_pr:
+        _maybe_pr_notice()
+    enrich.enrich_commits(commits, llm, cache, str(project_path), with_pr=with_pr)
 
     # 按 commit 日期分桶,一天一份日报:bound 住报告长度与概览输入,
     # 并让历史各天都进 daily_digests 缓存(修复回补时 On This Day 查不到)。

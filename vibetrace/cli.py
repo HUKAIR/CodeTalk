@@ -21,6 +21,8 @@ def _build_parser():
     dig.add_argument("--model", help="覆盖模型 ID")
     dig.add_argument("--source", choices=["claude", "cursor", "both"],
                      help="会话源(默认按 config.sources;cursor 需 opt-in)")
+    dig.add_argument("--with-pr", action="store_true",
+                     help="额外用 GitHub PR 讨论作 why 源(数据出本机,opt-in)")
     tun = _proj(sub.add_parser("tunnel", help="生成时光轴(线性时间线)"))
     tun.add_argument("--serve", action="store_true",
                      help="起本地服务,胶囊回答即时写回 cache(否则只读)")
