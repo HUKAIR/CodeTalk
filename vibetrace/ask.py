@@ -172,6 +172,7 @@ def answer_question(cache, llm, project_path, project, target, question,
     """核心:解析→检索→(命中缓存/无 key 降级/调 LLM)→脱敏缓存→(可选)写笔记。
     返回 (text, error_or_None)。llm=None 表示无 key,降级打印原始决策史。
     since:把检索叠一层时间范围;as_json:text 改为 agent 可读的结构化 JSON。"""
+    question = redact_secrets(question)   # 用户原始输入:在所有出口(json/note/prompt)前单点脱敏
     file, start, end = _parse_target(target)
     context, shas, code_state, evidence, test_refs, pr_refs = _retrieve(
         project_path, file, start, end, cache, since=since)

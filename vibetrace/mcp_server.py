@@ -79,7 +79,10 @@ def _ok_content(text):
 
 
 def _err_content(text):
-    return {"content": [{"type": "text", "text": text}], "isError": True}
+    # 错误内容同样出本机(交 MCP 客户端),与 _ok_content 同口径出口脱敏:
+    # 异常原文可能含 git remote URL 内嵌 token 等 secret。
+    return {"content": [{"type": "text", "text": redact_secrets(text)}],
+            "isError": True}
 
 
 def _project_path(arguments, default_project, stderr):

@@ -16,7 +16,7 @@ from pathlib import Path
 from string import Template
 
 from .cache import Cache
-from .config import CACHE_DB_PATH, load_config, redact_secrets
+from .config import CACHE_DB_PATH, load_config, redact_data, redact_secrets
 from .debt import debt_board
 from .gitlog import collect_commit_files, commit_diff
 from .llm import LLMClient, LLMError
@@ -154,9 +154,9 @@ def build_course(project_path):
                         .read_text(encoding="utf-8"))
     html_text = template.substitute(
         project=project,
-        data=inline_json(data),
+        data=inline_json(redact_data(data)),  # 编码前脱敏:fresh subject 不走 cache 脱敏
         generated=f"{today:%Y.%m.%d}")
-    html_text = redact_secrets(html_text)  # 隐私红线:落盘前对整页脱敏
+    html_text = redact_secrets(html_text)  # 隐私红线:落盘前对整页再兜底脱敏
     vault = Path(cfg["vault_path"]).expanduser()
     vault.mkdir(parents=True, exist_ok=True)
     out = vault / f"{project}-course.html"

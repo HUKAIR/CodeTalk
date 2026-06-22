@@ -81,3 +81,16 @@ def redact_secrets(text):
         text = pat.sub(lambda m: (m.group(1) + m.group(2) + "[REDACTED]")
                        if m.lastindex else "[REDACTED]", text)
     return text
+
+
+def redact_data(obj):
+    """递归脱敏 JSON-able 结构的字符串叶子;用在 json.dumps / HTML 编码之前。
+    编码会把 " 转义成 \\" 等,使 redact_secrets 的 key="value" 定界模式匹配不到,
+    故 secret 必须在「未编码的原始连续文本」上脱敏。非字符串叶子原样返回。"""
+    if isinstance(obj, str):
+        return redact_secrets(obj)
+    if isinstance(obj, list):
+        return [redact_data(x) for x in obj]
+    if isinstance(obj, dict):
+        return {k: redact_data(v) for k, v in obj.items()}
+    return obj
