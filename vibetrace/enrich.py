@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 
 from .config import redact_secrets
-from .gitlog import parse_breadcrumbs, prior_commit
+from .gitlog import parse_breadcrumbs, pr_discussion, prior_commit
 from .llm import LLMError
 from .prompts import OVERVIEW_PROMPT, OVERVIEW_SCHEMA
 from .sessions import head_tail
@@ -122,6 +122,20 @@ def _test_refs(project, commit):
     return out
 
 
+PR_SNIPPET = 400
+
+
+def _pr_refs(commit, project):
+    """该 commit 关联 PR 的标题+描述(用户1 最强 why 源:PR 描述讲需求背景,问卷一 Q3)。
+    opt-in(数据出本机);无 PR / gh 不可用 → []。落盘前 redact(标题与正文片段)。"""
+    pr = pr_discussion(project, commit["sha"])
+    if not pr:
+        return []
+    return [{"number": pr["number"], "url": pr["url"],
+             "title": redact_secrets(pr["title"]),
+             "snippet": redact_secrets(pr["body"])[:PR_SNIPPET]}]
+
+
 def _normalize(narrative):
     clean = {"what": str(narrative.get("what", "")),
              "why": str(narrative.get("why", ""))}
@@ -151,7 +165,7 @@ def _is_trivial(commit):
                for f in files)
 
 
-def enrich_commits(commits, llm, cache, project):
+def enrich_commits(commits, llm, cache, project, with_pr=False):
     stats = {"cache_hits": 0, "llm_calls": 0, "failures": 0, "trivial": 0}
     # 项目背景读一次脱敏,作稳定缓存前缀(系统提示+项目上下文),供本次所有 commit 复用
     cache_prefix = redact_secrets(_project_context(project))
@@ -182,6 +196,8 @@ def enrich_commits(commits, llm, cache, project):
                 normalized["risks"] = normalized["risks"] + watches
             normalized["evidence"] = _evidence(commit)  # 原话接地锚点(可核验)
             normalized["test_refs"] = _test_refs(project, commit)  # 本地测试接地源
+            if with_pr:  # PR 讨论作 why 源(opt-in,数据出本机);默认关时省略
+                normalized["pr_refs"] = _pr_refs(commit, project)
             narrative = json.loads(redact_secrets(
                 json.dumps(normalized, ensure_ascii=False)))
             stats["llm_calls"] += 1
