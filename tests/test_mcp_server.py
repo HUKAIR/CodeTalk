@@ -175,6 +175,17 @@ class TestToolsCallGraph(unittest.TestCase):
         self.assertEqual(json.loads(resp["result"]["content"][0]["text"]),
                          {"nodes": [], "edges": []})
 
+    def test_graph_no_arguments_key_is_not_error(self):
+        # MCP 协议中 params.arguments 可选;无 required 的 graph 应零参可用
+        with mock.patch.object(mcp_server, "build_graph_json",
+                               lambda *a, **k: ('{"nodes":[],"edges":[]}', None)):
+            req = {"jsonrpc": "2.0", "id": 15, "method": "tools/call",
+                   "params": {"name": "vibetrace_graph"}}  # 不带 arguments 键
+            resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
+        self.assertFalse(resp["result"]["isError"])
+        self.assertEqual(json.loads(resp["result"]["content"][0]["text"]),
+                         {"nodes": [], "edges": []})
+
 
 class TestServeLoop(unittest.TestCase):
     def _run(self, lines):

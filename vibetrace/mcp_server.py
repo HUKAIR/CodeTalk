@@ -85,6 +85,8 @@ def _call_tool(name, arguments, cache, cfg, llm, default_project, stderr):
     校验工具名/参数齐全;整段包 try → isError:true,绝不崩循环。成功文本出口脱敏。"""
     if name not in {t["name"] for t in _TOOLS}:
         return _err_content(f"未知工具:{name}")
+    if arguments is None:                   # MCP 协议 arguments 可选,缺省=空对象
+        arguments = {}
     if not isinstance(arguments, dict):
         return _err_content("arguments 必须是对象(JSON object)")
     schema = next(t["inputSchema"] for t in _TOOLS if t["name"] == name)
