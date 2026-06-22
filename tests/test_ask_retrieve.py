@@ -1,7 +1,7 @@
 import unittest
 from unittest import mock
 
-from vibetrace import ask
+from vibetrace import ask, gitlog
 from vibetrace.cache import Cache
 
 
@@ -13,7 +13,7 @@ class TestRetrieve(unittest.TestCase):
                              "risks": [], "open_loops": []})
         with mock.patch.object(ask, "line_log",
                                lambda *a, **k: (["sha1aaaabbbb"], None)), \
-             mock.patch.object(ask, "commit_body",
+             mock.patch.object(gitlog, "commit_body",
                                lambda p, s: "Vibe-Watch: 并发待验证"):
             ctx, shas, state, evidence, test_refs, pr_refs = ask._retrieve(".", "f.py", 1, 5, cache)
         self.assertIn("sha1aaa", ctx)        # 短 sha
@@ -32,7 +32,7 @@ class TestRetrieve(unittest.TestCase):
 
         with mock.patch.object(ask, "line_log", lambda *a, **k: ([], "boom")), \
              mock.patch.object(ask, "file_log", fake_file_log), \
-             mock.patch.object(ask, "commit_body", lambda p, s: ""):
+             mock.patch.object(gitlog, "commit_body", lambda p, s: ""):
             ctx, shas, state, evidence, test_refs, pr_refs = ask._retrieve(".", "f.py", 1, 5, cache)
         self.assertTrue(called.get("hit"))
         self.assertEqual(ctx, "")
@@ -46,7 +46,7 @@ class TestRetrieve(unittest.TestCase):
                              "risks": [], "open_loops": []})
         with mock.patch.object(ask, "line_log",
                                lambda *a, **k: (["sha2ccccdddd"], None)), \
-             mock.patch.object(ask, "commit_body",
+             mock.patch.object(gitlog, "commit_body",
                                lambda p, s: "Vibe-Decision: 用 urllib 不引依赖"):
             ctx, shas, state, evidence, test_refs, pr_refs = ask._retrieve(".", "f.py", 1, 5, cache)
         self.assertEqual(ctx.count("用 urllib 不引依赖"), 1)
@@ -65,10 +65,28 @@ class TestRetrieve(unittest.TestCase):
             {"why": "", "decisions": [], "risks": [], "open_loops": []})
         with mock.patch.object(ask, "line_log",
                                lambda *a, **k: (["shaaaa11", "shabbb22"], None)), \
-             mock.patch.object(ask, "commit_body", lambda p, s: ""):
+             mock.patch.object(gitlog, "commit_body", lambda p, s: ""):
             ctx, shas, state, evidence, test_refs, pr_refs = ask._retrieve(".", "f.py", 1, 5, cache)
         self.assertEqual(len(evidence), 1)
         self.assertEqual(evidence[0]["session_id"], "s1")
+
+    def test_same_evidence_anchor_deduped_across_shas(self):
+        # 同一会话锚点(session_id+ts)跨多命中 SHA → 只汇总一次
+        cache = Cache(":memory:")
+        ev = {"session_id": "s1", "source": "claude", "ts": "t",
+              "confidence": "high", "prompts": ["原话X"], "excerpts": []}
+        cache.put_narrative("shaaaa11", "P", "m",
+                            {"why": "", "decisions": [], "risks": [],
+                             "open_loops": [], "evidence": [ev]})
+        cache.put_narrative("shabbb22", "P", "m",
+                            {"why": "", "decisions": [], "risks": [],
+                             "open_loops": [], "evidence": [dict(ev)]})
+        with mock.patch.object(ask, "line_log",
+                               lambda *a, **k: (["shaaaa11", "shabbb22"], None)), \
+             mock.patch.object(gitlog, "commit_body", lambda p, s: ""):
+            ctx, shas, state, evidence, test_refs, pr_refs = ask._retrieve(
+                ".", "f.py", 1, 5, cache)
+        self.assertEqual(len(evidence), 1)       # 跨 SHA 同锚点只一份
 
 
 if __name__ == "__main__":

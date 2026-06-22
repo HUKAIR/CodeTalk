@@ -4,7 +4,6 @@
 全程零 LLM(吃已缓存数据);复用 tunnel._payload / graph._assemble / debt_board / brief。
 单文件、零构建、离线;--serve 经 webserve 把胶囊回答 + 回看写回 cache.db。
 """
-import json
 from datetime import datetime, timezone
 from pathlib import Path
 from string import Template
@@ -14,6 +13,7 @@ from .cache import Cache
 from .config import CACHE_DB_PATH, load_config, redact_secrets
 from .debt import debt_board
 from .gitlog import collect_commit_files
+from .webserve import inline_json
 
 
 def _assemble(project_path, cache):
@@ -67,8 +67,8 @@ def _build_html(project_path, serve):
                         .read_text(encoding="utf-8"))
     html = template.substitute(
         project=pp.name,
-        data=json.dumps(data, ensure_ascii=False).replace("</", "<\\/"),
-        generated="%04d.%02d.%02d" % (today.year, today.month, today.day),
+        data=inline_json(data),
+        generated=f"{today:%Y.%m.%d}",
         serve="true" if serve else "false",
     )
     return redact_secrets(html), pp.name, None
@@ -89,7 +89,7 @@ def render_console(project_path):
 
 def serve_console(project_path, open_browser=True):
     """起本地服务,胶囊回答 + 回看即时写回 cache。→ error_or_None(阻塞到 Ctrl+C)。"""
-    html, project, err = _build_html(project_path, serve=True)
+    html, _, err = _build_html(project_path, serve=True)
     if err:
         return err
     from .webserve import serve_html

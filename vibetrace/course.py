@@ -20,6 +20,7 @@ from .config import CACHE_DB_PATH, load_config, redact_secrets
 from .debt import debt_board
 from .gitlog import collect_commit_files, commit_diff
 from .llm import LLMClient, LLMError
+from .webserve import inline_json
 
 EXCERPT = 220
 
@@ -153,8 +154,9 @@ def build_course(project_path):
                         .read_text(encoding="utf-8"))
     html_text = template.substitute(
         project=project,
-        data=json.dumps(data, ensure_ascii=False).replace("</", "<\\/"),
+        data=inline_json(data),
         generated=f"{today:%Y.%m.%d}")
+    html_text = redact_secrets(html_text)  # 隐私红线:落盘前对整页脱敏
     vault = Path(cfg["vault_path"]).expanduser()
     vault.mkdir(parents=True, exist_ok=True)
     out = vault / f"{project}-course.html"
@@ -186,7 +188,9 @@ def _make_chapters(commits, narr_by_short, debt, cfg, cache, key, project):
         chapters = result.get("chapters") if isinstance(result, dict) else None
         if not chapters:
             return _naive_chapters(commits, narr_by_short), True, llm.stats
-        cache.put_narrative(key, project, llm.model, {"chapters": chapters})
+        # 隐私红线:LLM 生成的章节入缓存前脱敏(避免把原文里的 secret 持久化)
+        cache.put_narrative(key, project, llm.model, json.loads(redact_secrets(
+            json.dumps({"chapters": chapters}, ensure_ascii=False))))
         return chapters, False, llm.stats
     except LLMError:
         return _naive_chapters(commits, narr_by_short), True, llm.stats
