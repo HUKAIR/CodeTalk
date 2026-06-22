@@ -227,7 +227,7 @@ def make_overview(commits, llm, cache, project, date_str):
         return (cached.get("overview", fallback),
                 cached.get("decision", fb_decision), 0)
     rows = [
-        f"- {c['sha'][:8]} {c['subject']}|what: {c['narrative']['what'][:150]}"
+        f"- {c['sha'][:8]} {c['subject']}|what: {c['narrative'].get('what', '')[:150]}"
         f"|decisions: {'; '.join(c['narrative'].get('decisions', []))[:200]}"
         for c in commits]
     listing = "\n".join(rows)

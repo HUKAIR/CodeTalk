@@ -5,7 +5,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from vibetrace.gitlog import collect_commit_files
+from vibetrace.gitlog import (collect_commit_files, collect_commits,
+                              tracked_files)
 
 
 def _git(args, cwd):
@@ -48,6 +49,37 @@ class TestCollectCommitFilesBody(unittest.TestCase):
         self.assertEqual(commits[0]["files"], ["a.py"])
         self.assertEqual(commits[1]["files"], ["b.py"])
         self.assertEqual(commits[1]["body"], "body2")
+
+
+class TestQuotepathNonAscii(unittest.TestCase):
+    """core.quotepath=false:中文/重音文件名输出原始 UTF-8,而非 C 转义。"""
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.d, ignore_errors=True)
+        _git(["init", "-q"], self.d)
+        _git(["config", "user.email", "t@t"], self.d)
+        _git(["config", "user.name", "t"], self.d)
+
+    def setUpRepo(self):
+        p = Path(self.d) / "订单.py"
+        p.write_text("v1\n")
+        _git(["add", "."], self.d)
+        _git(["commit", "-q", "-m", "中文文件名"], self.d)
+
+    def test_collect_commits_returns_raw_chinese_filename(self):
+        # collect_commits 用 `show --name-only`(无 -z),默认 quotepath 会 C 转义成
+        # "\350\256\242单.py";加 -c core.quotepath=false 后应是原始 UTF-8。
+        self.setUpRepo()
+        commits, err = collect_commits(self.d, "30 years ago", 200)
+        self.assertIsNone(err)
+        self.assertEqual(commits[0]["files"], ["订单.py"])
+        self.assertNotIn("\\", commits[0]["files"][0])     # 无 C 转义反斜杠
+
+    def test_tracked_files_returns_raw_chinese_filename(self):
+        # tracked_files 用 `git ls-files`(无 -z),同样受 quotepath 影响。
+        self.setUpRepo()
+        self.assertEqual(tracked_files(self.d), {"订单.py"})
 
 
 class TestBriefGraphUseBatchBody(unittest.TestCase):
