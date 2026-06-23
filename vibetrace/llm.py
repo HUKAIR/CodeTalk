@@ -26,6 +26,12 @@ class LLMError(Exception):
 
 class LLMClient:
     def __init__(self, cfg):
+        if cfg.get("no_llm"):                     # 硬开关:显式关闭 LLM(数据不出本机)。
+            raise LLMError(                        # 复用 LLMError → 各处现有降级路径自动生效。
+                "已启用 no_llm(数据不出本机):LLM 调用被显式关闭。"
+                "零-LLM 命令 blame/graph/search/brief/prompts 照常;"
+                "digest 需 LLM 故跳过,ask/course/MCP ask 降级为确定性检索。"
+                "关闭:config no_llm=false 或不设环境变量 VIBETRACE_NO_LLM。")
         self.provider = cfg["provider"]
         self.model = cfg["model"]
         self.base_url = ((cfg["providers"].get(self.provider) or {})
