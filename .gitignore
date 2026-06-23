@@ -3,3 +3,6 @@ __pycache__/
 .DS_Store
 .claude/
 .superpowers/
+*.mcpb
+dist/
+*.egg-info/

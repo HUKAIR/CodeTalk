@@ -18,6 +18,22 @@ pip install -e ".[anthropic]"    # 可选:仅 anthropic provider 需要
 
 要求 Python ≥ 3.11。安装后有 `vibetrace` 命令(等价于 `python3 -m vibetrace`)。
 
+## MCP 一键装(.mcpb)
+
+把零-LLM 接地能力暴露给 Claude Code / Cursor / Codex 等 MCP 客户端,在 agent 工作流里
+直接问「这段代码当初为什么这么写」。vibetrace 纯标准库、零三方依赖,打成一个 `.mcpb`
+(zip:`manifest.json` + 源码)即可**一键装、一次构建覆盖所有客户端**,靠你已装的
+`python3` 运行、**不打包解释器**:
+
+```bash
+python3 -m scripts.build_mcpb     # 产出 vibetrace.mcpb
+```
+
+把 `vibetrace.mcpb` 拖进客户端的扩展安装入口,装时选一个项目根目录即可。暴露 4 个工具:
+`vibetrace_ask` / `vibetrace_blame` / `vibetrace_graph` / `vibetrace_search`。其中
+`blame`/`graph`/`search` **零 LLM、stdio 同机直连、数据不出本机**;`ask` 会调用你
+`~/.vibetrace/config.json` 里配置的云端 LLM 做综合(无 key 时降级为确定性检索,不崩)。
+
 ## 配置
 
 ```bash
