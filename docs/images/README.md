@@ -9,3 +9,13 @@
 | `mcp-claude-code.png` | Claude Code:`.mcp.json` 配置 + `claude mcp list` 显示 vibetrace connected | 3·B |
 | `mcp-cursor.png` | Cursor Settings → MCP:vibetrace 已连接、显示工具数 | 3·C |
 | `mcp-call-result.png` | agent 实际调用 `vibetrace_blame` / `vibetrace_ask` 的接地返回 | 4 |
+
+## 截好图后提交
+
+```bash
+git add docs/images/*.png
+git commit -m "docs(mcp): 补 MCP 安装/验证截图"
+git push
+```
+
+(不必改 `docs/mcp-install.md`——文件名对上,`![]()` 引用就会自动渲染。)
