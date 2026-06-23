@@ -4,7 +4,9 @@
 Claude Code / Cursor 等 MCP 客户端,在 agent 工作流里直接问「这段代码当初为什么这么写」。
 全程 **stdio 同机直连、数据不出本机**。
 
-> 截图占位约定:`> 📷 _截图位:……_` 处后续补图。
+> 📷 截图约定:把对应 PNG 放进 `docs/images/`(文件名见各处 `![]()` 引用),GitHub /
+> 编辑器即自动渲染,**无需改本文**。在图就位前那里会显示一个占位/裂图,正常。
+> 期望的文件名清单见 [`docs/images/README.md`](images/README.md)。
 
 ---
 
@@ -43,7 +45,7 @@ printf '%s\n' \
 3. 安装界面会要一个 **项目路径(project)** → 填某个 git 仓根目录(如 `/Users/gavin/Github/CodeTalk`)
 4. 开启扩展 → 新建对话,工具列表里应出现 4 个 `vibetrace_*`
 
-> 📷 _截图位:Settings → Extensions 安装界面 + 填 project 路径 + 启用后工具出现_
+![Claude Desktop → Settings → Extensions:安装 vibetrace.mcpb,填 project 路径,启用后 4 个工具出现](images/mcp-desktop-install.png)
 
 ### B. Claude Code —— 用 JSON 配置(不吃 `.mcpb` 拖拽)
 
@@ -66,7 +68,7 @@ printf '%s\n' \
 claude mcp add vibetrace -- python3 -m vibetrace mcp-serve --project /abs/path/to/your/repo
 ```
 
-> 📷 _截图位:`.mcp.json` 内容 + `claude mcp list` 显示 vibetrace connected_
+![Claude Code:.mcp.json 配置 + claude mcp list 显示 vibetrace connected](images/mcp-claude-code.png)
 
 ### C. Cursor —— `~/.cursor/mcp.json`(全局)或 `.cursor/mcp.json`(项目)
 
@@ -81,7 +83,7 @@ claude mcp add vibetrace -- python3 -m vibetrace mcp-serve --project /abs/path/t
 }
 ```
 
-> 📷 _截图位:Cursor Settings → MCP 列表显示 vibetrace + 工具数_
+![Cursor Settings → MCP:vibetrace 已连接、显示工具数](images/mcp-cursor.png)
 
 > ⚠️ **关键坑(B/C 用 JSON 时)**:客户端用自己的环境启动子进程,`python3` 可能解析到
 > **没装 vibetrace 的那个解释器**。稳妥做法:`which python3`(或装 vibetrace 的那个
@@ -96,7 +98,7 @@ claude mcp add vibetrace -- python3 -m vibetrace mcp-serve --project /abs/path/t
 - `vibetrace_ask` 问「这段为什么这么写」→ 接地回答(配了 key 才有 LLM 综合,否则确定性检索)。
 - 有真实内容 = 端到端通。
 
-> 📷 _截图位:agent 调用 blame/ask 的真实返回_
+![agent 实际调用 vibetrace_blame / vibetrace_ask 的接地返回](images/mcp-call-result.png)
 
 ## 5.(可选)零-egress 硬开关
 
