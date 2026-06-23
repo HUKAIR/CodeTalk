@@ -234,11 +234,14 @@ def _log_usage(project_path, mode, llm):
     })
 
 
-def ask(project_path, target, question, vault=None, since=None, as_json=False):
+def ask(project_path, target, question, vault=None, since=None, as_json=False,
+        no_llm=False):
     """CLI 入口:装配 cache/llm,转 answer_question,打印,返回退出码。"""
     cfg = load_config()
     if vault:
         cfg["vault_path"] = vault
+    if no_llm:
+        cfg["no_llm"] = True              # 硬关 LLM → 下方 LLMClient 抛 LLMError → 降级确定性
     pp = Path(project_path).resolve()
     cache = Cache(CACHE_DB_PATH)
     try:
