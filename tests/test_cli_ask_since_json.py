@@ -9,7 +9,7 @@ class TestCliAskSinceJson(unittest.TestCase):
         got = {}
 
         def fake_ask(project_path, target, question, vault=None,
-                     since=None, as_json=False):
+                     since=None, as_json=False, no_llm=False):
             got.update(p=project_path, t=target, q=question, v=vault,
                        since=since, json=as_json)
             return 0
@@ -25,7 +25,7 @@ class TestCliAskSinceJson(unittest.TestCase):
         got = {}
 
         def fake_ask(project_path, target, question, vault=None,
-                     since=None, as_json=False):
+                     since=None, as_json=False, no_llm=False):
             got.update(since=since, json=as_json)
             return 0
 

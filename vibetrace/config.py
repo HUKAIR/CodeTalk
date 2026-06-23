@@ -20,6 +20,7 @@ DEFAULTS = {
     "diff_token_budget": 3000,
     "output_lang": "中文",   # 叙事/回答的输出语言;英文项目可设 "English"
     "sources": ["claude"],   # 会话源;加 "cursor" 启用 Cursor(opt-in,数据仍不出本机)
+    "no_llm": False,         # 硬开关:置 true 则显式关闭一切 LLM 调用(数据不出本机,连 LLM 例外也关)
     "providers": {
         "deepseek": {"base_url": "https://api.deepseek.com/v1", "api_key": ""},
         "openai": {"base_url": "https://api.openai.com/v1", "api_key": ""},
@@ -46,6 +47,8 @@ def load_config():
     if not isinstance(cfg["providers"], dict):   # 非法 providers(标量/null)回退默认,免 LLMClient .get 崩
         log.warning("config.providers 类型非法,回退默认")
         cfg["providers"] = copy.deepcopy(DEFAULTS["providers"])
+    if os.environ.get("VIBETRACE_NO_LLM"):       # 环境变量硬关 LLM(数据不出本机),一次性覆盖
+        cfg["no_llm"] = True
     return cfg
 
 
