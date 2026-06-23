@@ -114,7 +114,7 @@ def init_cmd(args):
 
 def course_cmd(args):
     from .course import build_course
-    path, err = build_course(args.project)
+    path, err = build_course(args.project, no_llm=getattr(args, "no_llm", False))
     if err:
         return _fail(err)
     print(f"课程已写入:{path}")
@@ -139,7 +139,8 @@ def report_cmd(args):
 def ask_cmd(args):
     from .ask import ask
     return ask(args.project, args.target, args.question, vault=args.vault,
-               since=args.since, as_json=args.as_json)
+               since=args.since, as_json=args.as_json,
+               no_llm=getattr(args, "no_llm", False))
 
 
 def blame_cmd(args):

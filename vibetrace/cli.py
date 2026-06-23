@@ -23,6 +23,8 @@ def _build_parser():
                      help="会话源(默认按 config.sources;cursor 需 opt-in)")
     dig.add_argument("--with-pr", action="store_true",
                      help="额外用 GitHub PR 讨论作 why 源(数据出本机,opt-in)")
+    dig.add_argument("--no-llm", action="store_true",
+                     help="显式关闭 LLM(数据不出本机);digest 需 LLM 故会直接退出")
     tun = _proj(sub.add_parser("tunnel", help="生成时光轴(线性时间线)"))
     tun.add_argument("--serve", action="store_true",
                      help="起本地服务,胶囊回答即时写回 cache(否则只读)")
@@ -37,7 +39,9 @@ def _build_parser():
     slf = sub.add_parser(
         "self", help="自我周报:近 N 天用量/省额/回填率,自证关掉 LLM 仍有价值(零 LLM)")
     slf.add_argument("--days", type=int, default=7, help="聚合窗口天数(默认 7)")
-    _proj(sub.add_parser("course", help="生成演进课程(项目怎么长成的,实验)"))
+    crs = _proj(sub.add_parser("course", help="生成演进课程(项目怎么长成的,实验)"))
+    crs.add_argument("--no-llm", action="store_true",
+                     help="显式关闭 LLM(数据不出本机);降级为按时间均分的朴素课程")
     asq = _proj(sub.add_parser("ask", help="就某段代码提问(接项目记忆,接地回答)"))
     asq.add_argument("target", help='文件或 文件:起-止,如 vibetrace/llm.py:72-78')
     asq.add_argument("question", help="你的问题")
@@ -46,6 +50,8 @@ def _build_parser():
                      "或 commit 范围(如 abc..def);把检索从空间叠到时间维度")
     asq.add_argument("--json", action="store_true", dest="as_json",
                      help="结构化 JSON 输出(agent 可读;无 key 时给确定性检索结果)")
+    asq.add_argument("--no-llm", action="store_true",
+                     help="显式关闭 LLM(数据不出本机);降级为确定性检索结果")
     blm = _proj(sub.add_parser("blame",
                                help="行级决策溯源(零 LLM,确定性罗列,无 key 也能用)"))
     blm.add_argument("target", help='文件或 文件:起-止,如 vibetrace/llm.py:72-78')

@@ -108,9 +108,11 @@ def _chapter_blocks(chapter, project_path, narr_by_short, subj_by_short):
     return blocks
 
 
-def build_course(project_path):
+def build_course(project_path, no_llm=False):
     """Build the course HTML; returns (output_path, error_or_None)."""
     cfg = load_config()
+    if no_llm:
+        cfg["no_llm"] = True              # 硬关 LLM → _make_chapters 的 LLMClient 抛错 → 朴素降级
     project_path = Path(project_path).resolve()
     project = project_path.name
     commits, err = collect_commit_files(project_path)

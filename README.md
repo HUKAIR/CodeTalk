@@ -105,6 +105,10 @@ Vibe-Watch:    先这么扛,并发安全待验证
 - 会话解析以 (session_id, mtime, size) 增量缓存;每次运行参数追加到 `~/.vibetrace/usage.log`。
 - **数据不出本机**(LLM API 调用除外);写缓存 / 写 vault / 注入 HTML **之前**,对常见 secret
   模式(API key / token / JWT / 私钥 / Google / Stripe / Slack …)一律脱敏。
+- **`no_llm` 硬开关**:把那个「LLM 调用」例外也关掉,**保证零 egress**。三种方式任一即生效,
+  全局覆盖(含 MCP `ask` 工具):config.json 置 `"no_llm": true`、设环境变量 `VIBETRACE_NO_LLM=1`、
+  或给 `digest`/`ask`/`course` 加 `--no-llm`。开启后 blame/graph/search/brief/prompts 照常,
+  ask/course/MCP ask 降级为确定性检索,digest 因必须用 LLM 而直接退出(信息明确,不静默)。
 
 ## 已知限制(M0)
 

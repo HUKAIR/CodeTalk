@@ -75,6 +75,8 @@ def digest(args):
         cfg["model"] = args.model
     if args.vault:
         cfg["vault_path"] = args.vault
+    if getattr(args, "no_llm", False):
+        cfg["no_llm"] = True
     project_path = Path(args.project).resolve()
     project = project_path.name        # 显示标题 / 输出文件名
     pkey = str(project_path)            # cache 键:绝对路径,同名项目不串
