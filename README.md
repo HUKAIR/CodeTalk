@@ -34,6 +34,8 @@ python3 -m scripts.build_mcpb     # 产出 vibetrace.mcpb
 `blame`/`graph`/`search` **零 LLM、stdio 同机直连、数据不出本机**;`ask` 会调用你
 `~/.vibetrace/config.json` 里配置的云端 LLM 做综合(无 key 时降级为确定性检索,不崩)。
 
+> 各客户端逐步安装 + 自检 + 排错见 **[`docs/mcp-install.md`](docs/mcp-install.md)**。
+
 ## 配置
 
 ```bash
