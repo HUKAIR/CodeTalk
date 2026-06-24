@@ -27,6 +27,7 @@ from .cache import Cache
 from .config import CACHE_DB_PATH, load_config, redact_secrets
 from .graph import build_graph_json
 from .llm import LLMClient, LLMError
+from .report import _OUTCOMES
 from .search import topic_search
 
 app = FastAPI(title="vibetrace web")
@@ -52,9 +53,9 @@ def index():
 
 @app.get("/console")
 def console_view(project: Optional[str] = None):
-    """接已设计好的「统一控制台」(四视图单页)read-only(serve=False → 不写回,只看)。
-    复用 console._build_html;胶囊回写仍走 `vibetrace console --serve`。"""
-    html, _name, err = console._build_html(_project(project), serve=False)
+    """接已设计好的「统一控制台」(四视图单页)。serve=True → 页面可答胶囊/标回看,
+    经 /capsule、/reviewed 写回 cache.db。复用 console._build_html。"""
+    html, _name, err = console._build_html(_project(project), serve=True)
     if err:
         return HTMLResponse(
             "<body style='background:#0d0d0f;color:#e8e8ea;font-family:sans-serif;"
@@ -64,8 +65,8 @@ def console_view(project: Optional[str] = None):
 
 @app.get("/tunnel")
 def tunnel_view(project: Optional[str] = None):
-    """接已设计好的「时光轴」(线性时间线 + 气球 hover)read-only。复用 tunnel._build_html。"""
-    html, _name, err = tunnel._build_html(_project(project), serve=False)
+    """接已设计好的「时光轴」(线性时间线 + 气球 hover)。serve=True → 胶囊可回写。"""
+    html, _name, err = tunnel._build_html(_project(project), serve=True)
     if err:
         return HTMLResponse(
             "<body style='background:#0d0d0f;color:#e8e8ea;font-family:sans-serif;"
@@ -91,6 +92,15 @@ class ChatReq(BaseModel):
     conv_id: str = "c1"
     target: Optional[str] = None
     turn_seq: int = 0
+
+
+class CapsuleReq(BaseModel):
+    capsule_id: str
+    outcome: str
+
+
+class ReviewedReq(BaseModel):
+    sha: str
 
 
 @app.post("/api/chat")
@@ -156,6 +166,32 @@ def api_projects():
         return {"projects": cache.distinct_projects()}
     finally:
         cache.close()
+
+
+@app.post("/capsule")
+def api_capsule(req: CapsuleReq):
+    """console/tunnel 答待验证胶囊 → 写回 cache。outcome 白名单防任意串(同 webserve)。"""
+    if req.outcome not in _OUTCOMES:
+        return JSONResponse({"error": "bad outcome"}, status_code=400)
+    cache = Cache(CACHE_DB_PATH)
+    try:
+        cache.set_capsule_outcome(req.capsule_id, req.outcome, str(_project(None)))
+    finally:
+        cache.close()
+    return {"ok": True}
+
+
+@app.post("/reviewed")
+def api_reviewed(req: ReviewedReq):
+    """console/tunnel 展开一条 → 标记回看(还理解债信号)写回 cache。"""
+    if not req.sha:
+        return JSONResponse({"error": "bad sha"}, status_code=400)
+    cache = Cache(CACHE_DB_PATH)
+    try:
+        cache.mark_reviewed(str(_project(None)), req.sha)
+    finally:
+        cache.close()
+    return {"ok": True}
 
 
 def serve(project=".", port=8000, no_open=False, no_llm=False):
