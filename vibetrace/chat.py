@@ -1,0 +1,50 @@
+"""接地对话编排(护城河核心)。
+
+每轮:retrieve(零-LLM 真实记录)→ inject(材料喂 LLM)→ 综合 → cite(检索层确定的引用)。
+红线:
+- C-1 出网收口:发给 LLM 的最终 user message(question + 历史 + 材料)整体过 redact_data。
+- 材料空 / llm 不可用(no_llm 时 web 层构造 LLMClient 抛 LLMError → 传 None)→ 不调 LLM,
+  降级为零-LLM 材料罗列(护城河:绝不让 LLM 凭空答)。
+- 引用由检索层确定(retrieval.citations),非模型自报。
+- 每轮落库(脱敏在 conversation.save_turn 内部),反哺接地。
+LLM 作注入依赖(对象需有 .chat(messages)->str);真流式/provider 调用在 Phase 2。
+"""
+from . import conversation, retrieval
+from .config import redact_data
+from .prompts import CHAT_SYSTEM_PROMPT
+
+_NO_MATERIAL = ("没有在项目记忆里找到相关记录;换个关键词,"
+                "或先跑 vibetrace digest 富集叙事。")
+
+
+def build_user_message(question, history, material):
+    """组装发给 LLM 的 user message,并在出网前整体脱敏(C-1 单点收口,不依赖上游)。"""
+    parts = []
+    if history:
+        parts.append("对话历史(仅供理解追问意图,不得作事实依据):\n" + history)
+    parts.append("材料(真实记录,旧→新;只据此回答):\n" + (material or "(无相关记录)"))
+    parts.append(f"问题:{question}")
+    return redact_data("\n\n".join(parts))
+
+
+def answer(cache, llm, project_path, question, *, target=None, conv_id="c1",
+           history="", now="", turn_seq=0):
+    """一轮接地对话 → {answer, citations, conv_id, degraded}。
+    llm=None(无 key / no_llm)或材料空 → degraded=True,LLM 不被调用。"""
+    ev = retrieval.assemble(cache, project_path, question, target=target)
+    conversation.save_turn(cache, f"{conv_id}:{turn_seq}:u", conv_id,
+                           str(project_path), now, "user", question)
+    if llm is None or not ev["hits"]:           # no_llm / 材料空 → 零-LLM 降级,不调 LLM
+        answer_text = ev["material"] or _NO_MATERIAL
+        degraded = True
+    else:
+        messages = [{"role": "system", "content": CHAT_SYSTEM_PROMPT},
+                    {"role": "user",
+                     "content": build_user_message(question, history, ev["material"])}]
+        answer_text = llm.chat(messages)
+        degraded = False
+    conversation.save_turn(cache, f"{conv_id}:{turn_seq}:a", conv_id,
+                           str(project_path), now, "assistant", answer_text,
+                           cited_shas=[h["sha"] for h in ev["hits"]])
+    return {"answer": answer_text, "citations": ev["citations"],
+            "conv_id": conv_id, "degraded": degraded}
