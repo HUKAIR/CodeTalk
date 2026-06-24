@@ -114,6 +114,8 @@ def api_chat(req: ChatReq):
     finally:
         cache.close()
     out["answer"] = redact_secrets(out["answer"])   # 出口兜底脱敏
+    for cit in out.get("citations", []):            # 引用证据出口同样脱敏
+        cit["evidence"] = redact_secrets(cit.get("evidence", ""))
     return JSONResponse(out)
 
 
@@ -131,6 +133,9 @@ def api_chat_stream(req: ChatReq):
                     now=datetime.datetime.now().astimezone().isoformat()):
                 if ev.get("type") == "token":
                     ev["text"] = redact_secrets(ev["text"])
+                elif ev.get("type") == "done":
+                    for cit in ev.get("citations", []):
+                        cit["evidence"] = redact_secrets(cit.get("evidence", ""))
                 yield "data: " + json.dumps(ev, ensure_ascii=False) + "\n\n"
         finally:
             cache.close()

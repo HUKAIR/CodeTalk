@@ -35,6 +35,13 @@ class TestRetrieval(unittest.TestCase):
         self.assertEqual(len(out["citations"]), len(out["hits"]))    # 同源:citations ≡ hits
         self.assertTrue(any(ci["sha"].startswith("aaaaaaa") for ci in out["citations"]))
 
+    def test_citation_carries_evidence_for_verification(self):
+        # 可点开核验:每条 citation 带真实记录(意图/原话),点开即看,无需再请求后端
+        c = Cache(":memory:"); self.addCleanup(c.close); _seed(c)
+        cit = retrieval.assemble(c, "/proj", "流式响应")["citations"][0]
+        self.assertIn("为了流式响应不断连", cit["evidence"])           # 真实意图
+        self.assertIn("把重试改成显式循环别再用装饰器", cit["evidence"])  # 真实会话原话锚点
+
 
 class TestChat(unittest.TestCase):
     def test_grounded_answer_llm_actually_reads_material(self):

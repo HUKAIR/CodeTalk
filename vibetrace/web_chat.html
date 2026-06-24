@@ -24,7 +24,11 @@
   .badge{font-family:var(--mono);font-size:11px;color:var(--warn);margin-left:8px}
   .cites{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px}
   .cite{font-family:var(--mono);font-size:11px;color:var(--accent);
-    border:1px solid var(--line);border-radius:6px;padding:2px 8px}
+    border:1px solid var(--line);border-radius:6px;padding:2px 8px;cursor:pointer}
+  .cite:hover{border-color:var(--accent)}
+  .evid{background:var(--card);border:1px solid var(--line);border-radius:8px;
+    padding:10px 12px;margin-top:8px;white-space:pre-wrap;font-size:12.5px;
+    color:var(--dim);font-family:var(--mono);overflow-x:auto}
   form{display:flex;gap:8px;position:sticky;bottom:0;background:var(--bg);
     padding:12px 0;border-top:1px solid var(--line)}
   textarea{flex:1;background:var(--card);color:var(--fg);border:1px solid var(--line);
@@ -84,13 +88,27 @@ function renderDone(body, ev){
     b.className = "badge"; b.textContent = "零-LLM 接地(未调模型)";
     body.parentNode.querySelector(".who").appendChild(b);
   }
-  (ev.citations || []).forEach(function(c, i){
-    if (i === 0){ var box = document.createElement("div"); box.className = "cites";
-      box.id = "cites-tmp"; body.parentNode.appendChild(box); }
+  var cites = ev.citations || [];
+  if (!cites.length) return;
+  var box = document.createElement("div"); box.className = "cites";
+  var panel = document.createElement("pre"); panel.className = "evid";
+  panel.style.display = "none";
+  cites.forEach(function(c){
     var s = document.createElement("span"); s.className = "cite";
-    s.textContent = (c.kind === "conversation" ? "讨论·" : "") + (c.sha || c.id);
-    body.parentNode.querySelector(".cites").appendChild(s);
+    s.textContent = (c.kind === "conversation" ? "讨论·" : "") + (c.sha || c.id) + " ▸";
+    s.addEventListener("click", function(){              // 点开就地核验真实记录,再点收起
+      var cur = String(c.id);
+      if (panel.dataset.cur === cur && panel.style.display !== "none"){
+        panel.style.display = "none"; panel.dataset.cur = "";
+      } else {
+        panel.textContent = c.evidence || "(无证据)";
+        panel.style.display = "block"; panel.dataset.cur = cur;
+      }
+    });
+    box.appendChild(s);
   });
+  body.parentNode.appendChild(box);
+  body.parentNode.appendChild(panel);
 }
 
 document.getElementById("f").addEventListener("submit", function(e){
