@@ -106,6 +106,16 @@ class TestChatStream(unittest.TestCase):
         turns = conversation.list_conversation(c, "s")
         self.assertEqual(turns[-1]["text"], "因为要支持流式响应")   # 落库=完整答案
 
+    def test_multi_turn_threads_prior_history(self):
+        # 多轮:第二轮的 user message 应带上第一轮的问答(history 串进上下文)
+        c = Cache(":memory:"); self.addCleanup(c.close); _seed(c)
+        llm = _FakeLLM()
+        chat.answer(c, llm, "/proj", "第一问流式响应", conv_id="m", now="t1", turn_seq=0)
+        chat.answer(c, llm, "/proj", "第二问流式响应", conv_id="m", now="t2", turn_seq=1)
+        second_user_msg = llm.calls[1][-1]["content"]
+        self.assertIn("对话历史", second_user_msg)               # history 段被串入(非靠 FTS 反哺)
+        self.assertIn("第一问流式响应", second_user_msg)          # 上一轮 user 在 history 里
+
     def test_no_llm_stream_single_block_degraded(self):
         c = Cache(":memory:"); self.addCleanup(c.close); _seed(c)
         events = list(chat.answer_stream(c, None, "/proj", "流式响应", now="t"))

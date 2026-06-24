@@ -59,7 +59,8 @@ def list_conversation(cache, conv_id):
     _ensure(cache)
     rows = cache.conn.execute(
         "SELECT turn_id,conv_id,project,ts,role,text,cited_shas "
-        "FROM web_conversations WHERE conv_id=? ORDER BY ts", (conv_id,)).fetchall()
+        "FROM web_conversations WHERE conv_id=? ORDER BY ts, turn_id",
+        (conv_id,)).fetchall()
     return [_row(r) for r in rows]
 
 
