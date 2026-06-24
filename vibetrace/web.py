@@ -22,7 +22,7 @@ from fastapi.responses import (HTMLResponse, JSONResponse, Response,
                                StreamingResponse)
 from pydantic import BaseModel
 
-from . import chat, console
+from . import chat, console, tunnel
 from .cache import Cache
 from .config import CACHE_DB_PATH, load_config, redact_secrets
 from .graph import build_graph_json
@@ -59,6 +59,17 @@ def console_view(project: Optional[str] = None):
         return HTMLResponse(
             "<body style='background:#0d0d0f;color:#e8e8ea;font-family:sans-serif;"
             f"padding:24px'>控制台暂不可用:{err}</body>", status_code=400)
+    return HTMLResponse(html)
+
+
+@app.get("/tunnel")
+def tunnel_view(project: Optional[str] = None):
+    """接已设计好的「时光轴」(线性时间线 + 气球 hover)read-only。复用 tunnel._build_html。"""
+    html, _name, err = tunnel._build_html(_project(project), serve=False)
+    if err:
+        return HTMLResponse(
+            "<body style='background:#0d0d0f;color:#e8e8ea;font-family:sans-serif;"
+            f"padding:24px'>时光轴暂不可用:{err}</body>", status_code=400)
     return HTMLResponse(html)
 
 
