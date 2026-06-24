@@ -73,5 +73,46 @@ class TestChat(unittest.TestCase):
         self.assertEqual([t["role"] for t in turns], ["user", "assistant"])
 
 
+class _FakeStreamLLM:
+    def __init__(self, chunks):
+        self.chunks = chunks
+        self.stream_calls = 0
+
+    def chat_stream(self, messages):
+        self.stream_calls += 1
+        for c in self.chunks:
+            yield c
+
+
+class TestChatStream(unittest.TestCase):
+    def test_streams_deltas_and_saves_full_answer(self):
+        c = Cache(":memory:"); self.addCleanup(c.close); _seed(c)
+        llm = _FakeStreamLLM(["因为要支持", "流式响应"])
+        events = list(chat.answer_stream(c, llm, "/proj", "流式响应",
+                                         conv_id="s", now="t"))
+        tokens = [e["text"] for e in events if e["type"] == "token"]
+        self.assertEqual("".join(tokens), "因为要支持流式响应")
+        self.assertEqual(events[-1]["type"], "done")
+        self.assertFalse(events[-1]["degraded"])
+        self.assertGreaterEqual(len(events[-1]["citations"]), 1)
+        from vibetrace import conversation
+        turns = conversation.list_conversation(c, "s")
+        self.assertEqual(turns[-1]["text"], "因为要支持流式响应")   # 落库=完整答案
+
+    def test_no_llm_stream_single_block_degraded(self):
+        c = Cache(":memory:"); self.addCleanup(c.close); _seed(c)
+        events = list(chat.answer_stream(c, None, "/proj", "流式响应", now="t"))
+        self.assertEqual(events[-1]["type"], "done")
+        self.assertTrue(events[-1]["degraded"])
+        self.assertTrue(any(e["type"] == "token" for e in events))
+
+    def test_empty_material_stream_never_calls_llm(self):
+        c = Cache(":memory:"); self.addCleanup(c.close)            # 不 seed → 材料空
+        llm = _FakeStreamLLM(["不该被调用"])
+        events = list(chat.answer_stream(c, llm, "/proj", "查无生僻zzz", now="t"))
+        self.assertEqual(llm.stream_calls, 0)                     # 护城河:材料空不调 LLM
+        self.assertTrue(events[-1]["degraded"])
+
+
 if __name__ == "__main__":
     unittest.main()

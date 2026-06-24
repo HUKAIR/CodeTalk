@@ -58,6 +58,21 @@ function add(who, cls){
   return d.querySelector(".body");
 }
 
+function renderDone(body, ev){
+  if (ev.degraded){
+    var b = document.createElement("span");
+    b.className = "badge"; b.textContent = "零-LLM 接地(未调模型)";
+    body.parentNode.querySelector(".who").appendChild(b);
+  }
+  (ev.citations || []).forEach(function(c, i){
+    if (i === 0){ var box = document.createElement("div"); box.className = "cites";
+      box.id = "cites-tmp"; body.parentNode.appendChild(box); }
+    var s = document.createElement("span"); s.className = "cite";
+    s.textContent = (c.kind === "conversation" ? "讨论·" : "") + (c.sha || c.id);
+    body.parentNode.querySelector(".cites").appendChild(s);
+  });
+}
+
 document.getElementById("f").addEventListener("submit", function(e){
   e.preventDefault();
   var q = document.getElementById("q").value.trim();
@@ -66,29 +81,31 @@ document.getElementById("f").addEventListener("submit", function(e){
   document.getElementById("q").value = "";
   var btn = document.getElementById("send"); btn.disabled = true;
   var body = add("vibetrace", "bot"); body.textContent = "…接地检索中";
-  fetch("/api/chat", { method:"POST", headers:{"Content-Type":"application/json"},
+  fetch("/api/chat/stream", { method:"POST", headers:{"Content-Type":"application/json"},
     body: JSON.stringify({ question:q, conv_id:convId, turn_seq:turn++ }) })
-    .then(function(r){ return r.json(); })
-    .then(function(o){
-      body.textContent = o.answer || "(无回答)";
-      if (o.degraded){
-        var b = document.createElement("span");
-        b.className = "badge"; b.textContent = "零-LLM 接地(未调模型)";
-        body.parentNode.querySelector(".who").appendChild(b);
-      }
-      var cites = o.citations || [];
-      if (cites.length){
-        var box = document.createElement("div"); box.className = "cites";
-        cites.forEach(function(c){
-          var s = document.createElement("span"); s.className = "cite";
-          s.textContent = (c.kind === "conversation" ? "讨论·" : "") + (c.sha || c.id);
-          box.appendChild(s);
+    .then(function(resp){
+      var reader = resp.body.getReader(), dec = new TextDecoder(), buf = "", started = false;
+      function pump(){
+        return reader.read().then(function(res){
+          if (res.done){ btn.disabled = false; return; }
+          buf += dec.decode(res.value, { stream:true });
+          var parts = buf.split("\n\n"); buf = parts.pop();
+          parts.forEach(function(p){
+            var line = p.trim();
+            if (line.indexOf("data:") !== 0) return;
+            var ev; try { ev = JSON.parse(line.slice(5).trim()); } catch(e){ return; }
+            if (ev.type === "token"){
+              if (!started){ body.textContent = ""; started = true; }
+              body.textContent += ev.text;            // 逐块蹦字(流式)
+            } else if (ev.type === "done"){ renderDone(body, ev); }
+          });
+          return pump();
         });
-        body.parentNode.appendChild(box);
       }
+      return pump();
     })
-    .catch(function(){ body.textContent = "出错了(后端没起来?查 vibetrace web 终端)"; })
-    .finally(function(){ btn.disabled = false; });
+    .catch(function(){ body.textContent = "出错了(后端没起来?查 vibetrace web 终端)";
+      btn.disabled = false; });
 });
 </script>
 </body></html>

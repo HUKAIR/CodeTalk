@@ -48,3 +48,33 @@ def answer(cache, llm, project_path, question, *, target=None, conv_id="c1",
                            cited_shas=[h["sha"] for h in ev["hits"]])
     return {"answer": answer_text, "citations": ev["citations"],
             "conv_id": conv_id, "degraded": degraded}
+
+
+def answer_stream(cache, llm, project_path, question, *, target=None, conv_id="c1",
+                  history="", now="", turn_seq=0):
+    """流式接地对话 generator → 逐块 yield {type:"token",text} … 末尾 {type:"done",...}。
+    与 answer 同接地/脱敏/降级口径;落库的是拼齐的完整答案。
+    no_llm/材料空 → 单块零-LLM 罗列 + done,绝不调 LLM(I-2)。"""
+    ev = retrieval.assemble(cache, project_path, question, target=target)
+    conversation.save_turn(cache, f"{conv_id}:{turn_seq}:u", conv_id,
+                           str(project_path), now, "user", question)
+    pieces = []
+    if llm is None or not ev["hits"]:           # 降级:单块,不开流到 LLM
+        text = ev["material"] or _NO_MATERIAL
+        pieces.append(text)
+        yield {"type": "token", "text": text}
+        degraded = True
+    else:
+        messages = [{"role": "system", "content": CHAT_SYSTEM_PROMPT},
+                    {"role": "user",
+                     "content": build_user_message(question, history, ev["material"])}]
+        for delta in llm.chat_stream(messages):
+            pieces.append(delta)
+            yield {"type": "token", "text": delta}
+        degraded = False
+    answer_text = "".join(pieces)
+    conversation.save_turn(cache, f"{conv_id}:{turn_seq}:a", conv_id,
+                           str(project_path), now, "assistant", answer_text,
+                           cited_shas=[h["sha"] for h in ev["hits"]])
+    yield {"type": "done", "citations": ev["citations"],
+           "conv_id": conv_id, "degraded": degraded}
