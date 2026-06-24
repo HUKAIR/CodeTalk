@@ -9,8 +9,10 @@
   body{margin:0;background:var(--bg);color:var(--fg);
     font:15px/1.6 -apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif}
   header{padding:12px 20px;border-bottom:1px solid var(--line);font-family:var(--mono);
-    font-size:12px;color:var(--dim);letter-spacing:.04em}
+    font-size:12px;color:var(--dim);letter-spacing:.04em;display:flex;
+    justify-content:space-between;align-items:center;gap:12px}
   header b{color:var(--fg);letter-spacing:.12em}
+  header a{color:var(--accent);text-decoration:none}
   main{max-width:820px;margin:0 auto;padding:20px;display:flex;flex-direction:column;
     min-height:calc(100vh - 46px)}
   #log{flex:1}
@@ -32,7 +34,8 @@
   button:disabled{opacity:.5;cursor:not-allowed}
   .hint{color:var(--dim);font-size:13px;margin:6px 0 0}
 </style></head><body>
-<header><span><b>VIBETRACE</b> // 接地对话 · 数据不出本机</span></header>
+<header><span><b>VIBETRACE</b> // 接地对话 · 数据不出本机</span>
+  <a href="/console">控制台 · 四视图 →</a></header>
 <main>
   <p class="hint">问「这段代码当初为什么这么写」——答案接地到真实 commit / 决策 / 会话原话;
     无 key 或 --no-llm 时降级为零-LLM 接地罗列(不出网)。</p>

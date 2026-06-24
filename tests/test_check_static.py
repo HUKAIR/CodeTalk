@@ -17,9 +17,10 @@ class TestCheckStatic(unittest.TestCase):
         self.assertEqual(scan("fetch('/api/chat'); img('http://127.0.0.1:8000/a')"), [])
         self.assertEqual(scan("a('http://localhost/x')"), [])
 
-    def test_web_chat_html_has_no_external_links(self):
-        # 红线实测:发布给客户的对话页绝不外联
-        self.assertEqual(check_file(_PKG / "web_chat.html"), [])
+    def test_served_pages_have_no_external_links(self):
+        # 红线实测:web app 托管的页面(对话页 + 接进来的控制台)绝不外联
+        for name in ("web_chat.html", "console.html"):
+            self.assertEqual(check_file(_PKG / name), [], name)
 
 
 if __name__ == "__main__":

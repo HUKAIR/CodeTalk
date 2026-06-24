@@ -22,7 +22,7 @@ from fastapi.responses import (HTMLResponse, JSONResponse, Response,
                                StreamingResponse)
 from pydantic import BaseModel
 
-from . import chat
+from . import chat, console
 from .cache import Cache
 from .config import CACHE_DB_PATH, load_config, redact_secrets
 from .graph import build_graph_json
@@ -48,6 +48,18 @@ async def _csp_header(request, call_next):
 @app.get("/")
 def index():
     return HTMLResponse(_CHAT_HTML)
+
+
+@app.get("/console")
+def console_view(project: Optional[str] = None):
+    """接已设计好的「统一控制台」(四视图单页)read-only(serve=False → 不写回,只看)。
+    复用 console._build_html;胶囊回写仍走 `vibetrace console --serve`。"""
+    html, _name, err = console._build_html(_project(project), serve=False)
+    if err:
+        return HTMLResponse(
+            "<body style='background:#0d0d0f;color:#e8e8ea;font-family:sans-serif;"
+            f"padding:24px'>控制台暂不可用:{err}</body>", status_code=400)
+    return HTMLResponse(html)
 
 
 def _llm():
