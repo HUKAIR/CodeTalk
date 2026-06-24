@@ -79,3 +79,11 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
   (**格式与示例的唯一权威见 `vibetrace/agent_seed.md`**,可 `vibetrace install-agent-seed`
   植入任意项目)。digest 把 Decision 并进该 commit 决策、Watch 并进 risks(到期封成可验证
   胶囊),`vibetrace ask <文件>[:行] "问题"` / `graph` 据此接地回答"这段代码当初为什么这么写"。
+- **依赖分面(M0 修订 2026-06-24,web app 落地)**:上面「禁 Web 框架 / 仅 stdlib」适用
+  **CLI / MCP 核心面**(`pip install -e .` 仍 `dependencies=[]`,anthropic 为可选 extra)。
+  **新 web-app 面**(`vibetrace web`,`pip install -e ".[web]"` 可选 extra)允许 FastAPI /
+  uvicorn 等框架;但 ① web extra 不得被 CLI/MCP import(惰性 import,核心仍纯 stdlib);
+  ② 仍禁 LangGraph / 向量库 / 重前端构建链——优先零-build 单文件 vanilla-JS(`web_chat.html`),
+  React/Vite 仅在 chat UX 真需要(流式/消息管理)时再上。**隐私红线不变**:web 默认仅绑
+  127.0.0.1、绝不 phone home(除 LLM 唯一例外)、出网前 + 落库前脱敏、前端零 LLM 直连
+  (CSP `connect-src 'self'`;静态产物经 `scripts/check_static_no_external.py` 扫无外链)。

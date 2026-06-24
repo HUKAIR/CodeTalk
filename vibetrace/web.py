@@ -17,7 +17,7 @@ from typing import Optional
 
 import uvicorn
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel
 
 from . import chat
@@ -29,6 +29,23 @@ from .search import topic_search
 
 app = FastAPI(title="vibetrace web")
 _DEFAULT_PROJECT = "."
+_CHAT_HTML = (Path(__file__).parent / "web_chat.html").read_text(encoding="utf-8")
+# 前端零外联红线:connect-src 'self' 让页面只能 fetch 同源 /api(LLM egress 仅后端发);
+# inline 脚本/样式沿用既有单文件 HTML 范式,故 script/style 放 'unsafe-inline'。
+_CSP = ("default-src 'self'; connect-src 'self'; img-src 'self' data:; "
+        "script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'")
+
+
+@app.middleware("http")
+async def _csp_header(request, call_next):
+    resp = await call_next(request)
+    resp.headers["Content-Security-Policy"] = _CSP
+    return resp
+
+
+@app.get("/")
+def index():
+    return HTMLResponse(_CHAT_HTML)
 
 
 def _llm():
