@@ -37,6 +37,7 @@
   <p class="hint">问「这段代码当初为什么这么写」——答案接地到真实 commit / 决策 / 会话原话;
     无 key 或 --no-llm 时降级为零-LLM 接地罗列(不出网)。</p>
   <div id="log"></div>
+  <div id="shint" class="hint"></div>
   <form id="f">
     <textarea id="q" placeholder="例:为什么把重试从装饰器改成显式循环?(可带 文件:行)"></textarea>
     <button id="send" type="submit">问</button>
@@ -46,6 +47,22 @@
 var convId = "web-" + Date.now();
 var turn = 0;
 var log = document.getElementById("log");
+
+// 输入框为空时按 Tab → 填入当前建议问题并切下一条(无外联,纯本地)
+var SUGGEST = ["为什么这段代码当初要这么写?", "这里的关键决策是什么,依据什么?",
+  "为什么从 X 改成 Y?", "这段有哪些待验证的风险?",
+  "vibetrace/llm.py:43-56 当初为什么这么设计?"];
+var sIdx = 0, qEl = document.getElementById("q"), sHint = document.getElementById("shint");
+function showSuggest(){ sHint.textContent = "💡 Tab 填入:" + SUGGEST[sIdx]; }
+showSuggest();
+qEl.addEventListener("keydown", function(e){
+  if (e.key === "Tab" && !qEl.value.trim()){
+    e.preventDefault();
+    qEl.value = SUGGEST[sIdx];
+    sIdx = (sIdx + 1) % SUGGEST.length;
+    showSuggest();
+  }
+});
 
 function esc(s){ return String(s == null ? "" : s)
   .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
