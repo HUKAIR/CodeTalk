@@ -165,6 +165,21 @@ def _is_trivial(commit):
                for f in files)
 
 
+def backfill_evidence(commits, cache, project):
+    """零-LLM:给『已叙事但缺 evidence』的 commit 据已对齐会话补 evidence 原话锚点
+    (commits 须先 align;只补不重算 LLM 叙事,守 immutable)。→ 补上 evidence 的条数。"""
+    done = 0
+    for commit in commits:
+        n = cache.get_narrative(commit["sha"])
+        if not n or n.get("evidence"):
+            continue
+        ev = _evidence(commit)
+        if ev:
+            cache.set_narrative_evidence(commit["sha"], ev)
+            done += 1
+    return done
+
+
 def enrich_commits(commits, llm, cache, project, with_pr=False):
     stats = {"cache_hits": 0, "llm_calls": 0, "failures": 0, "trivial": 0}
     # 项目背景读一次脱敏,作稳定缓存前缀(系统提示+项目上下文),供本次所有 commit 复用

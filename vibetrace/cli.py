@@ -44,7 +44,9 @@ def _build_parser():
     enr.add_argument("--since", default="20 years ago",
                      help='富集范围(默认全史;如 "3 months ago")')
     enr.add_argument("--no-llm", action="store_true",
-                     help="显式关闭 LLM(富集需 LLM,故会直接退出)")
+                     help="显式关闭 LLM(仍做零-LLM 的 evidence 补;未叙事项跳过)")
+    enr.add_argument("--source", choices=["claude", "cursor", "both"],
+                     help="会话源(默认按 config.sources;影响 evidence 原话锚点收割)")
     crs = _proj(sub.add_parser("course", help="生成演进课程(项目怎么长成的,实验)"))
     crs.add_argument("--no-llm", action="store_true",
                      help="显式关闭 LLM(数据不出本机);降级为按时间均分的朴素课程")
