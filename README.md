@@ -36,6 +36,26 @@ python3 -m scripts.build_mcpb     # 产出 vibetrace.mcpb
 
 > 各客户端逐步安装 + 自检 + 排错见 **[`docs/mcp-install.md`](docs/mcp-install.md)**。
 
+## vibetrace web —— 自托管接地对话(新)
+
+一个本地优先的交互网页:和 LLM 多轮讨论「这段代码当初为什么这么写」,但每一轮**先零-LLM
+检索你项目的真实记录**(commit 叙事 / 决策面包屑 / 会话原话),把真实证据喂给模型,答案旁
+**并排可核验的引用**;讨论本身脱敏后落库,反哺未来的 `ask`/`search`。**自托管 = 数据留在
+你自己机器,卖软件不卖服务。**
+
+```bash
+pip install -e ".[web]"                            # web 面可选 extra(FastAPI/uvicorn;CLI/MCP 仍纯 stdlib)
+vibetrace web --project /path/to/repo              # 绑 127.0.0.1、自动开浏览器、逐字流式
+vibetrace web --project /path/to/repo --no-llm     # 零出网:降级为零-LLM 接地罗列
+```
+
+- **接地、可核验**:答案锚定真实 commit / 决策 / 会话原话,每条结论旁的引用可点开核验——这是
+  和「套壳聊天」的分界线;**模型脱离真实材料不作答**(材料空 → 不调模型,只确定性罗列)。
+- **隐私红线**:默认只绑 `127.0.0.1`、绝不 phone home(除 LLM 调用)、出网前 + 落库前脱敏、
+  前端零外联(CSP `connect-src 'self'`;静态产物经 `scripts/check_static_no_external.py` 守)。
+- **给客户自托管**:单镜像 Docker(见 `Dockerfile`:`docker build -t vibetrace .` → `docker run`)。
+- 前端首版为零-build 单文件 vanilla-JS;React/Vite 仅在 chat UX(流式已有,后续如需消息管理)再上。
+
 ## 配置
 
 ```bash
