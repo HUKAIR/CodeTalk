@@ -53,6 +53,18 @@ class TestChat(unittest.TestCase):
         self.assertIn("为了流式响应不断连", llm.calls[0][-1]["content"])  # LLM 真读到材料
         self.assertGreaterEqual(len(out["citations"]), 1)
 
+    def test_answer_reports_deterministic_grounding(self):
+        # P0b:确定性接地覆盖徽标(零-LLM,按命中种类算)——落「暴露置信度」处方
+        c = Cache(":memory:"); self.addCleanup(c.close); _seed(c)
+        out = chat.answer(c, _FakeLLM(), "/proj", "流式响应", now="t")
+        self.assertGreaterEqual(out["grounding"]["commits"], 1)   # 接地于真实 commit
+        self.assertFalse(out["grounding"]["degraded"])
+
+    def test_grounding_marks_degraded_when_no_llm(self):
+        c = Cache(":memory:"); self.addCleanup(c.close); _seed(c)
+        out = chat.answer(c, None, "/proj", "流式响应", now="t")
+        self.assertTrue(out["grounding"]["degraded"])
+
     def test_final_payload_redacted_before_llm(self):
         # C-1:出网前整体脱敏(key="value" 形式也收口)
         msg = chat.build_user_message("问题", "", '决策:token="hunter2hunter2X" 见 commit')
@@ -105,6 +117,12 @@ class TestChatStream(unittest.TestCase):
         from vibetrace import conversation
         turns = conversation.list_conversation(c, "s")
         self.assertEqual(turns[-1]["text"], "因为要支持流式响应")   # 落库=完整答案
+
+    def test_stream_done_carries_grounding(self):
+        c = Cache(":memory:"); self.addCleanup(c.close); _seed(c)
+        events = list(chat.answer_stream(c, _FakeStreamLLM(["x"]), "/proj",
+                                         "流式响应", now="t"))
+        self.assertGreaterEqual(events[-1]["grounding"]["commits"], 1)
 
     def test_multi_turn_threads_prior_history(self):
         # 多轮:第二轮的 user message 应带上第一轮的问答(history 串进上下文)
