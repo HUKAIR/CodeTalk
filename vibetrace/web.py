@@ -55,7 +55,7 @@ def index():
 def console_view(project: Optional[str] = None):
     """接已设计好的「统一控制台」(四视图单页)。serve=True → 页面可答胶囊/标回看,
     经 /capsule、/reviewed 写回 cache.db。复用 console._build_html。"""
-    html, _name, err = console._build_html(_project(project), serve=True)
+    html, _name, err = console._build_html(_project(project), serve=True, chat=True)
     if err:
         return HTMLResponse(
             "<body style='background:#0d0d0f;color:#e8e8ea;font-family:sans-serif;"
