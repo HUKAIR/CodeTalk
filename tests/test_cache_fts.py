@@ -3,6 +3,9 @@
 覆盖中文 trigram 召回(必须真通过)、MATCH 转义崩溃用例、fts_ok 降级、
 <3 字符有效 term 走空、脱敏继承。纯内存、纯 stdlib(sqlite3)。
 """
+import os
+import shutil
+import tempfile
 import unittest
 from unittest import mock
 
@@ -135,6 +138,72 @@ class TestFtsUpsert(unittest.TestCase):
         self.assertEqual(cnt, 1)
         self.assertEqual(c.search_narratives("悲观锁"), ["s1"])
         self.assertEqual(c.search_narratives("乐观锁"), [])    # 旧 body 已删
+
+
+class TestFtsBackfill(unittest.TestCase):
+    """建 FTS 写入逻辑前就已缓存的 commit 叙事(SHA 键 immutable、永不重写)
+    不会被补索引,导致 search/接地对话召不回。重开 Cache 应一次性自愈回填。"""
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        self.db = os.path.join(self.dir, "cache.db")
+
+    def tearDown(self):
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def _legacy(self, sha, narrative_json):
+        # 模拟「只在主表、不在 FTS」的旧叙事:直写主表 + 从 FTS 抹掉
+        c = Cache(self.db)
+        if not c.fts_ok:
+            self.skipTest("FTS5 trigram 不可用")
+        c.conn.execute("INSERT INTO commit_narratives VALUES (?,?,?,?,?)",
+                       (sha, "/p", "m", narrative_json, "t"))
+        c.conn.execute("DELETE FROM narrative_fts WHERE sha=?", (sha,))
+        c.conn.commit()
+        c.close()
+
+    def test_preexisting_narrative_backfilled_on_reopen(self):
+        sha = "a" * 40
+        self._legacy(sha, '{"why": "为什么要做时光轴线性时间线", '
+                          '"decisions": ["脱敏在编码前"]}')
+        c2 = Cache(self.db)                        # 重开 → _init_fts 自愈回填
+        self.assertIn(sha, c2.search_narratives("时光轴"))
+        c2.close()
+
+    def test_backfill_excludes_derived_keys(self):
+        c = Cache(self.db)
+        if not c.fts_ok:
+            self.skipTest("FTS5 不可用")
+        c.conn.execute("INSERT INTO commit_narratives VALUES (?,?,?,?,?)",
+                       ("graph:" + "b" * 40, "/p", "graph", '{"nodes": []}', "t"))
+        c.conn.commit()
+        c.close()
+        c2 = Cache(self.db)                        # 回填只认真实 SHA,派生键(含 ':')跳过
+        n = c2.conn.execute(
+            "SELECT COUNT(*) FROM narrative_fts WHERE sha LIKE 'graph:%'").fetchone()[0]
+        c2.close()
+        self.assertEqual(n, 0)
+
+    def test_backfill_idempotent_no_duplicates(self):
+        sha = "c" * 40
+        self._legacy(sha, '{"why": "用幂等去重保证一致"}')
+        Cache(self.db).close()                    # 第一次回填
+        c3 = Cache(self.db)                        # 第二次:anti-join 命中 0,不重复插
+        cnt = c3.conn.execute(
+            "SELECT COUNT(*) FROM narrative_fts WHERE sha=?", (sha,)).fetchone()[0]
+        c3.close()
+        self.assertEqual(cnt, 1)
+
+    def test_backfill_redacts_legacy_unredacted_narrative(self):
+        # 红线:redact_data 落库前缓存的旧叙事可能未脱敏;回填进 FTS 前必须再脱敏
+        sha = "d" * 40
+        self._legacy(sha, '{"why": "旧 key sk-abcdefghijklmnop1234 未脱敏入库"}')
+        c2 = Cache(self.db)
+        row = c2.conn.execute(
+            "SELECT body FROM narrative_fts WHERE sha=?", (sha,)).fetchone()
+        c2.close()
+        self.assertIsNotNone(row)                              # 已回填
+        self.assertNotIn("sk-abcdefghijklmnop1234", row[0])    # 明文 secret 不入 FTS
 
 
 if __name__ == "__main__":
