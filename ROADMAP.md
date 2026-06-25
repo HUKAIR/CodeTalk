@@ -6,7 +6,8 @@
 
 来源:`docs/discovery/2026-06-25-外部对标-codereview与UX.md`(第一轮)+ `2026-06-25-外部对标-第二轮.md`(第二轮)。
 按 Now/Next/Later 排,标红线。**本会话已落地**(PR #51/#52):FTS 回填、2 字中文 LIKE 召回、接地覆盖徽标(粗)、
-MCP review-time 描述、console 内嵌接地对话 dock + 行/决策节点原地追问、enrich 覆盖补全命令。以下是**仍缺的**。
+MCP review-time 描述、console 内嵌接地对话 dock + 行/决策节点原地追问、enrich 覆盖补全命令、**MCP 参数对齐(Top3-①)、
+`vibetrace review` 零-LLM review 入口(Top3-②)、引用 hover 预览+PR 跳源(Top3-③)**。以下是**仍缺的**。
 
 **Now(低成本 / 红线内 / 高 ROI)**
 - **引用核验加 hover 预览 + 点击跳真实源**(对齐 GitLens hover-card 范式;现仅可点开)。[R2 · UX]
