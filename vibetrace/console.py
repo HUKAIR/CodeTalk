@@ -10,7 +10,7 @@ from string import Template
 
 from . import brief, graph, tunnel
 from .cache import Cache
-from .config import CACHE_DB_PATH, load_config, redact_secrets
+from .config import CACHE_DB_PATH, load_config, redact_data, redact_secrets
 from .debt import debt_board
 from .gitlog import collect_commit_files
 from .webserve import inline_json
@@ -67,7 +67,7 @@ def _build_html(project_path, serve):
                         .read_text(encoding="utf-8"))
     html = template.substitute(
         project=pp.name,
-        data=inline_json(data),
+        data=inline_json(redact_data(data)),
         generated=f"{today:%Y.%m.%d}",
         serve="true" if serve else "false",
     )
