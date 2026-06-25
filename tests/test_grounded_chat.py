@@ -35,6 +35,13 @@ class TestRetrieval(unittest.TestCase):
         self.assertEqual(len(out["citations"]), len(out["hits"]))    # 同源:citations ≡ hits
         self.assertTrue(any(ci["sha"].startswith("aaaaaaa") for ci in out["citations"]))
 
+    def test_citation_carries_evidence_for_verification(self):
+        # 可点开核验:每条 citation 带真实记录(意图/原话),点开即看,无需再请求后端
+        c = Cache(":memory:"); self.addCleanup(c.close); _seed(c)
+        cit = retrieval.assemble(c, "/proj", "流式响应")["citations"][0]
+        self.assertIn("为了流式响应不断连", cit["evidence"])           # 真实意图
+        self.assertIn("把重试改成显式循环别再用装饰器", cit["evidence"])  # 真实会话原话锚点
+
 
 class TestChat(unittest.TestCase):
     def test_grounded_answer_llm_actually_reads_material(self):
@@ -71,6 +78,57 @@ class TestChat(unittest.TestCase):
         from vibetrace import conversation
         turns = conversation.list_conversation(c, "cv")
         self.assertEqual([t["role"] for t in turns], ["user", "assistant"])
+
+
+class _FakeStreamLLM:
+    def __init__(self, chunks):
+        self.chunks = chunks
+        self.stream_calls = 0
+
+    def chat_stream(self, messages):
+        self.stream_calls += 1
+        for c in self.chunks:
+            yield c
+
+
+class TestChatStream(unittest.TestCase):
+    def test_streams_deltas_and_saves_full_answer(self):
+        c = Cache(":memory:"); self.addCleanup(c.close); _seed(c)
+        llm = _FakeStreamLLM(["因为要支持", "流式响应"])
+        events = list(chat.answer_stream(c, llm, "/proj", "流式响应",
+                                         conv_id="s", now="t"))
+        tokens = [e["text"] for e in events if e["type"] == "token"]
+        self.assertEqual("".join(tokens), "因为要支持流式响应")
+        self.assertEqual(events[-1]["type"], "done")
+        self.assertFalse(events[-1]["degraded"])
+        self.assertGreaterEqual(len(events[-1]["citations"]), 1)
+        from vibetrace import conversation
+        turns = conversation.list_conversation(c, "s")
+        self.assertEqual(turns[-1]["text"], "因为要支持流式响应")   # 落库=完整答案
+
+    def test_multi_turn_threads_prior_history(self):
+        # 多轮:第二轮的 user message 应带上第一轮的问答(history 串进上下文)
+        c = Cache(":memory:"); self.addCleanup(c.close); _seed(c)
+        llm = _FakeLLM()
+        chat.answer(c, llm, "/proj", "第一问流式响应", conv_id="m", now="t1", turn_seq=0)
+        chat.answer(c, llm, "/proj", "第二问流式响应", conv_id="m", now="t2", turn_seq=1)
+        second_user_msg = llm.calls[1][-1]["content"]
+        self.assertIn("对话历史", second_user_msg)               # history 段被串入(非靠 FTS 反哺)
+        self.assertIn("第一问流式响应", second_user_msg)          # 上一轮 user 在 history 里
+
+    def test_no_llm_stream_single_block_degraded(self):
+        c = Cache(":memory:"); self.addCleanup(c.close); _seed(c)
+        events = list(chat.answer_stream(c, None, "/proj", "流式响应", now="t"))
+        self.assertEqual(events[-1]["type"], "done")
+        self.assertTrue(events[-1]["degraded"])
+        self.assertTrue(any(e["type"] == "token" for e in events))
+
+    def test_empty_material_stream_never_calls_llm(self):
+        c = Cache(":memory:"); self.addCleanup(c.close)            # 不 seed → 材料空
+        llm = _FakeStreamLLM(["不该被调用"])
+        events = list(chat.answer_stream(c, llm, "/proj", "查无生僻zzz", now="t"))
+        self.assertEqual(llm.stream_calls, 0)                     # 护城河:材料空不调 LLM
+        self.assertTrue(events[-1]["degraded"])
 
 
 if __name__ == "__main__":

@@ -61,6 +61,110 @@ class LLMClient:
             return self._anthropic(user_prompt, schema, max_tokens, sys, cache_prefix)
         return self._openai_compat(user_prompt, schema, max_tokens, sys, cache_prefix)
 
+    def chat(self, messages, max_tokens=MAX_OUTPUT_TOKENS):
+        """多轮自由文本对话补全(非 JSON):接地材料已由调用方拼进 messages 并脱敏。
+        → 答案字符串;失败抛 LLMError。no_llm 在 __init__ 已拦,到不了这里。"""
+        if self.provider == "anthropic":
+            return self._anthropic_chat(messages, max_tokens)
+        return self._openai_chat(messages, max_tokens)
+
+    def chat_stream(self, messages, max_tokens=MAX_OUTPUT_TOKENS):
+        """流式对话补全 → 逐块 yield 文本 delta。接地材料已由调用方脱敏拼好。
+        no_llm 在 __init__ 已拦。流式不重试(中途失败抛 LLMError,调用方可回退)。"""
+        if self.provider == "anthropic":
+            return self._anthropic_chat_stream(messages, max_tokens)
+        return self._openai_chat_stream(messages, max_tokens)
+
+    def _openai_chat_stream(self, messages, max_tokens):
+        body = json.dumps({"model": self.model, "messages": messages,
+                           "max_tokens": max_tokens, "stream": True}).encode("utf-8")
+        request = urllib.request.Request(
+            f"{self.base_url}/chat/completions", data=body, method="POST",
+            headers={"Content-Type": "application/json",
+                     "Authorization": f"Bearer {self.api_key}"})
+        try:
+            with urllib.request.urlopen(request, timeout=180) as resp:
+                for raw in resp:                       # 逐行读 text/event-stream
+                    line = raw.decode("utf-8", "replace").strip()
+                    if not line.startswith("data:"):
+                        continue
+                    data = line[5:].strip()
+                    if data == "[DONE]":
+                        break
+                    try:
+                        delta = json.loads(data)["choices"][0]["delta"].get("content")
+                    except (json.JSONDecodeError, KeyError, IndexError):
+                        continue                       # 心跳/异常块跳过,不崩
+                    if delta:
+                        yield delta
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError,
+                OSError) as exc:
+            raise LLMError(f"{self.provider}/{self.model} 流式失败:{exc}") from exc
+
+    def _anthropic_chat_stream(self, messages, max_tokens):
+        try:
+            import anthropic
+        except ImportError as exc:
+            raise LLMError("anthropic SDK 未安装:pip install anthropic") from exc
+        system = next((m["content"] for m in messages if m["role"] == "system"), "")
+        turns = [m for m in messages if m["role"] != "system"]
+        client = anthropic.Anthropic(api_key=self.api_key, max_retries=3)
+        try:
+            with client.messages.stream(model=self.model, max_tokens=max_tokens,
+                                        system=system, messages=turns) as stream:
+                yield from stream.text_stream
+        except anthropic.APIError as exc:
+            raise LLMError(f"anthropic 流式失败:{exc}") from exc
+
+    def _openai_chat(self, messages, max_tokens):
+        body = json.dumps({"model": self.model, "messages": messages,
+                           "max_tokens": max_tokens}).encode("utf-8")
+        request = urllib.request.Request(
+            f"{self.base_url}/chat/completions", data=body, method="POST",
+            headers={"Content-Type": "application/json",
+                     "Authorization": f"Bearer {self.api_key}"})
+        last_err = None
+        for attempt in range(MAX_ATTEMPTS):
+            if attempt:
+                time.sleep(1.5 ** attempt)
+            try:
+                with urllib.request.urlopen(request, timeout=180) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                content = data["choices"][0]["message"]["content"]
+                usage = data.get("usage") or {}
+                self.stats["calls"] += 1
+                self.stats["input_tokens"] += usage.get("prompt_tokens") or 0
+                self.stats["output_tokens"] += usage.get("completion_tokens") or 0
+                return content
+            except urllib.error.HTTPError as exc:
+                last_err = f"HTTP {exc.code}: {exc.read().decode('utf-8', 'replace')[:200]}"
+                if exc.code not in RETRYABLE_HTTP:
+                    break
+            except (urllib.error.URLError, TimeoutError, OSError) as exc:
+                last_err = f"网络错误:{exc}"
+            except (KeyError, IndexError, json.JSONDecodeError) as exc:
+                last_err = f"响应不符合预期:{exc}"
+            log.warning("LLM chat 调用失败(第 %d 次):%s", attempt + 1, last_err)
+        raise LLMError(f"{self.provider}/{self.model} chat 调用失败:{last_err}")
+
+    def _anthropic_chat(self, messages, max_tokens):
+        try:
+            import anthropic
+        except ImportError as exc:
+            raise LLMError("anthropic SDK 未安装:pip install anthropic") from exc
+        system = next((m["content"] for m in messages if m["role"] == "system"), "")
+        turns = [m for m in messages if m["role"] != "system"]
+        client = anthropic.Anthropic(api_key=self.api_key, max_retries=3)
+        try:
+            resp = client.messages.create(model=self.model, max_tokens=max_tokens,
+                                           system=system, messages=turns)
+        except anthropic.APIError as exc:
+            raise LLMError(f"anthropic chat 调用失败:{exc}") from exc
+        self.stats["calls"] += 1
+        self.stats["input_tokens"] += resp.usage.input_tokens
+        self.stats["output_tokens"] += resp.usage.output_tokens
+        return next((b.text for b in resp.content if b.type == "text"), "")
+
     def _openai_compat(self, user_prompt, schema, max_tokens, system=None,
                        cache_prefix=""):
         system = ((system or SYSTEM_PROMPT) + "\n\nJSON Schema:\n"
