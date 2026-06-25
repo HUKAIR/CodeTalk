@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .config import redact_data, redact_secrets
-from .fts import backfill, build_match, fts_body
+from .fts import backfill, build_match, fts_body, like_search
 
 log = logging.getLogger("vibetrace")
 
@@ -103,17 +103,21 @@ class Cache:
 
     def search_narratives(self, query, limit=8):
         """主题级内容召回 → 命中 sha(bm25 排序)。零 LLM、确定性。
-        fts_ok=False / 0 有效 term → [];任何 sqlite3.Error → []。"""
-        if not (self.fts_ok and (match := build_match(query))):
+        ≥3 字 term 走 trigram MATCH;无 match/无命中且含 2 字中文 → LIKE 回退
+        (trigram 对 2 字 CJK 无 shingle,如『脱敏』);fts_ok=False → [];sqlite3.Error 降级。"""
+        if not self.fts_ok:
             return []
-        try:
-            rows = self.conn.execute(
-                "SELECT sha FROM narrative_fts WHERE narrative_fts MATCH ? "
-                "ORDER BY bm25(narrative_fts) LIMIT ?", (match, limit)).fetchall()
-            return [r[0] for r in rows]
-        except sqlite3.Error as exc:
-            log.warning("FTS 检索失败(%s),返回空", exc)
-            return []
+        match = build_match(query)
+        if match:
+            try:
+                rows = self.conn.execute(
+                    "SELECT sha FROM narrative_fts WHERE narrative_fts MATCH ? "
+                    "ORDER BY bm25(narrative_fts) LIMIT ?", (match, limit)).fetchall()
+                if rows:
+                    return [r[0] for r in rows]
+            except sqlite3.Error as exc:
+                log.warning("FTS 检索失败(%s),试 LIKE 回退", exc)
+        return like_search(self.conn, query, limit)
 
     def get_session(self, session_id):
         row = self.conn.execute(
