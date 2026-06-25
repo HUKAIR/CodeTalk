@@ -180,6 +180,24 @@ def blame_cmd(args):
     return blame(args.project, args.target)
 
 
+def review_cmd(args):
+    """review 现场入口(零 LLM):--diff 文件 / 管道 stdin / 默认 git diff HEAD。"""
+    from .review import review
+    diff_text = None
+    if getattr(args, "diff", None):
+        try:
+            diff_text = Path(args.diff).read_text(encoding="utf-8")
+        except OSError as exc:
+            return _fail(f"读 diff 文件失败:{exc}")
+    elif not sys.stdin.isatty():                  # git diff | vibetrace review
+        diff_text = sys.stdin.read()
+    out, err = review(args.project, diff_text)
+    if err:
+        return _fail(err)
+    print(out)
+    return 0
+
+
 def search_cmd(args):
     """主题级零-LLM 召回:装配 cache → topic_search → 打印。无 key 也能用。"""
     pp = Path(args.project).resolve()

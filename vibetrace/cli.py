@@ -61,6 +61,9 @@ def _build_parser():
     blm = _proj(sub.add_parser("blame",
                                help="行级决策溯源(零 LLM,确定性罗列,无 key 也能用)"))
     blm.add_argument("target", help='文件或 文件:起-止,如 vibetrace/llm.py:72-78')
+    rev = _proj(sub.add_parser(
+        "review", help="review 现场:粘 diff/git diff → 逐改动块的历史决策+真实引用(零 LLM)"))
+    rev.add_argument("--diff", help="读 diff 文件(默认 git diff HEAD;或 git diff | vibetrace review)")
     sea = _proj(sub.add_parser(
         "search", help="主题级『当初为什么』召回:全仓按关键词找相关 commit(零 LLM)"))
     sea.add_argument("question", help="主题/关键词(需 ≥3 字符)")
@@ -114,6 +117,7 @@ _DISPATCH = {
     "self": commands.self_cmd,
     "ask": commands.ask_cmd,
     "blame": commands.blame_cmd,
+    "review": commands.review_cmd,
     "search": commands.search_cmd,
     "prompts": commands.prompts_cmd,
     "graph": commands.graph_cmd,
