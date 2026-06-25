@@ -84,6 +84,22 @@ class TestConsoleBuildHtml(unittest.TestCase):
         self.assertIn("[REDACTED]", html)        # 脱敏生效
         self.assertNotIn("sk-abcdef0123456789ABCDEF", html)
 
+    def test_build_html_redacts_quoted_keyvalue_in_subject(self):
+        # key="value" 形式:inline_json 转义引号后,只靠整页 redact 会漏 → redact_data 须先脱敏
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        _git(["init", "-q"], d)
+        _git(["config", "user.email", "t@t"], d)
+        _git(["config", "user.name", "t"], d)
+        (Path(d) / "a.py").write_text("1\n"); _git(["add", "."], d)
+        _git(["commit", "-q", "-m", 'set token="ZxCvB12345Mn" ZZMARKER'], d)
+        dbfile = str(Path(d) / "cache.db")
+        with mock.patch.object(console, "CACHE_DB_PATH", dbfile):
+            html, project, err = console._build_html(d, serve=False)
+        self.assertIsNone(err)
+        self.assertIn("ZZMARKER", html)            # subject 确已渲染
+        self.assertNotIn("ZxCvB12345Mn", html)     # 引号定界 secret 不漏
+
 
 class TestConsoleThemeAndMotion(unittest.TestCase):
     def setUp(self):
