@@ -18,7 +18,10 @@ def _seg_to_hit(seg):
 
 
 def _citation(idx, hit):
-    return {"id": idx, "sha": hit["sha"][:12], "kind": hit["kind"]}
+    # evidence = 该命中的确定性渲染(意图/决策/原话/测试/PR),供前端点开就地核验:
+    # 与喂模型的材料同源(C-3),随响应回前端,点开无需再请求后端。
+    return {"id": idx, "sha": hit["sha"][:12], "kind": hit["kind"],
+            "evidence": search.render_hit(hit)}
 
 
 def assemble(cache, project_path, question, target=None):

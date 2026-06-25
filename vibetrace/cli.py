@@ -77,6 +77,12 @@ def _build_parser():
     rep.add_argument("--serve", action="store_true",
                      help="起本地服务并自动开浏览器(否则写静态 HTML)")
     rep.add_argument("--no-open", action="store_true", help="--serve 时不自动开浏览器")
+    web = _proj(sub.add_parser(
+        "web", help="自托管接地对话 web app(FastAPI,需 .[web];绑 127.0.0.1)"))
+    web.add_argument("--port", type=int, default=8000, help="端口(默认 8000)")
+    web.add_argument("--no-open", action="store_true", help="不自动开浏览器")
+    web.add_argument("--no-llm", action="store_true",
+                     help="显式关闭 LLM(对话降级为零-LLM 接地罗列,数据不出本机)")
     ini = sub.add_parser("init", help="生成配置模板到 ~/.vibetrace/config.json")
     ini.add_argument("--force", action="store_true", help="已存在时覆盖")
     ihk = _proj(sub.add_parser("install-hook",
@@ -110,6 +116,7 @@ _DISPATCH = {
     "install-hook": commands.install_hook_cmd,
     "install-agent-seed": commands.install_agent_seed_cmd,
     "mcp-serve": commands.mcp_serve_cmd,
+    "web": commands.web_cmd,
 }
 
 

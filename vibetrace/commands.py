@@ -207,6 +207,16 @@ def install_hook_cmd(args):
     return 0
 
 
+def web_cmd(args):
+    """起自托管接地对话 web app(FastAPI,需 pip install -e \".[web]\")。绑 127.0.0.1。"""
+    try:
+        from . import web
+    except ImportError:
+        return _fail('web 模式需要额外依赖:pip install -e ".[web]"')
+    web.serve(args.project, port=args.port, no_open=args.no_open, no_llm=args.no_llm)
+    return 0
+
+
 def mcp_serve_cmd(args):
     """起 MCP server(stdio):共用 mcp_server.run 装配 cache/cfg/llm。阻塞至 EOF。"""
     from . import mcp_server
