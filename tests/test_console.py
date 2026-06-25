@@ -202,7 +202,8 @@ class TestConsoleChatEmbed(unittest.TestCase):
         self.assertIn("var CHAT = true", html)         # vibetrace web → chat 启用
         self.assertIn('id="chatdock"', html)           # 内嵌 dock
         self.assertIn("/api/chat/stream", html)        # 流式接地对话端点(同源)
-        self.assertIn("接地追问这段", html)            # 链 A:行内原地追问
+        self.assertIn("接地追问这段", html)            # 链 A:时光轴行内原地追问
+        self.assertIn("接地追问这个决策", html)         # 链 A:决策图节点原地追问
 
 
 class TestConsoleCLI(unittest.TestCase):

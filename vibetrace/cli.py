@@ -39,6 +39,12 @@ def _build_parser():
     slf = sub.add_parser(
         "self", help="自我周报:近 N 天用量/省额/回填率,自证关掉 LLM 仍有价值(零 LLM)")
     slf.add_argument("--days", type=int, default=7, help="聚合窗口天数(默认 7)")
+    enr = _proj(sub.add_parser(
+        "enrich", help="富集补全:给全史中尚无叙事的 commit 补叙事(闭合召回覆盖,需 LLM)"))
+    enr.add_argument("--since", default="20 years ago",
+                     help='富集范围(默认全史;如 "3 months ago")')
+    enr.add_argument("--no-llm", action="store_true",
+                     help="显式关闭 LLM(富集需 LLM,故会直接退出)")
     crs = _proj(sub.add_parser("course", help="生成演进课程(项目怎么长成的,实验)"))
     crs.add_argument("--no-llm", action="store_true",
                      help="显式关闭 LLM(数据不出本机);降级为按时间均分的朴素课程")
@@ -112,6 +118,7 @@ _DISPATCH = {
     "prompts": commands.prompts_cmd,
     "graph": commands.graph_cmd,
     "course": commands.course_cmd,
+    "enrich": commands.enrich_cmd,
     "init": commands.init_cmd,
     "install-hook": commands.install_hook_cmd,
     "install-agent-seed": commands.install_agent_seed_cmd,
