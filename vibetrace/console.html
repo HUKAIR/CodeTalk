@@ -586,6 +586,7 @@ function chatDone(bd, ev){
   cites.forEach(function(c){
     var s = document.createElement("span"); s.className = "cite";
     s.textContent = (c.kind==="conversation"?"讨论·":"") + (c.sha||c.id) + " ▸";
+    s.title = (c.evidence || "").slice(0, 280);     // hover 预览真实原话(GitLens 范式)
     s.addEventListener("click", function(){
       var cur = String(c.id);
       if (panel.dataset.cur===cur && panel.style.display!=="none"){
@@ -594,6 +595,13 @@ function chatDone(bd, ev){
         panel.style.display="block"; panel.dataset.cur=cur; }
     });
     box.appendChild(s);
+    (c.sources || []).forEach(function(src){        // PR 可点击跳真实源(新标签页)
+      if (src.type === "pr" && src.url){
+        var a = document.createElement("a"); a.className = "cite";
+        a.href = src.url; a.target = "_blank"; a.rel = "noopener";
+        a.textContent = "#" + src.number + " ↗"; box.appendChild(a);
+      }
+    });
   });
   bd.parentNode.appendChild(box); bd.parentNode.appendChild(panel);
 }
