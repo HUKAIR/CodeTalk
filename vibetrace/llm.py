@@ -34,9 +34,14 @@ class LLMClient:
                 "关闭:config no_llm=false 或不设环境变量 VIBETRACE_NO_LLM。")
         self.provider = cfg["provider"]
         self.model = cfg["model"]
-        self.base_url = ((cfg["providers"].get(self.provider) or {})
-                         .get("base_url") or "").rstrip("/")
-        self.api_key = resolve_api_key(cfg, self.provider)
+        pconf = cfg["providers"].get(self.provider) or {}
+        self.base_url = (pconf.get("base_url") or "").rstrip("/")
+        # 本地推理(ollama/LM Studio/llama.cpp,OpenAI 兼容)无需 key:local 标记或本机 base_url。
+        # 数据不出本机由此从「除 LLM 例外」收紧到「连综合也可全本机」(local-first 真兑现,非主卖点)。
+        self.local = (bool(pconf.get("local")) or "localhost" in self.base_url
+                      or "127.0.0.1" in self.base_url)
+        self.api_key = resolve_api_key(cfg, self.provider) or (
+            "local" if self.local else "")
         self.output_lang = cfg.get("output_lang") or "中文"
         self.stats = {"calls": 0, "input_tokens": 0, "output_tokens": 0,
                       "cache_hit_tokens": 0}
