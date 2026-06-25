@@ -26,6 +26,8 @@ DEFAULTS = {
         "openai": {"base_url": "https://api.openai.com/v1", "api_key": ""},
         "qwen": {"base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1", "api_key": ""},
         "anthropic": {"api_key": ""},
+        # 本地推理(零-egress):Ollama/LM Studio/llama.cpp 等 OpenAI 兼容端点,无需 key
+        "ollama": {"base_url": "http://localhost:11434/v1", "api_key": "ollama", "local": True},
     },
 }
 
