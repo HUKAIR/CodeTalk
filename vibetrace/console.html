@@ -529,13 +529,17 @@ function renderGraph(){
       + '<div class="down" id="gdown'+i+'">'+(d.length?d.map(function(t){
           var tn = byId[t] || {subject:t};
           return '<div>'+t+' '+esc(tn.subject||"")+'</div>'; }).join(""):'<div>无下游</div>')
+      + (CHAT?'<button class="askbtn" type="button">接地追问这个决策 →</button>':'')
       + '</div></div>';
   });
   document.getElementById("v-graph").innerHTML = h;
   decs.forEach(function(n, i){ var t = document.getElementById("gt"+i);
     onActivate(t, function(){
       var open = document.getElementById("gd"+i).classList.toggle("open");
-      t.setAttribute("aria-expanded", open ? "true" : "false"); }); });
+      t.setAttribute("aria-expanded", open ? "true" : "false"); });
+    if (CHAT){ var ab = document.getElementById("gdown"+i).querySelector(".askbtn");
+      if (ab) ab.addEventListener("click", function(){ openChatWith(n.id, n.text); }); }
+  });
 }
 
 // ---- ④ 理解债 ----
