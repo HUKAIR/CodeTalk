@@ -65,6 +65,19 @@ def _sources(cfg, args):
     return srcs
 
 
+def coverage_nudge(total, narrated):
+    """digest 收尾的零-LLM 叙事覆盖提示:有未叙事 commit 时返回一行提示,否则 None。
+    digest 只富集 --since 窗口,窗口外新 commit 会悄悄拉低叙事覆盖——收尾如实点出缺口、
+    引导 `vibetrace enrich` 补全,不自动调 LLM(不偷花 token)。注:这是「有无叙事」的口径,
+    比 grounding_hitrate.py 的「叙事 OR 面包屑」接地覆盖上限更严,故名『叙事覆盖』不混用。"""
+    missing = total - narrated
+    if total <= 0 or missing <= 0:
+        return None
+    pct = 100 * narrated / total
+    return (f"叙事覆盖 {narrated}/{total} = {pct:.1f}%;{missing} 个 commit 仍无叙事"
+            f" —— 跑 `vibetrace enrich` 补全(digest 只富集 --since 窗口)。")
+
+
 def digest(args):
     from .commands import _cache_db_path, _fail  # 复用 commands 的轻量分发辅助
     started = time.time()
@@ -186,8 +199,16 @@ def digest(args):
         report.append_usage({"command": "digest", "project": str(project_path),
                              "since": args.since, "report": str(path),
                              **run_stats})
+    # 接地覆盖自检(零 LLM):digest 只富集 --since 窗口,收尾点出全史未叙事缺口
+    all_commits, cov_err = gitlog.collect_commit_files(project_path)
+    nudge = None
+    if not cov_err and all_commits:
+        narrated = sum(1 for c in all_commits if cache.get_narrative(c["sha"]))
+        nudge = coverage_nudge(len(all_commits), narrated)
     cache.close()
     print(f"生成 {len(paths)} 份日报:")
     for p in paths:
         print(f"  {p}")
+    if nudge:
+        print(nudge)
     return 0
