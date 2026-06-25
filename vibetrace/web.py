@@ -24,7 +24,7 @@ from pydantic import BaseModel
 
 from . import chat, console, tunnel
 from .cache import Cache
-from .config import CACHE_DB_PATH, load_config, redact_secrets
+from .config import CACHE_DB_PATH, load_config, redact_data, redact_secrets
 from .graph import build_graph_json
 from .llm import LLMClient, LLMError
 from .report import _OUTCOMES
@@ -55,7 +55,7 @@ def index():
 def console_view(project: Optional[str] = None):
     """接已设计好的「统一控制台」(四视图单页)。serve=True → 页面可答胶囊/标回看,
     经 /capsule、/reviewed 写回 cache.db。复用 console._build_html。"""
-    html, _name, err = console._build_html(_project(project), serve=True)
+    html, _name, err = console._build_html(_project(project), serve=True, chat=True)
     if err:
         return HTMLResponse(
             "<body style='background:#0d0d0f;color:#e8e8ea;font-family:sans-serif;"
@@ -114,8 +114,9 @@ def api_chat(req: ChatReq):
     finally:
         cache.close()
     out["answer"] = redact_secrets(out["answer"])   # 出口兜底脱敏
-    for cit in out.get("citations", []):            # 引用证据出口同样脱敏
+    for cit in out.get("citations", []):            # 引用证据 + 结构化来源出口同样脱敏
         cit["evidence"] = redact_secrets(cit.get("evidence", ""))
+        cit["sources"] = redact_data(cit.get("sources") or [])
     return JSONResponse(out)
 
 
@@ -136,6 +137,7 @@ def api_chat_stream(req: ChatReq):
                 elif ev.get("type") == "done":
                     for cit in ev.get("citations", []):
                         cit["evidence"] = redact_secrets(cit.get("evidence", ""))
+                        cit["sources"] = redact_data(cit.get("sources") or [])
                 yield "data: " + json.dumps(ev, ensure_ascii=False) + "\n\n"
         finally:
             cache.close()

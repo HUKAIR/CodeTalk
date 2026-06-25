@@ -85,10 +85,16 @@ class TestShortTerms(unittest.TestCase):
         c.put_narrative("s1", "P", "m", {"why": "用乐观锁避免超时"})
         self.assertEqual(c.search_narratives("ab"), [])   # <3 有效 term → 空
 
-    def test_two_char_cjk_returns_empty(self):
+    def test_two_char_cjk_recalled_via_like_fallback(self):
+        # 2 字中文 trigram 无 shingle、MATCH 召不回 → LIKE 回退召回(脱敏/缓存 等高频词)
         c = Cache(":memory:")
         c.put_narrative("s1", "P", "m", {"why": "用乐观锁避免超时"})
-        self.assertEqual(c.search_narratives("乐观"), [])  # 2 字 < 3,trigram 无 shingle
+        self.assertEqual(c.search_narratives("乐观"), ["s1"])
+
+    def test_two_char_cjk_absent_returns_empty(self):
+        c = Cache(":memory:")
+        c.put_narrative("s1", "P", "m", {"why": "用乐观锁避免超时"})
+        self.assertEqual(c.search_narratives("幂等"), [])  # body 无『幂等』→ LIKE 不命中
 
 
 class TestRedactionInherited(unittest.TestCase):

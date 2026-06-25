@@ -1,7 +1,7 @@
 """vibetrace MCP server(纯 stdlib stdio,无 MCP SDK)。
 
-把零-LLM 接地能力(ask / blame / graph)暴露成 MCP 工具,供 Claude Code / Cursor /
-Windsurf 等客户端在 agent 工作流里直接调用。从 stdin 读换行分隔的 JSON-RPC 2.0、
+把零-LLM 接地能力(ask / blame / graph / search)暴露成 MCP 工具,供 Claude Code /
+Cursor / Windsurf 等客户端在 agent / code-review 工作流里直接调用。从 stdin 读换行分隔的 JSON-RPC 2.0、
 向 stdout 写响应、所有日志只走 stderr。对照 MCP 规范 2025-11-25(stdio = 换行分隔
 JSON-RPC,消息内不含换行,server 可写 stderr,stdout 仅含合法 MCP 消息)。
 
@@ -38,16 +38,24 @@ _TOOLS = [
      "inputSchema": {"type": "object", "properties": {
          "target": {"type": "string",
                     "description": "文件或 文件:起-止,如 vibetrace/llm.py:72-78"},
+         "path": {"type": "string", "description": "GitHub-MCP 风格文件路径(target 的别名)"},
+         "startLine": {"type": "integer", "description": "起始行(配 path)"},
+         "endLine": {"type": "integer", "description": "结束行(配 path)"},
          "question": {"type": "string", "description": "你的问题"},
          "project": {"type": "string", "description": "项目路径(默认当前目录)"}},
-         "required": ["target", "question"]}},
+         "required": ["question"]}},
     {"name": "vibetrace_blame",
-     "description": "行级决策溯源(零 LLM,确定性罗列触达这些行的 commit 及其决策史)。",
+     "description": "行级决策溯源(零 LLM,确定性罗列触达这些行的 commit 及其决策史)。"
+                    "code review 时对一段改动的行范围问『这些行历史上的关键决策 / 当初为什么"
+                    "这么写』,拿确定性引用(真实 commit/原话)而非 LLM 反推。",
      "inputSchema": {"type": "object", "properties": {
          "target": {"type": "string",
                     "description": "文件或 文件:起-止,如 vibetrace/llm.py:72-78"},
+         "path": {"type": "string", "description": "GitHub-MCP 风格文件路径(target 的别名)"},
+         "startLine": {"type": "integer", "description": "起始行(配 path)"},
+         "endLine": {"type": "integer", "description": "结束行(配 path)"},
          "project": {"type": "string", "description": "项目路径(默认当前目录)"}},
-         "required": ["target"]}},
+         "required": []}},
     {"name": "vibetrace_graph",
      "description": "决策影响图(时间轴 DAG,零 LLM):哪个决策 commit 波及了后续哪些"
                     "改动。返回 {nodes, edges} 的 JSON。",
@@ -56,7 +64,8 @@ _TOOLS = [
          "required": []}},
     {"name": "vibetrace_search",
      "description": "主题级『当初为什么』召回(零 LLM,确定性接地):不带文件目标,在整个"
-                    "项目记忆里按关键词找相关 commit,返回真实 why/决策/原话锚点(不重述)。",
+                    "项目记忆里按关键词找相关 commit,返回真实 why/决策/原话锚点(不重述)。"
+                    "适合 review/排查时按主题找相关决策与历史上下文。",
      "inputSchema": {"type": "object", "properties": {
          "question": {"type": "string", "description": "主题/关键词(需 ≥3 字符)"},
          "project": {"type": "string", "description": "项目路径(默认当前目录)"}},
@@ -91,6 +100,19 @@ def _project_path(arguments, default_project, stderr):
     return pp
 
 
+def _resolve_target(arguments):
+    """target 直给 → 用之;否则用 GitHub-MCP 风格 path[+startLine/endLine] 拼成 file:start-end
+    (集成层:agent 从 GitHub MCP 拿到的行范围可原样递进来,不必重映射)。都没给 → None。
+    owner/repo 等多余参数本就被忽略(只 .get 取需要的键)。"""
+    if arguments.get("target"):
+        return arguments["target"]
+    path = arguments.get("path")
+    if not path:
+        return None
+    start, end = arguments.get("startLine"), arguments.get("endLine")
+    return f"{path}:{start}-{end}" if start and end else path
+
+
 def _call_tool(name, arguments, cache, cfg, llm, default_project, stderr):
     """dispatch 到三工具之一 → tools/call 的 result(content + isError)。
     校验工具名/参数齐全;整段包 try → isError:true,绝不崩循环。成功文本出口脱敏。"""
@@ -107,15 +129,21 @@ def _call_tool(name, arguments, cache, cfg, llm, default_project, stderr):
     try:
         pp = _project_path(arguments, default_project, stderr)
         if name == "vibetrace_ask":
+            target = _resolve_target(arguments)
+            if not target:
+                return _err_content("缺少 target(或 path[+startLine/endLine])")
             text, err = answer_question(
-                cache, llm, pp, pp.name, arguments["target"],
+                cache, llm, pp, pp.name, target,
                 arguments["question"], as_json=True)
             if err:
                 return _err_content(err)
             return _ok_content(text)
         if name == "vibetrace_blame":
             from .blame import _parse_target
-            file, start, end = _parse_target(arguments["target"])
+            target = _resolve_target(arguments)
+            if not target:
+                return _err_content("缺少 target(或 path[+startLine/endLine])")
+            file, start, end = _parse_target(target)
             segments = collect_segments(cache, pp, file, start, end)
             if not segments:
                 return _err_content(f"{file} 没有可用的提交历史,无从溯源。")

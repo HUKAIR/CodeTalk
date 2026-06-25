@@ -96,6 +96,7 @@ function renderDone(body, ev){
   cites.forEach(function(c){
     var s = document.createElement("span"); s.className = "cite";
     s.textContent = (c.kind === "conversation" ? "讨论·" : "") + (c.sha || c.id) + " ▸";
+    s.title = (c.evidence || "").slice(0, 280);          // hover 预览真实原话(GitLens 范式)
     s.addEventListener("click", function(){              // 点开就地核验真实记录,再点收起
       var cur = String(c.id);
       if (panel.dataset.cur === cur && panel.style.display !== "none"){
@@ -106,6 +107,13 @@ function renderDone(body, ev){
       }
     });
     box.appendChild(s);
+    (c.sources || []).forEach(function(src){             // PR 可点击跳真实源(新标签页)
+      if (src.type === "pr" && src.url){
+        var a = document.createElement("a"); a.className = "cite";
+        a.href = src.url; a.target = "_blank"; a.rel = "noopener";
+        a.textContent = "#" + src.number + " ↗"; box.appendChild(a);
+      }
+    });
   });
   body.parentNode.appendChild(box);
   body.parentNode.appendChild(panel);

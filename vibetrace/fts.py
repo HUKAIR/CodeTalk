@@ -62,3 +62,30 @@ def backfill(conn):
         conn.commit()
         log.info("FTS 回填 %d 条历史 commit 叙事", done)
     return done
+
+
+_CJK2 = re.compile(r"(?<![一-鿿])[一-鿿]{2}(?![一-鿿])")
+
+
+def like_terms(query):
+    """抽『独立 2 字中文词』(trigram 无 shingle、MATCH 召不回的那类,如『脱敏』『缓存』)。
+    只认前后都非 CJK 的 2 字串:≥3 字 CJK 段已由 build_match 的 trigram 覆盖,不重复 LIKE;
+    ASCII 短串(如 'ab')不入,免 LIKE 噪声爆炸。"""
+    return _CJK2.findall(query or "")
+
+
+def like_search(conn, query, limit=8):
+    """2 字中文 LIKE 回退(MATCH 召不回时):narrative_fts.body 含该 2 字串即命中。
+    空 body 派生键天然不命中;容错降级绝不崩。→ 命中 sha 列表。"""
+    terms = like_terms(query)
+    if not terms:
+        return []
+    where = " OR ".join("body LIKE ?" for _ in terms)
+    try:
+        rows = conn.execute(
+            f"SELECT sha FROM narrative_fts WHERE {where} LIMIT ?",
+            [f"%{t}%" for t in terms] + [limit]).fetchall()
+    except sqlite3.Error as exc:
+        log.warning("FTS LIKE 回退失败(%s),返回空", exc)
+        return []
+    return [r[0] for r in rows]

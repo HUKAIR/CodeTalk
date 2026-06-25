@@ -51,8 +51,10 @@ def _assemble(project_path, cache):
     return data, None
 
 
-def _build_html(project_path, serve):
-    """装配控制台 HTML。→ (html, project_name, error)。落盘前脱敏。"""
+def _build_html(project_path, serve, chat=False):
+    """装配控制台 HTML。→ (html, project_name, error)。落盘前脱敏。
+    chat=True(仅 vibetrace web 服务时)启用内嵌接地对话 dock(POST /api/chat/stream);
+    静态/webserve 无该端点 → 默认 False,前端不挂 chat UI、不发请求。"""
     pp = Path(project_path).resolve()
     cache = Cache(CACHE_DB_PATH)
     data, err = _assemble(pp, cache)
@@ -70,6 +72,7 @@ def _build_html(project_path, serve):
         data=inline_json(redact_data(data)),
         generated=f"{today:%Y.%m.%d}",
         serve="true" if serve else "false",
+        chat="true" if chat else "false",
     )
     return redact_secrets(html), pp.name, None
 
