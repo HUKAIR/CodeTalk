@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .config import redact_data, redact_secrets
-from .fts import build_match, fts_body
+from .fts import backfill, build_match, fts_body
 
 log = logging.getLogger("vibetrace")
 
@@ -52,6 +52,7 @@ class Cache:
             self.conn.execute(                          # 自检:trigram 真能查
                 "SELECT sha FROM narrative_fts WHERE narrative_fts MATCH ? "
                 "LIMIT 1", ('"aaa"',)).fetchone()
+            backfill(self.conn)                         # 自愈:补建 FTS 前已缓存的历史叙事
             return True
         except sqlite3.OperationalError as exc:
             log.warning("FTS5 不可用(%s),全文召回禁用", exc)
