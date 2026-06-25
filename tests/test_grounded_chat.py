@@ -35,6 +35,18 @@ class TestRetrieval(unittest.TestCase):
         self.assertEqual(len(out["citations"]), len(out["hits"]))    # 同源:citations ≡ hits
         self.assertTrue(any(ci["sha"].startswith("aaaaaaa") for ci in out["citations"]))
 
+    def test_citation_carries_structured_sources_for_jump(self):
+        # hover+跳源:citation 带结构化 sources(commit sha + PR url),不靠从文本里抠
+        c = Cache(":memory:"); self.addCleanup(c.close)
+        c.put_narrative("b" * 40, "/proj", "m", {
+            "why": "为了流式响应改显式循环", "decisions": ["用显式循环"],
+            "pr_refs": [{"number": 50, "url": "https://github.com/o/r/pull/50",
+                         "title": "web"}]})
+        cit = retrieval.assemble(c, "/proj", "流式")["citations"][0]
+        self.assertIn("commit", [s["type"] for s in cit["sources"]])   # commit 可跳源
+        pr = next(s for s in cit["sources"] if s["type"] == "pr")
+        self.assertEqual(pr["url"], "https://github.com/o/r/pull/50")  # PR 可跳真源
+
     def test_citation_carries_evidence_for_verification(self):
         # 可点开核验:每条 citation 带真实记录(意图/原话),点开即看,无需再请求后端
         c = Cache(":memory:"); self.addCleanup(c.close); _seed(c)
