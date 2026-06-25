@@ -101,6 +101,17 @@ class Cache:
                 self.conn.rollback()  # 撤销挂起的 DELETE,免被下次 put 的 commit 误刷丢索引
                 log.warning("FTS 写入 %s 失败(%s),已跳过全文索引", sha[:7], exc)
 
+    def set_narrative_evidence(self, sha, evidence):
+        """零-LLM 给已存叙事补 evidence 原话锚点(不动 LLM 的 why/decisions,守 immutable;落库前脱敏)。"""
+        row = self.conn.execute(
+            "SELECT narrative_json FROM commit_narratives WHERE sha=?", (sha,)).fetchone()
+        if not row:
+            return
+        n = json.loads(row[0]); n["evidence"] = redact_data(evidence)
+        self.conn.execute("UPDATE commit_narratives SET narrative_json=? WHERE sha=?",
+                          (json.dumps(n, ensure_ascii=False), sha))
+        self.conn.commit()
+
     def search_narratives(self, query, limit=8):
         """主题级内容召回 → 命中 sha(bm25 排序)。零 LLM、确定性。
         ≥3 字 term 走 trigram MATCH;无 match/无命中且含 2 字中文 → LIKE 回退
