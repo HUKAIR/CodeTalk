@@ -24,6 +24,14 @@ def _history(cache, conv_id):
     return "\n".join(f"{t['role']}:{t['text']}" for t in turns)
 
 
+def _grounding(hits, degraded):
+    """确定性接地覆盖徽标(零-LLM,按检索命中种类算):真实 commit / 讨论 各几条。
+    落 SO/Uber「引用来源 + 暴露置信度」处方;degraded=True 表示未调模型(零-LLM 罗列)。"""
+    return {"commits": sum(1 for h in hits if h.get("kind") == "commit"),
+            "conversations": sum(1 for h in hits if h.get("kind") == "conversation"),
+            "degraded": degraded}
+
+
 def build_user_message(question, history, material):
     """组装发给 LLM 的 user message,并在出网前整体脱敏(C-1 单点收口,不依赖上游)。"""
     parts = []
@@ -55,7 +63,8 @@ def answer(cache, llm, project_path, question, *, target=None, conv_id="c1",
                            str(project_path), now, "assistant", answer_text,
                            cited_shas=[h["sha"] for h in ev["hits"]])
     return {"answer": answer_text, "citations": ev["citations"],
-            "conv_id": conv_id, "degraded": degraded}
+            "conv_id": conv_id, "degraded": degraded,
+            "grounding": _grounding(ev["hits"], degraded)}
 
 
 def answer_stream(cache, llm, project_path, question, *, target=None, conv_id="c1",
@@ -86,4 +95,5 @@ def answer_stream(cache, llm, project_path, question, *, target=None, conv_id="c
                            str(project_path), now, "assistant", answer_text,
                            cited_shas=[h["sha"] for h in ev["hits"]])
     yield {"type": "done", "citations": ev["citations"],
-           "conv_id": conv_id, "degraded": degraded}
+           "conv_id": conv_id, "degraded": degraded,
+           "grounding": _grounding(ev["hits"], degraded)}

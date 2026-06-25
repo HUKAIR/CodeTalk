@@ -174,6 +174,40 @@ class TestAccessibilityAndReanswer(unittest.TestCase):
         self.assertIn("写回失败", self.tunnel)
 
 
+class TestConsoleChatEmbed(unittest.TestCase):
+    """P0a 去 silo:vibetrace web 服务时 console 内嵌接地对话 dock;静态/只读不挂。"""
+
+    def _repo(self):
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        _git(["init", "-q"], d)
+        _git(["config", "user.email", "t@t"], d)
+        _git(["config", "user.name", "t"], d)
+        (Path(d) / "a.py").write_text("1\n"); _git(["add", "."], d)
+        _git(["commit", "-q", "-m", "c1"], d)
+        return str(Path(d) / "cache.db"), d
+
+    def test_chat_off_by_default(self):
+        dbfile, d = self._repo()
+        with mock.patch.object(console, "CACHE_DB_PATH", dbfile):
+            html, _p, err = console._build_html(d, serve=False)
+        self.assertIsNone(err)
+        self.assertIn("var CHAT = false", html)        # 静态/只读 → 不挂 chat、不发请求
+
+    def test_chat_on_embeds_grounded_dock(self):
+        dbfile, d = self._repo()
+        with mock.patch.object(console, "CACHE_DB_PATH", dbfile):
+            html, _p, err = console._build_html(d, serve=True, chat=True)
+        self.assertIsNone(err)
+        self.assertIn("var CHAT = true", html)         # vibetrace web → chat 启用
+        self.assertIn('id="chatdock"', html)           # 内嵌 dock
+        self.assertIn("/api/chat/stream", html)        # 流式接地对话端点(同源)
+        self.assertIn("接地追问这段", html)            # 链 A:时光轴行内原地追问
+        self.assertIn("接地追问这个决策", html)         # 链 A:决策图节点原地追问
+        self.assertIn("s.title =", html)               # hover 预览真实原话(GitLens 范式)
+        self.assertIn('src.type === "pr"', html)       # 引用 PR 可点击跳真源
+
+
 class TestConsoleCLI(unittest.TestCase):
     def test_console_dispatches_render(self):
         called = {}

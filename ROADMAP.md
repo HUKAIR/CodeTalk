@@ -2,6 +2,36 @@
 
 三层愿景;M0(变更叙事层)已交付,以下仅记录方向,不代表排期承诺。
 
+## 外部对标驱动的缺口与排期(2026-06-25,两轮 deep-research)
+
+来源:`docs/discovery/2026-06-25-外部对标-codereview与UX.md`(第一轮)+ `2026-06-25-外部对标-第二轮.md`(第二轮)。
+按 Now/Next/Later 排,标红线。**本会话已落地**(PR #51/#52):FTS 回填、2 字中文 LIKE 召回、接地覆盖徽标(粗)、
+MCP review-time 描述、console 内嵌接地对话 dock + 行/决策节点原地追问、enrich 覆盖补全命令、**MCP 参数对齐(Top3-①)、
+`vibetrace review` 零-LLM review 入口(Top3-②)、引用 hover 预览+PR 跳源(Top3-③)**。以下是**仍缺的**。
+
+**Now(低成本 / 红线内 / 高 ROI)**
+- **引用核验加 hover 预览 + 点击跳真实源**(对齐 GitLens hover-card 范式;现仅可点开)。[R2 · UX]
+- **定位文案收窄**:复合护城河(零-LLM 确定性 + 逐字真实原话 + 自动挖掘非手写 + 本地);一句话「别人要你手写 why,vibetrace 自动从真实记录挖」。弃用泛「接地对抗幻觉」(已被 GitKraken/Context7/GitHub MCP 占用)。[R2 · 定位]
+- **MCP 对齐参数词表 + 集成层定位**(✅ 已落地 PR #52):保留独占 `vibetrace_*` 工具名,blame/ask 加可选入参别名 **path/startLine/endLine**(owner/repo 等收下即忽略),定位「GitHub MCP 之上的零-LLM why 增强层」。⚠ 不可改名成 get_diff/get_commits(GitHub MCP 真名是 get_commit/list_commits/pull_request_read,改名会撞名+丢 why 护城河)。注:实读仅 path/startLine/endLine,未收 sha/pullNumber(不映射 blame 的 file:line 口径,避免静默给错答案)。[R2 · 集成,对抗复跑核实]
+- **接地命中率自证**(dogfood):真实仓里 commit 常缺 why 时,零-LLM 接地能覆盖多少 why 查询。[R1 open Q · 数据]
+
+**Next(需设计 / 验证)**
+- **review 工作流入口**:粘 PR/diff → 对每个改动块自动 blame「这些行历史决策 + 真实引用 + 置信度」(交互链 B)。⚠ 撞 CodeRabbit/Greptile 腹地,先验证确定性引原话命中率;差异化靠逐字 + 本地。[R1 链B + R2 MSR2026 · 能力]
+- **接地质量可验收(已对抗复跑改 scope)**:⚠ 原「字符串 n-gram 逐句归因 + τ 三标签」经三视角 + 本仓 fixture 实测**证伪**(对 LLM 忠实释义假阴、对因果错配幻觉失明;字符串恒等 ≠ Trust-Score 语义蕴含)。改做:答案里**逐字命中材料的片段**高亮 + 链回确定来源(字符串恒等只在逐字子串处成立)+ 保留粗徽标 + 点开核验;**不打 grounded/inferred/unsupported、不设 τ**。文案不可宣称「答案满足 Trust-Score / 零幻觉」,只讲「引用是可核验真实逐字记录」。[R1 SO/Uber + R2 Trust-Score · 对抗复跑修正]
+- **面包屑 schema 借 Lore 扩**:加「被否决的备选 / agent 指令 / 验证元数据」+ git-adr 式 commit-link 行级锚定;加 MADR/Nygard 导出降团队迁移摩擦。[R2 · 能力,红线内]
+- **富集覆盖自动维护**:enrich 现为一次性,新 commit 仍只在 digest 窗口富集;考虑 digest 收尾自动补未覆盖项。[本会话 Vibe-Watch]
+
+**Later / 待评估(成本高或须红线权衡)**
+- **IDE 扩展(VS Code:gutter blame + CodeLens「为什么这么写」+ hover 真实原话)** 作第二分发面,最贴 review 现场。⚠ 须权衡 M0 红线(禁重前端构建链)+ 维护成本。[R2 · UX/分发]
+- **本地 on-device LLM provider(Ollama 等)**:让「可选本地 LLM」从口号变能力(数据不出本机更彻底);⚠ 能力上限待第三轮基准。[R1/R2 缺口]
+- **chat 流式 JS 抽共享**:console/web_chat 现两处重复;按「第三处消费者才抽」阈值,未触发即不抽(避免不可验证的浏览器重构)。[本会话 #2]
+
+**红线警示(守 / 拒)**
+- MCP provenance 赛道拥挤(GitHub MCP / codebase-memory-mcp 14.2k★)→ **倾向集成**(做其上的 why-provenance 增强层),不拼结构化代码图谱(撞 codebase-memory-mcp 腹地)。[R2]
+- local-first 与「接地对抗幻觉」**非护城河 / 已被占用**,不当主卖点。[R1/R2]
+
+**第三轮已补(verified,见 `docs/discovery/2026-06-25-外部对标-第三轮.md`)**:① 变现=**open-core 按席位 + 私有库/团队治理(SSO)作付费闸门、核心免费 OSS**;prosumer 自服务薄利档被头部放弃(Cody Free/Pro 已停、Tabnine 起步 $39)、air-gapped 已入门标配(local-first 再证非护城河);**不做个人薄利档**,重心团队治理/企业 on-prem。② 本地模型 Qwen2.5-Coder 32B 生成≈GPT-4o,但 **agentic/检索仍逊、「RAG 追平云端」被否** → 本地 LLM 定位「接地后润色/解释」。③ 接地 eval 用 **DeepEval ExactMatch/非-LLM BaseMetric**(校引用逐字真实性,dev-only,不入核心依赖),**不接 Ragas**(LLM-judge)。**④ MCP 分层/「在 GitHub MCP 之上做增强层」先例仍盲 → 留第四轮。**
+
 ## M1 —— 心智模型层:活架构文档
 
 随变更增量更新的项目架构文档:每次 digest 后,用当日叙事增量修订一份

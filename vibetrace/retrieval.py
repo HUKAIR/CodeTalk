@@ -17,11 +17,25 @@ def _seg_to_hit(seg):
             "pr_refs": seg.get("pr_refs") or []}
 
 
+def _sources(hit):
+    """结构化可跳转来源(供前端 hover 预览 / 点击跳真源):commit sha + PR(number/url/title)。
+    conversation 仅作标识、无可跳 url——会话非稳定可寻址源,**不伪造跳转**(同 prompts 反幻觉纪律)。"""
+    if hit["kind"] == "conversation":
+        return [{"type": "session", "id": hit["sha"]}]
+    src = [{"type": "commit", "sha": hit["sha"][:12]}]
+    for pr in hit.get("pr_refs") or []:
+        if pr.get("url"):
+            src.append({"type": "pr", "number": pr.get("number"),
+                        "url": pr["url"], "title": pr.get("title", "")})
+    return src
+
+
 def _citation(idx, hit):
     # evidence = 该命中的确定性渲染(意图/决策/原话/测试/PR),供前端点开就地核验:
     # 与喂模型的材料同源(C-3),随响应回前端,点开无需再请求后端。
+    # sources = 结构化锚点,供 hover 预览 + 点击跳真实 commit/PR(GitLens hover-card 范式)。
     return {"id": idx, "sha": hit["sha"][:12], "kind": hit["kind"],
-            "evidence": search.render_hit(hit)}
+            "evidence": search.render_hit(hit), "sources": _sources(hit)}
 
 
 def assemble(cache, project_path, question, target=None):

@@ -223,6 +223,62 @@ class TestToolsCallBlameRedaction(unittest.TestCase):
         self.assertIn("[REDACTED]", text)
 
 
+class TestParamAlias(unittest.TestCase):
+    """集成层:对齐 GitHub-MCP 风格入参 path[+startLine/endLine] 作 target 别名,owner/repo 容忍。"""
+
+    _SEG = [{"sha": "a" * 40, "date": "d", "subject": "s", "why": "w",
+             "decisions": [], "risks": [], "evidence": [], "test_refs": [],
+             "pr_refs": []}]
+
+    def test_blame_path_lines_alias_equals_target(self):
+        cap = {}
+
+        def fake(cache, pp, file, start, end):
+            cap["t"] = (file, start, end); return self._SEG
+        with mock.patch.object(mcp_server, "collect_segments", fake):
+            req = {"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                   "params": {"name": "vibetrace_blame",
+                              "arguments": {"path": "f.py", "startLine": 3,
+                                            "endLine": 7, "owner": "o", "repo": "r"}}}
+            resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
+        self.assertFalse(resp["result"]["isError"])     # owner/repo 不报错(容忍)
+        self.assertEqual(cap["t"], ("f.py", 3, 7))      # path+lines → target=f.py:3-7
+
+    def test_blame_path_only(self):
+        cap = {}
+
+        def fake(cache, pp, file, start, end):
+            cap["t"] = (file, start, end); return self._SEG
+        with mock.patch.object(mcp_server, "collect_segments", fake):
+            req = {"jsonrpc": "2.0", "id": 2, "method": "tools/call",
+                   "params": {"name": "vibetrace_blame",
+                              "arguments": {"path": "f.py"}}}
+            resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
+        self.assertFalse(resp["result"]["isError"])
+        self.assertEqual(cap["t"][0], "f.py")           # path-only → target=f.py
+
+    def test_blame_neither_target_nor_path_is_error(self):
+        req = {"jsonrpc": "2.0", "id": 3, "method": "tools/call",
+               "params": {"name": "vibetrace_blame", "arguments": {"owner": "o"}}}
+        resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
+        self.assertTrue(resp["result"]["isError"])
+        self.assertIn("target", resp["result"]["content"][0]["text"])
+
+    def test_ask_path_alias(self):
+        cap = {}
+
+        def fake(cache, llm, pp, name, target, q, **k):
+            cap["target"] = target; return ('{"mode":"degraded"}', None)
+        with mock.patch.object(mcp_server, "answer_question", fake):
+            req = {"jsonrpc": "2.0", "id": 4, "method": "tools/call",
+                   "params": {"name": "vibetrace_ask",
+                              "arguments": {"path": "f.py", "startLine": 1,
+                                            "endLine": 2, "question": "为什么"}}}
+            resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
+        self.assertFalse(resp["result"]["isError"])
+        self.assertEqual(cap["target"], "f.py:1-2")
+
+
 class TestToolsCallGraph(unittest.TestCase):
     def test_graph_returns_json(self):
         with mock.patch.object(mcp_server, "build_graph_json",

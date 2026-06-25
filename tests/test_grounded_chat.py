@@ -35,6 +35,18 @@ class TestRetrieval(unittest.TestCase):
         self.assertEqual(len(out["citations"]), len(out["hits"]))    # 同源:citations ≡ hits
         self.assertTrue(any(ci["sha"].startswith("aaaaaaa") for ci in out["citations"]))
 
+    def test_citation_carries_structured_sources_for_jump(self):
+        # hover+跳源:citation 带结构化 sources(commit sha + PR url),不靠从文本里抠
+        c = Cache(":memory:"); self.addCleanup(c.close)
+        c.put_narrative("b" * 40, "/proj", "m", {
+            "why": "为了流式响应改显式循环", "decisions": ["用显式循环"],
+            "pr_refs": [{"number": 50, "url": "https://github.com/o/r/pull/50",
+                         "title": "web"}]})
+        cit = retrieval.assemble(c, "/proj", "流式")["citations"][0]
+        self.assertIn("commit", [s["type"] for s in cit["sources"]])   # commit 可跳源
+        pr = next(s for s in cit["sources"] if s["type"] == "pr")
+        self.assertEqual(pr["url"], "https://github.com/o/r/pull/50")  # PR 可跳真源
+
     def test_citation_carries_evidence_for_verification(self):
         # 可点开核验:每条 citation 带真实记录(意图/原话),点开即看,无需再请求后端
         c = Cache(":memory:"); self.addCleanup(c.close); _seed(c)
@@ -52,6 +64,18 @@ class TestChat(unittest.TestCase):
         self.assertEqual(out["answer"], "综合答:因为要支持流式响应")
         self.assertIn("为了流式响应不断连", llm.calls[0][-1]["content"])  # LLM 真读到材料
         self.assertGreaterEqual(len(out["citations"]), 1)
+
+    def test_answer_reports_deterministic_grounding(self):
+        # P0b:确定性接地覆盖徽标(零-LLM,按命中种类算)——落「暴露置信度」处方
+        c = Cache(":memory:"); self.addCleanup(c.close); _seed(c)
+        out = chat.answer(c, _FakeLLM(), "/proj", "流式响应", now="t")
+        self.assertGreaterEqual(out["grounding"]["commits"], 1)   # 接地于真实 commit
+        self.assertFalse(out["grounding"]["degraded"])
+
+    def test_grounding_marks_degraded_when_no_llm(self):
+        c = Cache(":memory:"); self.addCleanup(c.close); _seed(c)
+        out = chat.answer(c, None, "/proj", "流式响应", now="t")
+        self.assertTrue(out["grounding"]["degraded"])
 
     def test_final_payload_redacted_before_llm(self):
         # C-1:出网前整体脱敏(key="value" 形式也收口)
@@ -105,6 +129,12 @@ class TestChatStream(unittest.TestCase):
         from vibetrace import conversation
         turns = conversation.list_conversation(c, "s")
         self.assertEqual(turns[-1]["text"], "因为要支持流式响应")   # 落库=完整答案
+
+    def test_stream_done_carries_grounding(self):
+        c = Cache(":memory:"); self.addCleanup(c.close); _seed(c)
+        events = list(chat.answer_stream(c, _FakeStreamLLM(["x"]), "/proj",
+                                         "流式响应", now="t"))
+        self.assertGreaterEqual(events[-1]["grounding"]["commits"], 1)
 
     def test_multi_turn_threads_prior_history(self):
         # 多轮:第二轮的 user message 应带上第一轮的问答(history 串进上下文)
