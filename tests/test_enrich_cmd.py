@@ -80,6 +80,44 @@ class TestEnrichCmd(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertEqual(fake.calls, 0)          # 全有 → 一次 LLM 都不调
 
+    def test_set_narrative_evidence_adds_redacted_keeps_narrative(self):
+        import json
+        c = Cache(self.db)
+        c.put_narrative(self.sha1, self.pkey, "m", {"why": "用乐观锁", "decisions": ["选 CAS"]})
+        c.set_narrative_evidence(self.sha1, [{"source": "claude", "session_id": "s1",
+            "prompts": ["key sk-abcdefghijklmnop1234"], "excerpts": []}])
+        n = c.get_narrative(self.sha1); c.close()
+        self.assertEqual(n["why"], "用乐观锁")              # LLM 叙事不动(immutable)
+        self.assertEqual(n["decisions"], ["选 CAS"])
+        blob = json.dumps(n, ensure_ascii=False)
+        self.assertIn("[REDACTED]", blob)                  # evidence 落库脱敏
+        self.assertNotIn("sk-abcdefghijklmnop1234", blob)
+
+    def test_backfill_evidence_from_aligned_sessions(self):
+        from datetime import datetime
+        from vibetrace import enrich
+        c = Cache(self.db)
+        c.put_narrative(self.sha1, self.pkey, "m", {"why": "w", "decisions": []})  # 无 evidence
+        commit = {"sha": self.sha1, "matches": [{"confidence": "high", "overlap": [],
+            "session": {"session_id": "s1", "source": "claude",
+                        "end": datetime(2026, 6, 1), "prompts": ["当初为什么这么写"],
+                        "excerpts": []}}]}
+        done = enrich.backfill_evidence([commit], c, self.pkey)
+        n = c.get_narrative(self.sha1); c.close()
+        self.assertEqual(done, 1)                          # 补了 1 条
+        self.assertEqual(n["evidence"][0]["prompts"], ["当初为什么这么写"])  # 收割到原话锚点
+
+    def test_backfill_evidence_skips_when_already_present(self):
+        from vibetrace import enrich
+        c = Cache(self.db)
+        c.put_narrative(self.sha1, self.pkey, "m",
+                        {"why": "w", "evidence": [{"source": "x"}]})   # 已有 evidence
+        commit = {"sha": self.sha1, "matches": [{"confidence": "high", "overlap": [],
+            "session": {"session_id": "s2", "source": "claude", "end": None,
+                        "prompts": ["不该覆盖"], "excerpts": []}}]}
+        self.assertEqual(enrich.backfill_evidence([commit], c, self.pkey), 0)  # 不覆盖既有
+        c.close()
+
     def test_no_llm_exits_without_calling(self):
         with mock.patch.object(cli, "CACHE_DB_PATH", self.db), \
              contextlib.redirect_stdout(io.StringIO()), \
