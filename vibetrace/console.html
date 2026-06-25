@@ -189,6 +189,45 @@
     * { animation: none !important; transition: none !important; }
     /* 兜底:即便某行被加了隐藏类,也强制可见(scrub/IO 全停时不留空白) */
     .row.tl-pre { opacity: 1 !important; transform: none !important; } }
+
+  /* 接地对话 dock(仅 vibetrace web 服务、CHAT 为真时启用;静态/只读页不挂、不发请求)*/
+  #chatfab { position: fixed; right: 22px; bottom: 22px; z-index: 8; background: var(--accent);
+    color: #fff; border: none; border-radius: 24px; padding: 11px 18px; font: inherit;
+    font-size: 14px; cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,.3); }
+  #chatdock { position: fixed; right: 22px; bottom: 22px; z-index: 9; width: 390px;
+    max-width: calc(100vw - 32px); height: 70vh; max-height: 640px; display: none;
+    flex-direction: column; background: var(--card); border: 1px solid var(--line);
+    border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,.4); }
+  #chatdock.on { display: flex; }
+  #chatdock .ch { display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 14px; border-bottom: 1px solid var(--line); font-family: var(--mono);
+    font-size: 12px; color: var(--dim); }
+  #chatdock .ch button { background: none; border: none; color: var(--dim);
+    font-size: 16px; cursor: pointer; }
+  #chatlog { flex: 1; overflow-y: auto; padding: 12px 14px; }
+  #chatlog .m { margin: 10px 0; font-size: 14px; }
+  #chatlog .m .who { font-family: var(--mono); font-size: 10px; color: var(--faint);
+    text-transform: uppercase; }
+  #chatlog .m.bot .bd { background: var(--card2); border: 1px solid var(--line);
+    border-radius: 8px; padding: 9px 11px; white-space: pre-wrap; }
+  #chatlog .badge { font-family: var(--mono); font-size: 10px; color: var(--ok); margin-left: 6px; }
+  #chatlog .badge.warn { color: var(--warn); }
+  #chatlog .cites { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+  #chatlog .cite { font-family: var(--mono); font-size: 10px; color: var(--accent);
+    border: 1px solid var(--line); border-radius: 5px; padding: 2px 7px; cursor: pointer; }
+  #chatlog .evid { background: var(--card2); border: 1px solid var(--line); border-radius: 6px;
+    padding: 8px 10px; margin-top: 6px; white-space: pre-wrap; font-size: 12px;
+    color: var(--dim); font-family: var(--mono); overflow-x: auto; }
+  #chatform { display: flex; gap: 6px; padding: 10px; border-top: 1px solid var(--line); }
+  #chatq { flex: 1; background: var(--card2); color: var(--fg); border: 1px solid var(--line);
+    border-radius: 6px; padding: 8px; font: inherit; resize: none; }
+  #chatsend { background: var(--accent); color: #fff; border: none; border-radius: 6px;
+    padding: 0 14px; cursor: pointer; }
+  #chatsend:disabled { opacity: .5; cursor: not-allowed; }
+  .askbtn { font-family: var(--mono); font-size: 11px; color: var(--accent); background: none;
+    border: 1px solid var(--line); border-radius: 5px; padding: 2px 8px; cursor: pointer;
+    margin-top: 10px; }
+  .askbtn:hover { border-color: var(--accent); }
 </style></head><body>
 <header>
   <div class="bar">
@@ -203,10 +242,20 @@
   <section class="view" id="v-graph" role="tabpanel" tabindex="0"></section>
   <section class="view" id="v-debt" role="tabpanel" tabindex="0"></section>
 </main>
+<button id="chatfab" hidden>💬 接地追问</button>
+<div id="chatdock" role="dialog" aria-label="接地对话">
+  <div class="ch"><span>接地对话 · 数据不出本机</span>
+    <button id="chatclose" aria-label="关闭">✕</button></div>
+  <div id="chatlog"></div>
+  <form id="chatform"><textarea id="chatq" rows="2"
+    placeholder="问这段代码当初为什么这么写…"></textarea>
+    <button id="chatsend" type="submit">问</button></form>
+</div>
 <footer id="foot"></footer>
 <script>
 var DATA = $data;
 var SERVE = $serve;
+var CHAT = $chat;
 var VKEY = "vibetrace.visited.$project";
 var VIEWS = [["overview","开工概览"],["timeline","时光轴"],["graph","决策图"],["debt","理解债"]];
 
@@ -372,6 +421,7 @@ function rowBody(c){
   (c.capsules||[]).forEach(function(cap){
     h += '<div style="margin-top:6px">'+capTag(cap)+esc(cap.risk)+'</div>'; });
   if (!c.what && !c.why) h += '<p class="empty">尚未叙事 — 跑 vibetrace digest。</p>';
+  if (CHAT) h += '<button class="askbtn" type="button">接地追问这段 →</button>';
   return h;
 }
 function renderTimeline(){
@@ -400,7 +450,10 @@ function renderTimeline(){
       head.setAttribute("aria-expanded", open ? "true" : "false");
       if (!open) return;
       var b = document.getElementById("tb"+i);
-      if (!b.innerHTML) b.innerHTML = rowBody(c);
+      if (!b.innerHTML){ b.innerHTML = rowBody(c);
+        var ab = b.querySelector(".askbtn");
+        if (ab) ab.addEventListener("click", function(ev){ ev.stopPropagation();
+          openChatWith(c.sha, c.subject); }); }
       if (!visited[c.sha]){ visited[c.sha]=1; store(visited);
         row.classList.add("read"); post("/reviewed", {sha:c.sha}); }
     });
@@ -476,13 +529,17 @@ function renderGraph(){
       + '<div class="down" id="gdown'+i+'">'+(d.length?d.map(function(t){
           var tn = byId[t] || {subject:t};
           return '<div>'+t+' '+esc(tn.subject||"")+'</div>'; }).join(""):'<div>无下游</div>')
+      + (CHAT?'<button class="askbtn" type="button">接地追问这个决策 →</button>':'')
       + '</div></div>';
   });
   document.getElementById("v-graph").innerHTML = h;
   decs.forEach(function(n, i){ var t = document.getElementById("gt"+i);
     onActivate(t, function(){
       var open = document.getElementById("gd"+i).classList.toggle("open");
-      t.setAttribute("aria-expanded", open ? "true" : "false"); }); });
+      t.setAttribute("aria-expanded", open ? "true" : "false"); });
+    if (CHAT){ var ab = document.getElementById("gdown"+i).querySelector(".askbtn");
+      if (ab) ab.addEventListener("click", function(){ openChatWith(n.id, n.text); }); }
+  });
 }
 
 // ---- ④ 理解债 ----
@@ -508,7 +565,92 @@ function renderFoot(){
     + " 段叙事" + (SERVE?" · serve:回答即时写回 cache.db":" · 只读");
 }
 
+// ---- 接地对话 dock(去 silo:console 内嵌 chat;链 A 从记录原地追问)----
+var chatConv = "console-" + Date.now(), chatTurn = 0;
+function chatAdd(who, cls){
+  var d = document.createElement("div"); d.className = "m " + cls;
+  d.innerHTML = '<div class="who">'+who+'</div><div class="bd"></div>';
+  var log = document.getElementById("chatlog"); log.appendChild(d);
+  log.scrollTop = log.scrollHeight; return d.querySelector(".bd");
+}
+function chatDone(bd, ev){
+  var who = bd.parentNode.querySelector(".who"), g = ev.grounding || {};
+  var b = document.createElement("span");
+  if (ev.degraded){ b.className = "badge warn"; b.textContent = "零-LLM 罗列(未调模型)"; }
+  else { b.className = "badge"; b.textContent = "接地 "+(g.commits||0)+" commit"
+    + (g.conversations ? " · "+g.conversations+" 讨论" : ""); }
+  who.appendChild(b);
+  var cites = ev.citations || []; if (!cites.length) return;
+  var box = document.createElement("div"); box.className = "cites";
+  var panel = document.createElement("pre"); panel.className = "evid"; panel.style.display = "none";
+  cites.forEach(function(c){
+    var s = document.createElement("span"); s.className = "cite";
+    s.textContent = (c.kind==="conversation"?"讨论·":"") + (c.sha||c.id) + " ▸";
+    s.title = (c.evidence || "").slice(0, 280);     // hover 预览真实原话(GitLens 范式)
+    s.addEventListener("click", function(){
+      var cur = String(c.id);
+      if (panel.dataset.cur===cur && panel.style.display!=="none"){
+        panel.style.display="none"; panel.dataset.cur=""; }
+      else { panel.textContent = c.evidence || "(无证据)";
+        panel.style.display="block"; panel.dataset.cur=cur; }
+    });
+    box.appendChild(s);
+    (c.sources || []).forEach(function(src){        // PR 可点击跳真实源(新标签页)
+      if (src.type === "pr" && src.url){
+        var a = document.createElement("a"); a.className = "cite";
+        a.href = src.url; a.target = "_blank"; a.rel = "noopener";
+        a.textContent = "#" + src.number + " ↗"; box.appendChild(a);
+      }
+    });
+  });
+  bd.parentNode.appendChild(box); bd.parentNode.appendChild(panel);
+}
+function chatSend(q){
+  q = (q||"").trim(); if (!q) return;
+  chatAdd("你","user").textContent = q;
+  var bd = chatAdd("vibetrace","bot"); bd.textContent = "…接地检索中";
+  var btn = document.getElementById("chatsend"); btn.disabled = true;
+  fetch("/api/chat/stream", {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({question:q, conv_id:chatConv, turn_seq:chatTurn++})})
+   .then(function(resp){
+     var rd = resp.body.getReader(), dec = new TextDecoder(), buf = "", started = false;
+     function pump(){ return rd.read().then(function(r){
+       if (r.done){ btn.disabled = false; return; }
+       buf += dec.decode(r.value, {stream:true});
+       var parts = buf.split("\n\n"); buf = parts.pop();
+       parts.forEach(function(p){ var line = p.trim();
+         if (line.indexOf("data:")!==0) return;
+         var ev; try { ev = JSON.parse(line.slice(5).trim()); } catch(e){ return; }
+         if (ev.type==="token"){ if(!started){ bd.textContent=""; started=true; }
+           bd.textContent += ev.text;
+           var lg = document.getElementById("chatlog"); lg.scrollTop = lg.scrollHeight; }
+         else if (ev.type==="done"){ chatDone(bd, ev); } });
+       return pump(); }); }
+     return pump();
+   })
+   .catch(function(){ bd.textContent = "出错了(后端没起来?查 vibetrace web 终端)";
+     btn.disabled = false; });
+}
+function openChat(){ document.getElementById("chatdock").classList.add("on");
+  document.getElementById("chatfab").hidden = true; document.getElementById("chatq").focus(); }
+function closeChat(){ document.getElementById("chatdock").classList.remove("on");
+  document.getElementById("chatfab").hidden = false; }
+function openChatWith(sha, subject){     // 链 A:从某条记录原地唤起,开场按该节点定制
+  openChat();
+  document.getElementById("chatq").value = "关于「"+subject+"」("+sha+")当初为什么这么写?";
+  document.getElementById("chatq").focus();
+}
+function initChat(){
+  if (!CHAT) return;                     // 非 vibetrace web 服务 → 无 /api/chat,不挂 UI
+  document.getElementById("chatfab").hidden = false;
+  document.getElementById("chatfab").addEventListener("click", openChat);
+  document.getElementById("chatclose").addEventListener("click", closeChat);
+  document.getElementById("chatform").addEventListener("submit", function(e){
+    e.preventDefault(); var q = document.getElementById("chatq").value;
+    document.getElementById("chatq").value = ""; chatSend(q); });
+}
+
 buildNav(); initTheme(); renderOverview(); renderTimeline(); renderGraph(); renderDebt();
-renderFoot(); show("overview");
+renderFoot(); initChat(); show("overview");
 </script>
 </body></html>
