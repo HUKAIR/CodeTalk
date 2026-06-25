@@ -75,7 +75,8 @@ vibetrace init        # 写配置模板到 ~/.vibetrace/config.json(自动 chmod
     "deepseek":  {"base_url": "https://api.deepseek.com/v1", "api_key": "sk-..."},
     "openai":    {"base_url": "https://api.openai.com/v1", "api_key": ""},
     "qwen":      {"base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1", "api_key": ""},
-    "anthropic": {"api_key": ""}
+    "anthropic": {"api_key": ""},
+    "ollama":    {"base_url": "http://localhost:11434/v1", "api_key": "ollama", "local": true}
   }
 }
 ```
@@ -84,6 +85,12 @@ API key 也可用环境变量:`DEEPSEEK_API_KEY` / `OPENAI_API_KEY` / `QWEN_API_
 `ANTHROPIC_API_KEY`。deepseek / openai / qwen 走 OpenAI 兼容协议(标准库 urllib,零额外
 依赖;DeepSeek 上下文缓存自动生效);anthropic 走官方 SDK(json_schema 结构化输出 +
 prompt caching)。
+
+**零-egress 本地推理**:把 `provider` 设为 `ollama`(或任何 `local: true` / 指向 `localhost`、
+`127.0.0.1` 的 OpenAI 兼容端点,如 LM Studio / llama.cpp / vLLM),综合推理就在本机跑、**连
+「LLM 调用」这唯一出网例外也不出网**(本地无需 key)。本地 32B 级代码模型在生成类任务上已逼近
+云端;定位为「接地后的本地润色/解释」,agentic / 复杂综合仍建议云端。与 `--no-llm`(完全不调
+LLM)形成两档隐私梯度。
 
 ## 命令
 
