@@ -35,6 +35,28 @@ def _render_or_serve(args, render, serve, label):  # tunnel/console 共用:serve
     return 0
 
 
+def _scan_sessions(cfg, args, pp, cache):
+    """按 config.sources/--source 扫 claude/cursor 会话(增量缓存)→ session 列表;降级不崩。
+    供 prompts/enrich 共用(对齐拿 prompts 时间线 / 收割 evidence 原话锚点)。"""
+    from . import cursor_sessions, sessions
+    from .digest import _since_to_dt, _sources
+    since_dt = _since_to_dt(args.since)
+    srcs = _sources(cfg, args)
+    sess = []
+    if "claude" in srcs:
+        s_list, s_err = sessions.scan_sessions(pp, since_dt, cache)
+        if s_err:
+            log.warning("会话层降级:%s", s_err)
+        sess += s_list
+    if "cursor" in srcs:
+        cursor_sessions.maybe_notice()
+        c_list, c_err = cursor_sessions.scan_sessions(pp, since_dt, cache)
+        if c_err:
+            log.warning("Cursor 会话层降级:%s", c_err)
+        sess += c_list
+    return sess
+
+
 def brief_cmd(args):
     cfg = load_config()
     if args.vault:
@@ -113,8 +135,9 @@ def init_cmd(args):
 
 
 def enrich_cmd(args):
-    """富集补全(coverage):给全史中尚无叙事的 commit 补叙事(跳过已缓存),不写日报、
-    不封胶囊——闭合 search/blame/ask 召回覆盖缺口(digest 只富集 --since 窗口)。需 LLM。"""
+    """富集补全(coverage):扫会话对齐 → 零-LLM 给已叙事补 evidence 原话锚点 → LLM 补未叙事
+    (跳过已缓存),不写日报/不封胶囊。闭合 search/blame/ask 召回 + evidence 覆盖缺口
+    (digest 只富集 --since 窗口)。evidence 补全零-LLM;仅补未叙事那步需 LLM。"""
     from . import align, enrich, gitlog
     from .llm import LLMClient, LLMError
     cfg = load_config()
@@ -124,23 +147,27 @@ def enrich_cmd(args):
     commits, err = gitlog.collect_commits(pp, args.since, cfg["diff_token_budget"])
     if err:
         return _fail(err)
-    align.align(commits, [], pp)            # 置齐 enrich 所需 commit 字段(无会话即空 evidence)
     cache = Cache(_cache_db_path())
     cache.rekey_project(pp.name, str(pp))   # 迁移旧 basename 键(幂等)
+    align.align(commits, _scan_sessions(cfg, args, pp, cache), pp)  # 对齐会话 → 收割 evidence
+    ev = enrich.backfill_evidence(commits, cache, str(pp))         # 零-LLM 给已叙事补 evidence
     missing = [c for c in commits if not cache.get_narrative(c["sha"])]
     if not missing:
         cache.close()
-        print(f"全部 {len(commits)} 个 commit 已有叙事,无需补全。")
+        print(f"补 evidence {ev} 条;全部 {len(commits)} 个 commit 已有叙事。")
         return 0
     try:
         llm = LLMClient(cfg)
     except LLMError as exc:
         cache.close()
-        return _fail(exc)        # 富集需 LLM:no_llm/无 key → 直接退出,不静默
+        if ev:                              # 已做零-LLM evidence 补,非白跑
+            print(f"补 evidence {ev} 条;未叙事 {len(missing)} 个需 LLM(已关/无 key)跳过。")
+            return 0
+        return _fail(exc)                   # 全无可做且需 LLM → 退出
     stats = enrich.enrich_commits(missing, llm, cache, str(pp))
     cache.close()
-    print(f"补全 {len(missing)}/{len(commits)} 个无叙事 commit:"
-          f"LLM {stats['llm_calls']} · 机械跳过 {stats['trivial']} · 失败 {stats['failures']}。")
+    print(f"补 evidence {ev} 条;补全 {len(missing)}/{len(commits)} 无叙事 commit:"
+          f"LLM {stats['llm_calls']} · 机械 {stats['trivial']} · 失败 {stats['failures']}。")
     return 0
 
 
@@ -210,27 +237,13 @@ def search_cmd(args):
 
 def prompts_cmd(args):
     """指令回看(零 LLM):scan 会话 → 本地 commit 软对齐 → 时间线视图。无 key 也能用、不出网。"""
-    from . import align, cursor_sessions, gitlog, sessions
-    from .digest import _since_to_dt, _sources
+    from . import align, gitlog
     from .prompts_view import build_prompts_view
     cfg = load_config()
     pp = Path(args.project).resolve()
-    since_dt = _since_to_dt(args.since)
     cache = Cache(_cache_db_path())
     cache.rekey_project(pp.name, str(pp))   # 迁移旧 basename 键(幂等)
-    srcs = _sources(cfg, args)
-    sess = []
-    if "claude" in srcs:
-        s_list, s_err = sessions.scan_sessions(pp, since_dt, cache)
-        if s_err:
-            log.warning("会话层降级:%s", s_err)
-        sess += s_list
-    if "cursor" in srcs:
-        cursor_sessions.maybe_notice()
-        c_list, c_err = cursor_sessions.scan_sessions(pp, since_dt, cache)
-        if c_err:
-            log.warning("Cursor 会话层降级:%s", c_err)
-        sess += c_list
+    sess = _scan_sessions(cfg, args, pp, cache)
     commits, _err = gitlog.collect_commits(
         pp, args.since, cfg.get("diff_token_budget", 6000))  # 本地 git,不出网
     align.align(commits or [], sess, pp)
