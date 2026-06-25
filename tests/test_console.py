@@ -204,6 +204,8 @@ class TestConsoleChatEmbed(unittest.TestCase):
         self.assertIn("/api/chat/stream", html)        # 流式接地对话端点(同源)
         self.assertIn("接地追问这段", html)            # 链 A:时光轴行内原地追问
         self.assertIn("接地追问这个决策", html)         # 链 A:决策图节点原地追问
+        self.assertIn("s.title =", html)               # hover 预览真实原话(GitLens 范式)
+        self.assertIn('src.type === "pr"', html)       # 引用 PR 可点击跳真源
 
 
 class TestConsoleCLI(unittest.TestCase):
