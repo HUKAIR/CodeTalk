@@ -112,6 +112,38 @@ def init_cmd(args):
     return 0
 
 
+def enrich_cmd(args):
+    """富集补全(coverage):给全史中尚无叙事的 commit 补叙事(跳过已缓存),不写日报、
+    不封胶囊——闭合 search/blame/ask 召回覆盖缺口(digest 只富集 --since 窗口)。需 LLM。"""
+    from . import align, enrich, gitlog
+    from .llm import LLMClient, LLMError
+    cfg = load_config()
+    if getattr(args, "no_llm", False):
+        cfg["no_llm"] = True
+    pp = Path(args.project).resolve()
+    commits, err = gitlog.collect_commits(pp, args.since, cfg["diff_token_budget"])
+    if err:
+        return _fail(err)
+    align.align(commits, [], pp)            # 置齐 enrich 所需 commit 字段(无会话即空 evidence)
+    cache = Cache(_cache_db_path())
+    cache.rekey_project(pp.name, str(pp))   # 迁移旧 basename 键(幂等)
+    missing = [c for c in commits if not cache.get_narrative(c["sha"])]
+    if not missing:
+        cache.close()
+        print(f"全部 {len(commits)} 个 commit 已有叙事,无需补全。")
+        return 0
+    try:
+        llm = LLMClient(cfg)
+    except LLMError as exc:
+        cache.close()
+        return _fail(exc)        # 富集需 LLM:no_llm/无 key → 直接退出,不静默
+    stats = enrich.enrich_commits(missing, llm, cache, str(pp))
+    cache.close()
+    print(f"补全 {len(missing)}/{len(commits)} 个无叙事 commit:"
+          f"LLM {stats['llm_calls']} · 机械跳过 {stats['trivial']} · 失败 {stats['failures']}。")
+    return 0
+
+
 def course_cmd(args):
     from .course import build_course
     path, err = build_course(args.project, no_llm=getattr(args, "no_llm", False))
