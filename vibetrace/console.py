@@ -8,16 +8,40 @@ from datetime import datetime, timezone
 from pathlib import Path
 from string import Template
 
-from . import brief, graph, tunnel
+from . import brief, filetree, graph, tunnel
 from .cache import Cache
 from .config import CACHE_DB_PATH, load_config, redact_data, redact_secrets
 from .debt import debt_board
-from .gitlog import collect_commit_files
+from .gitlog import collect_commit_files, tracked_files
 from .webserve import inline_json
 
 
+def _file_grounding(changed_paths, commits, narratives):
+    """零 LLM:为每个变更文件列其历史 commit + 决策 + SHA 引用(供右面板核验)。
+    只为 changed_paths 构建(有界);吃已建 commits/narratives 不二次查 DB。
+    sources 据 SHA 确定性合成(非 narrative 字段)。→ [{"path","commits":[...]}]。"""
+    out = []
+    for path in changed_paths:
+        rows = []
+        for c in commits:
+            if path not in (c.get("files") or []):
+                continue
+            nv = narratives.get(c["sha"])
+            n = nv if isinstance(nv, dict) else {}
+            rows.append({
+                "sha": c["sha"][:7],
+                "subject": c.get("subject", ""),
+                "date": c["date"].date().isoformat() if c.get("date") else "",
+                "decisions": (n or {}).get("decisions") or [],
+                "sources": [{"type": "commit", "sha": c["sha"][:7]}],
+            })
+        rows.reverse()                               # 最新在前
+        out.append({"path": path, "commits": rows})
+    return out
+
+
 def _assemble(project_path, cache):
-    """汇四视图数据为一份 JSON(零 LLM,复用现成件)。→ (data, error_or_None)。
+    """汇五视图数据为一份 JSON(零 LLM,复用现成件)。→ (data, error_or_None)。
     空仓不报错(返回空时光轴);真 git 错误才上报。"""
     pp = Path(project_path).resolve()
     project = pp.name
@@ -47,6 +71,13 @@ def _assemble(project_path, cache):
         "graph": (graph._assemble(commits[-graph.SCAN_LIMIT:], pp, project, cache)
                   if commits else {"nodes": [], "edges": []}),
         "debt": debt,
+    }
+    tracked = tracked_files(pp) or set()            # 失败返 None → 兜底空集(绝不崩)
+    st = filetree.status(pp)
+    status_map = {s["path"]: s for s in st}
+    data["tree"] = {
+        "nodes": filetree.build_tree(tracked | set(status_map), status_map),
+        "grounding": _file_grounding([s["path"] for s in st], commits, narratives),
     }
     return data, None
 
