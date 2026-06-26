@@ -140,6 +140,21 @@
   footer { max-width: 820px; margin: 0 auto; padding: 0 24px 50px;
     color: var(--faint); font-size: 12px; font-family: var(--mono); }
 
+  /* 文件树视图 */
+  .ftwrap{display:flex;gap:16px;align-items:flex-start}
+  .fttree{flex:0 0 46%;max-height:70vh;overflow:auto;font:13px/1.7 ui-monospace,monospace}
+  .ftpanel{flex:1;min-width:0}
+  .ftf{cursor:pointer;border-radius:4px}
+  .ftf:hover,.ftf:focus{background:rgba(255,255,255,.06);outline:none}
+  .ftf.del{opacity:.5;text-decoration:line-through}
+  .stb{font-size:11px;opacity:.7;margin-left:6px}
+  .st-M{color:#e3b341}.st-A{color:#3fb950}.st-D{color:#f85149}
+  .st-R{color:#a371f7}.st-C{color:#a371f7}.st-U{color:#f85149}
+  .ftf[class*="st-"]:not([class]){}
+  .ftc{margin:8px 0;padding:6px 0;border-top:1px solid rgba(255,255,255,.08)}
+  .ftc .dec{opacity:.85;margin-left:8px}
+  .ftpanel .hint{opacity:.6;font-size:12px}
+
   /* 动效:进场淡入、展开淡入、债条生长;交互件平滑过渡 */
   .view.on { animation: fadeup .28s ease; }
   #v-overview.on .card { animation: fadeup .32s ease both; }
@@ -241,6 +256,7 @@
   <section class="view" id="v-timeline" role="tabpanel" tabindex="0"></section>
   <section class="view" id="v-graph" role="tabpanel" tabindex="0"></section>
   <section class="view" id="v-debt" role="tabpanel" tabindex="0"></section>
+  <section class="view" id="v-filetree" role="tabpanel" tabindex="0"></section>
 </main>
 <button id="chatfab" hidden>💬 接地追问</button>
 <div id="chatdock" role="dialog" aria-label="接地对话">
@@ -257,7 +273,7 @@ var DATA = $data;
 var SERVE = $serve;
 var CHAT = $chat;
 var VKEY = "vibetrace.visited.$project";
-var VIEWS = [["overview","开工概览"],["timeline","时光轴"],["graph","决策图"],["debt","理解债"]];
+var VIEWS = [["overview","开工概览"],["timeline","时光轴"],["graph","决策图"],["debt","理解债"],["filetree","文件树"]];
 
 function esc(s){ return String(s == null ? "" : s)
   .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
@@ -559,6 +575,57 @@ function renderDebt(){
   document.getElementById("v-debt").innerHTML = h;
 }
 
+function renderFiletree(){
+  var T = (DATA.tree && DATA.tree.nodes) || null;
+  var G = (DATA.tree && DATA.tree.grounding) || [];
+  var sec = document.getElementById("v-filetree");
+  var head = '<h2 class="vh">文件树 — 工作区变更 + 点开看「当初为什么」</h2>';
+  if (!T || !T.children || !T.children.length){
+    sec.innerHTML = head + '<p class="empty">无文件或非 git 仓。</p>'; return; }
+  var gmap = {}; G.forEach(function(e){ gmap[e.path] = e.commits || []; });
+  function mark(code){ return code ? code.replace(/ /g,"").charAt(0) : ""; }
+  function nodeHtml(node, depth){
+    var pad = ' style="padding-left:'+(depth*14)+'px"';
+    if (node.type === "file"){
+      var m = mark(node.code);
+      var cls = "ftf" + (m ? " st-"+m : "")
+        + (node.code && node.code.indexOf("D")>=0 ? " del" : "");
+      var badge = node.label ? ' <span class="stb">'+esc(node.label)+'</span>' : "";
+      return '<div class="'+cls+'" data-path="'+esc(node.path)+'" role="button"'
+        + ' tabindex="0"'+(node.label?' title="'+esc(node.label)+'"':"")+pad+'>'
+        + esc(node.name)+badge+'</div>';
+    }
+    var kids = node.children.map(function(c){ return nodeHtml(c, depth+1); }).join("");
+    return '<details class="ftd"'+(node.changed?" open":"")+'><summary'+pad+'>'
+      + esc(node.name)+'</summary>'+kids+'</details>';
+  }
+  sec.innerHTML = head + '<div class="ftwrap"><div class="fttree">'
+    + T.children.map(function(c){ return nodeHtml(c, 0); }).join("")
+    + '</div><div class="ftpanel" id="ftpanel">'
+    + '<p class="empty">点左侧文件看它的决策历史(零 LLM)。</p></div></div>';
+  function showPanel(path){
+    var rows = gmap[path], p = document.getElementById("ftpanel");
+    if (!rows || !rows.length){
+      p.innerHTML = '<h3>'+esc(path)+'</h3>'
+        + '<p class="empty">暂无叙事(尚未提交或无历史)。</p>'
+        + '<p class="hint">更深:<code>vibetrace blame '+esc(path)+'</code></p>'; return; }
+    var h = '<h3>'+esc(path)+'</h3>';
+    rows.forEach(function(r){
+      h += '<div class="ftc"><span class="sha">'+esc(r.sha)+'</span> '+esc(r.subject)
+        + ' <span class="meta">'+esc(r.date)+'</span>';
+      (r.decisions||[]).forEach(function(d){ h += '<div class="dec">· '+esc(d)+'</div>'; });
+      h += '</div>';
+    });
+    p.innerHTML = h;
+  }
+  sec.querySelectorAll(".ftf").forEach(function(el){
+    function act(){ showPanel(el.getAttribute("data-path")); }
+    el.addEventListener("click", act);
+    el.addEventListener("keydown", function(e){
+      if (e.key==="Enter" || e.key===" "){ e.preventDefault(); act(); } });
+  });
+}
+
 function renderFoot(){
   var read = DATA.timeline.filter(function(c){ return visited[c.sha]; }).length;
   document.getElementById("foot").textContent = "已读 "+read+"/"+DATA.timeline.length
@@ -651,6 +718,6 @@ function initChat(){
 }
 
 buildNav(); initTheme(); renderOverview(); renderTimeline(); renderGraph(); renderDebt();
-renderFoot(); initChat(); show("overview");
+renderFiletree(); renderFoot(); initChat(); show("overview");
 </script>
 </body></html>
