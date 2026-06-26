@@ -26,7 +26,8 @@ def _file_grounding(changed_paths, commits, narratives):
         for c in commits:
             if path not in (c.get("files") or []):
                 continue
-            n = narratives.get(c["sha"]) if isinstance(narratives.get(c["sha"]), dict) else {}
+            nv = narratives.get(c["sha"])
+            n = nv if isinstance(nv, dict) else {}
             rows.append({
                 "sha": c["sha"][:7],
                 "subject": c.get("subject", ""),
@@ -40,7 +41,7 @@ def _file_grounding(changed_paths, commits, narratives):
 
 
 def _assemble(project_path, cache):
-    """汇四视图数据为一份 JSON(零 LLM,复用现成件)。→ (data, error_or_None)。
+    """汇五视图数据为一份 JSON(零 LLM,复用现成件)。→ (data, error_or_None)。
     空仓不报错(返回空时光轴);真 git 错误才上报。"""
     pp = Path(project_path).resolve()
     project = pp.name
