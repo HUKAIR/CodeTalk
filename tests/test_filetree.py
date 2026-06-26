@@ -1,5 +1,8 @@
+import shutil
 import subprocess
+import tempfile
 import unittest
+from pathlib import Path
 from unittest import mock
 
 from vibetrace import filetree
@@ -97,6 +100,33 @@ class TestBuildTree(unittest.TestCase):
             else:
                 stack.extend(n["children"])
         self.assertEqual(len(leaves), 5000)
+
+
+class TestTreePayload(unittest.TestCase):
+    def _git(self, a, c):
+        subprocess.run(["git", *a], cwd=c, check=True, capture_output=True, text=True)
+
+    def test_payload_nodes_and_status_from_real_repo(self):
+        d = tempfile.mkdtemp(); self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        self._git(["init", "-q"], d)
+        self._git(["config", "user.email", "t@t"], d); self._git(["config", "user.name", "t"], d)
+        (Path(d) / "a.py").write_text("1\n"); self._git(["add", "."], d)
+        self._git(["commit", "-q", "-m", "c1"], d)
+        (Path(d) / "a.py").write_text("2\n")              # 工作区改动(未提交)
+        (Path(d) / "new.py").write_text("x\n")            # 未跟踪
+        tp = filetree.tree_payload(d)
+        self.assertEqual(set(tp), {"nodes", "status"})
+        self.assertEqual(tp["nodes"]["type"], "dir")
+        paths = {s["path"] for s in tp["status"]}
+        self.assertIn("a.py", paths)                      # 已修改
+        self.assertIn("new.py", paths)                    # 未跟踪(-uall)
+
+    def test_payload_git_failure_no_crash(self):
+        # tracked_files 的 ls-files 抛错 → tracked 兜底 set();status 同源失败 → []
+        with mock.patch.object(filetree.gitlog, "_git", side_effect=RuntimeError("not a repo")):
+            tp = filetree.tree_payload("/x")
+        self.assertEqual(tp["status"], [])
+        self.assertEqual(tp["nodes"]["children"], [])     # 空根,不崩
 
 
 if __name__ == "__main__":
