@@ -237,7 +237,8 @@ class TestFiletreeAssemble(unittest.TestCase):
         _git(["config", "user.name", "t"], d)
         (Path(d) / "a.py").write_text("1\n"); _git(["add", "."], d)
         _git(["commit", "-q", "-m", "c1"], d)
-        with mock.patch.object(console, "tracked_files", return_value=None):
+        from vibetrace import filetree as _ft
+        with mock.patch.object(_ft.gitlog, "tracked_files", return_value=None):
             data, err = console._assemble(d, Cache(":memory:"))
         self.assertIsNone(err)
         self.assertIn("tree", data)                              # None 守卫:不崩
