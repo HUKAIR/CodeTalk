@@ -17,7 +17,7 @@ class TestLabel(unittest.TestCase):
             self.assertEqual(filetree.label(code), want, code)
 
     def test_unknown_code_does_not_crash(self):
-        self.assertTrue(filetree.label("ZZ"))     # 原样 code,不崩
+        self.assertEqual(filetree.label("ZZ"), "ZZ")     # 原样 code,不崩
 
 
 class TestStatus(unittest.TestCase):
@@ -47,6 +47,7 @@ class TestStatus(unittest.TestCase):
         with mock.patch.object(filetree.gitlog, "_git", return_value="") as g:
             filetree.status("/x")
         args = g.call_args[0][0]
+        self.assertIn("--porcelain=v1", args)
         self.assertIn("--untracked-files=all", args)
         self.assertIn("-z", args)
 
