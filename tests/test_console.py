@@ -243,6 +243,28 @@ class TestFiletreeAssemble(unittest.TestCase):
         self.assertIn("tree", data)                              # None 守卫:不崩
 
 
+class TestFiletreeView(unittest.TestCase):
+    def setUp(self):
+        self.html = (Path(console.__file__).parent / "console.html").read_text(
+            encoding="utf-8")
+
+    def test_view_registered_in_nav_and_sections(self):
+        self.assertIn('["filetree","文件树"]', self.html)        # VIEWS 项
+        self.assertIn('id="v-filetree"', self.html)               # section
+        self.assertIn("renderFiletree()", self.html)              # init 链调用
+
+    def test_tree_and_panel_and_blame_hint(self):
+        self.assertIn("fttree", self.html)                        # 左树容器
+        self.assertIn('id="ftpanel"', self.html)                  # 右接地面板
+        self.assertIn("vibetrace blame", self.html)               # 无叙事降级指引
+
+    def test_file_nodes_keyboard_accessible_and_collapsible(self):
+        self.assertIn("function renderFiletree", self.html)
+        self.assertIn("<details", self.html)                      # 原生可折叠
+        self.assertIn('"Enter"', self.html)                       # 键盘激活
+        self.assertNotIn("${", self.html)                         # 禁模板字面量(全局守恒)
+
+
 class TestConsoleCLI(unittest.TestCase):
     def test_console_dispatches_render(self):
         called = {}
