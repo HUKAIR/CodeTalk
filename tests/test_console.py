@@ -4,6 +4,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
 from unittest import mock
 
@@ -41,14 +42,14 @@ class TestConsoleAssemble(unittest.TestCase):
                                   "open_loops": []})
         self.cache.put_daily(self.pkey, "2026-06-20", "今日概览", "今日决定")
 
-    def test_assemble_has_four_views(self):
+    def test_assemble_includes_tree(self):
         data, err = console._assemble(self.d, self.cache)
         self.assertIsNone(err)
-        self.assertEqual(set(data), {"overview", "timeline", "graph", "debt"})
-        self.assertTrue(data["timeline"])              # 有 commit
-        self.assertIn("nodes", data["graph"])
-        self.assertIsInstance(data["debt"], list)
-        self.assertEqual(data["overview"]["last"]["overview"], "今日概览")
+        self.assertEqual(set(data),
+                         {"overview", "timeline", "graph", "debt", "tree"})
+        self.assertIn("nodes", data["tree"])
+        self.assertIn("grounding", data["tree"])
+        self.assertEqual(data["tree"]["nodes"]["type"], "dir")
 
     def test_assemble_empty_repo_no_crash(self):
         d = tempfile.mkdtemp()
@@ -206,6 +207,36 @@ class TestConsoleChatEmbed(unittest.TestCase):
         self.assertIn("接地追问这个决策", html)         # 链 A:决策图节点原地追问
         self.assertIn("s.title =", html)               # hover 预览真实原话(GitLens 范式)
         self.assertIn('src.type === "pr"', html)       # 引用 PR 可点击跳真源
+
+
+class TestFiletreeAssemble(unittest.TestCase):
+    def test_file_grounding_bounded_and_synthesizes_sources(self):
+        commits = [
+            {"sha": "a" * 40, "subject": "改 a", "date": datetime(2026, 6, 1),
+             "files": ["a.py"]},
+            {"sha": "b" * 40, "subject": "改 b", "date": datetime(2026, 6, 2),
+             "files": ["b.py"]},
+        ]
+        narratives = {"a" * 40: {"decisions": ["选 X"]}, "b" * 40: None}
+        out = console._file_grounding(["a.py"], commits, narratives)
+        self.assertEqual([e["path"] for e in out], ["a.py"])     # 仅变更文件,有界
+        row = out[0]["commits"][0]
+        self.assertEqual(row["sha"], "a" * 7)
+        self.assertEqual(row["decisions"], ["选 X"])
+        self.assertEqual(row["sources"], [{"type": "commit", "sha": "a" * 7}])
+
+    def test_assemble_tracked_files_none_no_crash(self):
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        _git(["init", "-q"], d)
+        _git(["config", "user.email", "t@t"], d)
+        _git(["config", "user.name", "t"], d)
+        (Path(d) / "a.py").write_text("1\n"); _git(["add", "."], d)
+        _git(["commit", "-q", "-m", "c1"], d)
+        with mock.patch.object(console, "tracked_files", return_value=None):
+            data, err = console._assemble(d, Cache(":memory:"))
+        self.assertIsNone(err)
+        self.assertIn("tree", data)                              # None 守卫:不崩
 
 
 class TestConsoleCLI(unittest.TestCase):
