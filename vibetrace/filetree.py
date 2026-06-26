@@ -21,7 +21,7 @@ def label(code):
     code = (code or "  ")[:2].ljust(2)
     x, y = code[0], code[1]
     letters = [c for c in (x, y) if c not in (" ", "?")]
-    if "?" in (x, y):
+    if "?" in (x, y):  # 只加一次
         letters.append("?")
     if not letters:
         return code.strip() or "?"
@@ -51,7 +51,7 @@ def status(project_path):
             i += 1
             continue
         code, path = seg[:2], seg[3:]
-        i += 2 if code[:1] in ("R", "C") else 1   # R/C:消费紧跟的 old-path 段
+        i += 2 if code[:1] in ("R", "C") else 1   # R/C(X 位:暂存重命名/复制):消费紧跟的 old-path 段
         if not path or path.endswith("/"):
             continue
         out.append({"path": path, "code": code, "label": label(code)})
