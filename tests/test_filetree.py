@@ -57,5 +57,45 @@ class TestStatus(unittest.TestCase):
             self.assertEqual(filetree.status("/x"), [])
 
 
+class TestBuildTree(unittest.TestCase):
+    def test_nests_and_bubbles_changed(self):
+        paths = ["a/b.py", "a/c.py", "d.py"]
+        sm = {"a/b.py": {"code": " M", "label": "已修改"}}
+        root = filetree.build_tree(paths, sm)
+        self.assertEqual(root["type"], "dir")
+        names = [c["name"] for c in root["children"]]
+        self.assertEqual(names, ["a", "d.py"])          # 目录在前、字典序
+        a = root["children"][0]
+        self.assertTrue(a["changed"])                   # b.py 变更 → 祖先 a changed
+        b = next(c for c in a["children"] if c["name"] == "b.py")
+        self.assertEqual(b["code"], " M")
+        c = next(c for c in a["children"] if c["name"] == "c.py")
+        self.assertNotIn("code", c)                     # 未变更文件无 code
+        self.assertFalse(root["children"][1].get("changed", False))
+
+    def test_deleted_file_node_present(self):
+        root = filetree.build_tree(["x.py"], {"x.py": {"code": " D", "label": "已删除"}})
+        self.assertEqual(root["children"][0]["code"], " D")
+        self.assertTrue(root["changed"])
+
+    def test_empty_input(self):
+        root = filetree.build_tree([], {})
+        self.assertEqual(root["children"], [])
+        self.assertFalse(root["changed"])
+
+    def test_large_input_no_crash(self):
+        paths = ["d%d/f%d.py" % (i // 50, i) for i in range(5000)]
+        root = filetree.build_tree(paths, {})
+        leaves = []
+        stack = [root]
+        while stack:
+            n = stack.pop()
+            if n["type"] == "file":
+                leaves.append(n)
+            else:
+                stack.extend(n["children"])
+        self.assertEqual(len(leaves), 5000)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -56,3 +56,34 @@ def status(project_path):
             continue
         out.append({"path": path, "code": code, "label": label(code)})
     return out
+
+
+def build_tree(paths, status_map):
+    """纯函数:repo 相对路径集 + {path:{code,label}} → 嵌套树。不碰 git/磁盘。
+    dir 节点 changed=任一后代有 status;目录在前、各按名字典序。"""
+    root = {"name": "", "type": "dir", "children": {}}
+    for path in paths:
+        parts = [p for p in path.split("/") if p]
+        if not parts:
+            continue
+        node = root
+        for part in parts[:-1]:
+            child = node["children"].get(part)
+            if child is None or child["type"] == "file":
+                child = {"name": part, "type": "dir", "children": {}}
+                node["children"][part] = child
+            node = child
+        leaf, st = parts[-1], status_map.get(path)
+        node["children"][leaf] = {"name": leaf, "type": "file", "path": path,
+                                  **({"code": st["code"], "label": st["label"]} if st else {})}
+
+    def finalize(node):
+        if node["type"] == "file":
+            return node
+        kids = [finalize(c) for c in node["children"].values()]
+        kids.sort(key=lambda c: (c["type"] != "dir", c["name"]))
+        node["children"] = kids
+        node["changed"] = any(
+            c["changed"] if c["type"] == "dir" else ("code" in c) for c in kids)
+        return node
+    return finalize(root)
