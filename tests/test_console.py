@@ -50,6 +50,10 @@ class TestConsoleAssemble(unittest.TestCase):
         self.assertIn("nodes", data["tree"])
         self.assertIn("grounding", data["tree"])
         self.assertEqual(data["tree"]["nodes"]["type"], "dir")
+        self.assertTrue(data["timeline"])
+        self.assertIn("nodes", data["graph"])
+        self.assertIsInstance(data["debt"], list)
+        self.assertEqual(data["overview"]["last"]["overview"], "今日概览")
 
     def test_assemble_empty_repo_no_crash(self):
         d = tempfile.mkdtemp()
