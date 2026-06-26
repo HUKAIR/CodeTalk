@@ -257,11 +257,13 @@ class TestFiletreeView(unittest.TestCase):
         self.assertIn("fttree", self.html)                        # 左树容器
         self.assertIn('id="ftpanel"', self.html)                  # 右接地面板
         self.assertIn("vibetrace blame", self.html)               # 无叙事降级指引
+        self.assertIn('class="stb"', self.html)                   # 状态徽章标记
 
     def test_file_nodes_keyboard_accessible_and_collapsible(self):
         self.assertIn("function renderFiletree", self.html)
         self.assertIn("<details", self.html)                      # 原生可折叠
         self.assertIn('"Enter"', self.html)                       # 键盘激活
+        self.assertIn('" "', self.html)                           # Space 键激活
         self.assertNotIn("${", self.html)                         # 禁模板字面量(全局守恒)
 
 

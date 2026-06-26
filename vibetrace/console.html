@@ -150,7 +150,6 @@
   .stb{font-size:11px;opacity:.7;margin-left:6px}
   .st-M{color:#e3b341}.st-A{color:#3fb950}.st-D{color:#f85149}
   .st-R{color:#a371f7}.st-C{color:#a371f7}.st-U{color:#f85149}
-  .ftf[class*="st-"]:not([class]){}
   .ftc{margin:8px 0;padding:6px 0;border-top:1px solid rgba(255,255,255,.08)}
   .ftc .dec{opacity:.85;margin-left:8px}
   .ftpanel .hint{opacity:.6;font-size:12px}
@@ -588,7 +587,7 @@ function renderFiletree(){
     var pad = ' style="padding-left:'+(depth*14)+'px"';
     if (node.type === "file"){
       var m = mark(node.code);
-      var cls = "ftf" + (m ? " st-"+m : "")
+      var cls = "ftf" + (m ? " st-"+esc(m) : "")
         + (node.code && node.code.indexOf("D")>=0 ? " del" : "");
       var badge = node.label ? ' <span class="stb">'+esc(node.label)+'</span>' : "";
       return '<div class="'+cls+'" data-path="'+esc(node.path)+'" role="button"'
