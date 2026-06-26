@@ -72,10 +72,12 @@ class TestBuildTree(unittest.TestCase):
         c = next(c for c in a["children"] if c["name"] == "c.py")
         self.assertNotIn("code", c)                     # 未变更文件无 code
         self.assertFalse(root["children"][1].get("changed", False))
+        self.assertTrue(root["changed"])
 
     def test_deleted_file_node_present(self):
         root = filetree.build_tree(["x.py"], {"x.py": {"code": " D", "label": "已删除"}})
         self.assertEqual(root["children"][0]["code"], " D")
+        self.assertEqual(root["children"][0]["label"], "已删除")
         self.assertTrue(root["changed"])
 
     def test_empty_input(self):
