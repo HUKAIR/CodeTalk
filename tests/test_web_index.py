@@ -8,11 +8,6 @@ from vibetrace import web
 
 
 class TestWebIndex(unittest.TestCase):
-    def _client(self):
-        with warnings.catch_warnings():                  # 屏蔽 starlette/httpx 依赖弃用噪音,保持输出 pristine
-            warnings.simplefilter("ignore")
-            return TestClient(web.app)
-
     def test_index_renders_tree_data(self):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")

@@ -14,6 +14,7 @@ import json
 import os
 import webbrowser
 from pathlib import Path
+from string import Template
 from typing import Optional
 
 import uvicorn
@@ -21,8 +22,6 @@ from fastapi import FastAPI
 from fastapi.responses import (HTMLResponse, JSONResponse, Response,
                                StreamingResponse)
 from pydantic import BaseModel
-
-from string import Template
 
 from .webserve import inline_json
 from . import chat, console, filetree, tunnel
