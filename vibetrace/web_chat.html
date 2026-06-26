@@ -37,10 +37,22 @@
     font:inherit;cursor:pointer}
   button:disabled{opacity:.5;cursor:not-allowed}
   .hint{color:var(--dim);font-size:13px;margin:6px 0 0}
+#ftdrawer{position:fixed;top:0;right:0;width:min(80vw,340px);height:100vh;overflow:auto;
+  background:#0f0f12;border-left:1px solid rgba(255,255,255,.12);padding:12px;z-index:30;
+  font:13px/1.7 ui-monospace,monospace}
+#ftdrawer[hidden]{display:none}
+.ftf{cursor:pointer;border-radius:4px}
+.ftf:hover,.ftf:focus{background:rgba(255,255,255,.06);outline:none}
+.ftf.del{opacity:.5;text-decoration:line-through}
+.stb{font-size:11px;opacity:.7;margin-left:6px}
+.st-M{color:#e3b341}.st-A{color:#3fb950}.st-D{color:#f85149}
+.st-R{color:#a371f7}.st-C{color:#a371f7}.st-U{color:#f85149}
 </style></head><body>
 <header><span><b>VIBETRACE</b> // 接地对话 · 数据不出本机</span>
   <span><a href="/console">控制台 →</a> &nbsp; <a href="/tunnel">时光轴 →</a></span></header>
 <main>
+  <button id="filesbtn" type="button">文件 &#9658;</button>
+  <aside id="ftdrawer" hidden></aside>
   <p class="hint">问「这段代码当初为什么这么写」——答案接地到真实 commit / 决策 / 会话原话;
     无 key 或 --no-llm 时降级为零-LLM 接地罗列(不出网)。</p>
   <div id="log"></div>
@@ -53,7 +65,49 @@
 <script>
 var convId = "web-" + Date.now();
 var turn = 0;
+var TREE = $tree_data;
+var pendingTarget = null;
 var log = document.getElementById("log");
+
+function renderFiletree(){
+  var T = TREE && TREE.nodes;
+  var dr = document.getElementById("ftdrawer");
+  if (!T || !T.children || !T.children.length){
+    dr.innerHTML = '<p class="hint">无文件或非 git 仓。</p>'; return; }
+  function mark(code){ return code ? code.replace(/ /g,"").charAt(0) : ""; }
+  function nodeHtml(node, depth){
+    var pad = ' style="padding-left:'+(depth*14)+'px"';
+    if (node.type === "file"){
+      var m = mark(node.code);
+      var cls = "ftf" + (m ? " st-"+esc(m) : "")
+        + (node.code && node.code.indexOf("D")>=0 ? " del" : "");
+      var badge = node.label ? ' <span class="stb">'+esc(node.label)+'</span>' : "";
+      return '<div class="'+cls+'" data-path="'+esc(node.path)+'" role="button"'
+        + ' tabindex="0"'+(node.label?' title="'+esc(node.label)+'"':"")+pad+'>'
+        + esc(node.name)+badge+'</div>';
+    }
+    var kids = node.children.map(function(c){ return nodeHtml(c, depth+1); }).join("");
+    return '<details'+(node.changed?" open":"")+'><summary'+pad+'>'+esc(node.name)
+      + '</summary>'+kids+'</details>';
+  }
+  dr.innerHTML = '<div class="hint">点变更文件 → 接地追问</div>'
+    + T.children.map(function(c){ return nodeHtml(c, 0); }).join("");
+  dr.querySelectorAll(".ftf").forEach(function(el){
+    function act(){
+      var p = el.getAttribute("data-path");
+      document.getElementById("q").value = "这个文件当初为什么改:" + p;
+      pendingTarget = p;
+      document.getElementById("q").focus();
+      dr.hidden = true;
+    }
+    el.addEventListener("click", act);
+    el.addEventListener("keydown", function(e){
+      if (e.key==="Enter" || e.key===" "){ e.preventDefault(); act(); } });
+  });
+}
+document.getElementById("filesbtn").addEventListener("click", function(){
+  var dr = document.getElementById("ftdrawer"); dr.hidden = !dr.hidden; });
+renderFiletree();
 
 // 输入框为空时按 Tab → 填入当前建议问题并切下一条(无外联,纯本地)
 var SUGGEST = ["为什么这段代码当初要这么写?", "这里的关键决策是什么,依据什么?",
@@ -128,7 +182,7 @@ document.getElementById("f").addEventListener("submit", function(e){
   var btn = document.getElementById("send"); btn.disabled = true;
   var body = add("vibetrace", "bot"); body.textContent = "…接地检索中";
   fetch("/api/chat/stream", { method:"POST", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({ question:q, conv_id:convId, turn_seq:turn++ }) })
+    body: JSON.stringify({ question:q, conv_id:convId, turn_seq:turn++, target: pendingTarget }) })
     .then(function(resp){
       var reader = resp.body.getReader(), dec = new TextDecoder(), buf = "", started = false;
       function pump(){
@@ -152,6 +206,7 @@ document.getElementById("f").addEventListener("submit", function(e){
     })
     .catch(function(){ body.textContent = "出错了(后端没起来?查 vibetrace web 终端)";
       btn.disabled = false; });
+  pendingTarget = null;
 });
 </script>
 </body></html>
