@@ -12,7 +12,7 @@ from . import brief, filetree, graph, tunnel
 from .cache import Cache
 from .config import CACHE_DB_PATH, load_config, redact_data, redact_secrets
 from .debt import debt_board
-from .gitlog import collect_commit_files, tracked_files
+from .gitlog import collect_commit_files
 from .webserve import inline_json
 
 
@@ -72,12 +72,10 @@ def _assemble(project_path, cache):
                   if commits else {"nodes": [], "edges": []}),
         "debt": debt,
     }
-    tracked = tracked_files(pp) or set()            # 失败返 None → 兜底空集(绝不崩)
-    st = filetree.status(pp)
-    status_map = {s["path"]: s for s in st}
+    tp = filetree.tree_payload(pp)                   # 复用装配(零 LLM,消除同构双份 + 省 1 次 git 子进程)
     data["tree"] = {
-        "nodes": filetree.build_tree(tracked | set(status_map), status_map),
-        "grounding": _file_grounding([s["path"] for s in st], commits, narratives),
+        "nodes": tp["nodes"],
+        "grounding": _file_grounding([s["path"] for s in tp["status"]], commits, narratives),
     }
     return data, None
 
