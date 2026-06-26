@@ -87,3 +87,12 @@ def build_tree(paths, status_map):
             c["changed"] if c["type"] == "dir" else ("code" in c) for c in kids)
         return node
     return finalize(root)
+
+
+def tree_payload(project_path):
+    """装配工作区文件树 payload(零 LLM,纯 stdlib)。→ {"nodes": <build_tree>, "status": [...]}。
+    供 web.index 与 console._assemble 共用消除同构装配;git 失败 status []/tracked set() 仍产合法树。"""
+    tracked = gitlog.tracked_files(project_path) or set()
+    st = status(project_path)
+    status_map = {s["path"]: s for s in st}
+    return {"nodes": build_tree(tracked | set(status_map), status_map), "status": st}

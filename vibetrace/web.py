@@ -14,6 +14,7 @@ import json
 import os
 import webbrowser
 from pathlib import Path
+from string import Template
 from typing import Optional
 
 import uvicorn
@@ -22,7 +23,8 @@ from fastapi.responses import (HTMLResponse, JSONResponse, Response,
                                StreamingResponse)
 from pydantic import BaseModel
 
-from . import chat, console, tunnel
+from .webserve import inline_json
+from . import chat, console, filetree, tunnel
 from .cache import Cache
 from .config import CACHE_DB_PATH, load_config, redact_data, redact_secrets
 from .graph import build_graph_json
@@ -32,7 +34,7 @@ from .search import topic_search
 
 app = FastAPI(title="vibetrace web")
 _DEFAULT_PROJECT = "."
-_CHAT_HTML = (Path(__file__).parent / "web_chat.html").read_text(encoding="utf-8")
+_CHAT_HTML = Template((Path(__file__).parent / "web_chat.html").read_text(encoding="utf-8"))
 # 前端零外联红线:connect-src 'self' 让页面只能 fetch 同源 /api(LLM egress 仅后端发);
 # inline 脚本/样式沿用既有单文件 HTML 范式,故 script/style 放 'unsafe-inline'。
 _CSP = ("default-src 'self'; connect-src 'self'; img-src 'self' data:; "
@@ -47,8 +49,10 @@ async def _csp_header(request, call_next):
 
 
 @app.get("/")
-def index():
-    return HTMLResponse(_CHAT_HTML)
+def index(project: Optional[str] = None):
+    pp = _project(project)
+    html = _CHAT_HTML.substitute(tree_data=inline_json(redact_data(filetree.tree_payload(pp))))
+    return HTMLResponse(redact_secrets(html))
 
 
 @app.get("/console")
