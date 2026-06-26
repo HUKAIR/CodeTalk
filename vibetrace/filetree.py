@@ -75,7 +75,7 @@ def build_tree(paths, status_map):
             node = child
         leaf, st = parts[-1], status_map.get(path)
         node["children"][leaf] = {"name": leaf, "type": "file", "path": path,
-                                  **({"code": st["code"], "label": st["label"]} if st else {})}
+                                  **({k: st[k] for k in ("code", "label") if k in st} if st else {})}
 
     def finalize(node):
         if node["type"] == "file":
