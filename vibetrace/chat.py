@@ -9,7 +9,7 @@
 - 每轮落库(脱敏在 conversation.save_turn 内部),反哺接地。
 LLM 作注入依赖(对象需有 .chat(messages)->str);真流式/provider 调用在 Phase 2。
 """
-from . import conversation, retrieval
+from . import conversation, highlight, retrieval
 from .config import redact_data
 from .prompts import CHAT_SYSTEM_PROMPT
 
@@ -64,7 +64,8 @@ def answer(cache, llm, project_path, question, *, target=None, conv_id="c1",
                            cited_shas=[h["sha"] for h in ev["hits"]])
     return {"answer": answer_text, "citations": ev["citations"],
             "conv_id": conv_id, "degraded": degraded,
-            "grounding": _grounding(ev["hits"], degraded)}
+            "grounding": _grounding(ev["hits"], degraded),
+            "highlights": highlight.segments(answer_text, ev["citations"])}
 
 
 def answer_stream(cache, llm, project_path, question, *, target=None, conv_id="c1",
@@ -96,4 +97,5 @@ def answer_stream(cache, llm, project_path, question, *, target=None, conv_id="c
                            cited_shas=[h["sha"] for h in ev["hits"]])
     yield {"type": "done", "citations": ev["citations"],
            "conv_id": conv_id, "degraded": degraded,
-           "grounding": _grounding(ev["hits"], degraded)}
+           "grounding": _grounding(ev["hits"], degraded),
+           "highlights": highlight.segments(answer_text, ev["citations"])}

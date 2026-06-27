@@ -30,12 +30,23 @@ def _sources(hit):
     return src
 
 
+def _verbatim(hit):
+    """纯原话拼接(无 sha/标签/标题),专供逐字高亮匹配(区别于 render_hit 脚手架)。"""
+    parts = list(hit.get("decisions") or [])
+    if hit.get("why"):
+        parts.append(hit["why"])
+    for e in hit.get("evidence") or []:
+        parts += list(e.get("prompts") or []) + list(e.get("excerpts") or [])
+    return "\n".join(p for p in parts if p)
+
+
 def _citation(idx, hit):
     # evidence = 该命中的确定性渲染(意图/决策/原话/测试/PR),供前端点开就地核验:
     # 与喂模型的材料同源(C-3),随响应回前端,点开无需再请求后端。
     # sources = 结构化锚点,供 hover 预览 + 点击跳真实 commit/PR(GitLens hover-card 范式)。
     return {"id": idx, "sha": hit["sha"][:12], "kind": hit["kind"],
-            "evidence": search.render_hit(hit), "sources": _sources(hit)}
+            "evidence": search.render_hit(hit), "verbatim": _verbatim(hit),
+            "sources": _sources(hit)}
 
 
 def assemble(cache, project_path, question, target=None):
