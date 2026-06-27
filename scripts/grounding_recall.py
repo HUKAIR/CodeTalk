@@ -9,7 +9,7 @@
 
 **诚实边界**:度量「能 surface 一个 authored why」**非**「surface 正确的 why」(后者需语义
 判定/模型,违零-LLM);抽样(seed 可复现);line_log top-12 窗口;why = narrative why/
-decisions/Vibe-Decision 面包屑/evidence 任一;scope 默认 vibetrace/*.py 源码非空行(非 docs/
+decisions/Vibe-Decision 面包屑/否决备选(Vibe-Rejected)/evidence 任一;scope 默认 vibetrace/*.py 源码非空行(非 docs/
 tests)。随 commit 漂移,以复跑当下输出为准。纯本地、不调 LLM、不触网。
 
 用法:python3 scripts/grounding_recall.py [project_path] [sample_n] [seed]

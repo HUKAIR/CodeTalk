@@ -22,24 +22,30 @@ def to_adr(target, segments, fmt="madr"):
     """segments(旧→新,blame.collect_segments 输出)→ 一份 markdown ADR。零 LLM、落地前脱敏。"""
     whys = [s["why"] for s in segments if s.get("why")]
     decisions = [d for s in segments for d in (s.get("decisions") or [])]
+    rejected = [r for s in segments for r in (s.get("rejected") or [])]
     risks = [r for s in segments for r in (s.get("risks") or [])]
     title = (segments[-1].get("subject") if segments else "") or target
     context = whys or ["(无叙事;先跑 vibetrace digest / enrich 富集)"]
+    # 被否决备选 = ADR 的「Considered Options」本源;仅在有否决记录时出该段(不撑空节)
+    considered = (["", "## Considered Options(被否决的备选)", *_bullets(rejected)]
+                  if rejected else [])
     if fmt == "nygard":
         body = ["# " + title, "", "## Status", "accepted", "",
                 "## Context", *context, "",
-                "## Decision", *_bullets(decisions), "",
+                "## Decision", *_bullets(decisions), *considered, "",
                 "## Consequences", *_bullets(risks)]
     else:                                         # MADR(默认)
         body = ["# " + title, "", "- Status: accepted", "",
                 "## Context and Problem Statement", *context, "",
-                "## Decision Outcome", *_bullets(decisions), "",
+                "## Decision Outcome", *_bullets(decisions), *considered, "",
                 "## Consequences", *_bullets(risks)]
     body += ["", "## 来源(真实 commit,逐字可核验)", f"_目标:{target}_"]
-    for s in segments:                            # 每个 commit 的 SHA + 逐字决策原话锚点
+    for s in segments:                            # 每个 commit 的 SHA + 逐字决策/否决原话锚点
         body.append(f"- [{s['sha'][:7]}] {(s.get('date') or '')[:10]} {s.get('subject', '')}")
         for d in (s.get("decisions") or []):
             body.append(f"    · {d}")
+        for r in (s.get("rejected") or []):
+            body.append(f"    · (否决){r}")
     return redact_secrets("\n".join(body))
 
 
