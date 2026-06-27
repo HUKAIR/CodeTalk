@@ -70,6 +70,14 @@ class TestReview(unittest.TestCase):
         self.assertIn("溯源精度:行级精确", out)
         self.assertIn("有据", out)                        # 命中真实 Vibe-Decision
 
+    def test_review_labels_file_precision_on_out_of_range_hunk(self):
+        # hunk 行范围超出文件长度 → line_log(-L)失败 → 文件级降级 → 标「文件级降级」
+        diff = "--- a/a.py\n+++ b/a.py\n@@ -1 +999 @@\n+x\n"
+        with mock.patch.object(review_mod, "CACHE_DB_PATH", self.db):
+            out, err = review(self.d, diff)
+        self.assertIsNone(err)
+        self.assertIn("溯源精度:文件级降级", out)
+
     def test_review_marks_uncovered_block_as_no_evidence(self):
         # 全新文件的行无 git 历史 → 该块显式标「无据」而非编造
         diff = ("--- /dev/null\n+++ b/brand_new.py\n@@ -0,0 +1,2 @@\n+x\n+y\n")
