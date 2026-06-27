@@ -4,6 +4,8 @@ Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-s
 
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 
+**编码纪律选用:** 本项目「重活」(写 / 改 / 调试 / 审代码)优先调起 `/karpathy-enhanced` —— 它是下面 4 条的超集(另加:读后写、验证、调试、依赖、沟通、命名反模式目录);下面 4 条是其精炼核心,轻量任务够用。
+
 ## 1. Think Before Coding
 
 **Don't assume. Don't hide confusion. Surface tradeoffs.**
