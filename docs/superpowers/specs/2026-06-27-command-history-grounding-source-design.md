@@ -1,7 +1,20 @@
 # `vibetrace commands` —— 终端命令历史接地源(零-LLM,只读,opt-in)设计
 
-> 状态:已过 brainstorming,MVP 形态=独立命令(用户拍板)。下一步:对抗审 spec → writing-plans。
-> 日期:2026-06-27 · 分支:`feat/command-history-grounding` · 对位 ROADMAP「只读收割命令历史/会话作接地素材(红线内版)」[Next · R5]
+> **⛔ 搁置(2026-06-27,brainstorming 后、实现前)——不实现。** 此 spec 作「为什么没做/为什么先缓」的决策记录保留(正是 README 吹的 why-NOT / defer 维度)。
+>
+> **搁置依据 = 对抗审 spec(4 视角×验证×合成,19 条存活 finding)的 4 个根本性问题(非可修 bug):**
+> 1. **无 cwd → 隐私归因闸两难不可解(3×HIGH CONFIRMED)**:shell history 全局、不记 cwd,故 basename 闸误中常用词仓名(`tests`/`docs`/`core`→ 别仓命令)、tracked 路径子串闸误中其他仓同名文件(`tests/test_drift.py`)。收紧只能权衡,**核心张力不可消除:无 cwd 时,闸非低召回(安全但近无用)即高假阳(有用但泄露)**。
+> 2. **脱敏漏 shell history 最密的 secret(HIGH CONFIRMED)**:`redact_secrets` 只抓已知 token 模式,**漏** DB 连接串 `scheme://user:pw@host`、`-p<pw>`/`-a` 短 flag 密码、内网主机名、暴露身份的 home 路径(法定姓名/客户目录);spec 却把整套隐私押在它上。
+> 3. **「接地源/grounding source」是超声明(HIGH CONFIRMED)**:§2 明确不进 ask/blame,故它**不接地任何东西**——是命令「回看」非接地;借用了护城河术语。
+> 4. **off-moat 且未验证(MED CONFIRMED)**:是「敲了什么(what)」非「为什么(why)」,落在 roadmap 自己标了 `验证后做`/`N=1 不为记录付费` 的线上,无任何已验证需求。findings 3+4 实质**印证了 roadmap 自己的「验证后做」flag**(本特性是我从 Later 拉前来的)。
+>
+> 技术 bug(tz-naive 崩、bash `#epoch` 误判、zsh metafy 中文路径乱码、MAX_COMMANDS 截旧、env 极性、TIME_SLACK/_rel 复用名不副实、<300 偏紧)**全可修**;但根本性问题让「修完也是个 off-moat、隐私难净、价值偏弱的 what-捕获工具」。
+>
+> **裁决(用户 2026-06-27):搁置 + 换方向。** 完整原始设计见下(保留以备将来若拿到 cwd 信号 / 验证到真实需求再评估;真要做则按对抗审的保守重构:重命名「命令回看」、abspath+区分度多段路径闸丢 basename、硬脱敏、披露假阳假阴、exploratory opt-in 不上 README)。
+>
+> ---
+>
+> *(以下为搁置前的原始设计,存档)* 原状态:已过 brainstorming,MVP 形态=独立命令(用户拍板)。分支:`feat/command-history-grounding`。对位 ROADMAP「只读收割命令历史/会话作接地素材(红线内版)」[Next · R5]
 
 ## 1. 目标 / 痛点对位
 
