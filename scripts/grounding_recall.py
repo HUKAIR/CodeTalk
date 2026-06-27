@@ -19,20 +19,14 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from vibetrace.blame import collect_segments              # noqa: E402  真实 blame 引擎
+# 真实 blame 引擎 + 单一 why 定义(与 review 溯源精度标注同源,杜绝两处 why 口径漂移)
+from vibetrace.blame import collect_segments, segment_has_why  # noqa: E402,F401
 from vibetrace.cache import Cache                          # noqa: E402
 from vibetrace.config import CACHE_DB_PATH                 # noqa: E402
 from vibetrace.gitlog import collect_commit_files, tracked_files  # noqa: E402
 
 DEFAULT_N = 200
 DEFAULT_SEED = 1729
-
-
-def segment_has_why(seg):
-    """该段是否带 authored why(narrative why / decisions / evidence 任一)。
-    与 grounding_hitrate 口径一致;Vibe-Watch(risks)是前瞻预测、非『为什么这么写』,不计。"""
-    return bool((seg.get("why") or "").strip() or seg.get("decisions")
-                or seg.get("evidence"))
 
 
 def line_grounded(segments):
