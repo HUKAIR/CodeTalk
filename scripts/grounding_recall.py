@@ -20,7 +20,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 # 真实 blame 引擎 + 单一 why 定义(与 review 溯源精度标注同源,杜绝两处 why 口径漂移)
-from vibetrace.blame import collect_segments, segment_has_why  # noqa: E402,F401
+from vibetrace.blame import collect_segments, segment_has_why  # noqa: E402
 from vibetrace.cache import Cache                          # noqa: E402
 from vibetrace.config import CACHE_DB_PATH                 # noqa: E402
 from vibetrace.gitlog import collect_commit_files, tracked_files  # noqa: E402
