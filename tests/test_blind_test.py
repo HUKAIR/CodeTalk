@@ -7,7 +7,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import scripts.blind_test as bt  # noqa: E402
 from scripts.blind_test import (  # noqa: E402
-    _real_why, format_comparison, leakage, pick_commits)
+    _real_why, format_comparison, leakage, pick_commits, select_cleanest)
 
 
 class TestLeakage(unittest.TestCase):
@@ -41,19 +41,26 @@ class TestRealWhy(unittest.TestCase):
 
 
 class TestPickCommits(unittest.TestCase):
-    def test_filters_breadcrumbless_takes_newest_first(self):
+    def test_filters_breadcrumbless_newest_first(self):
         commits = [{"sha": "a" * 40, "body": "no crumb", "subject": "x"},
                    {"sha": "b" * 40, "body": "Vibe-Decision: d", "subject": "y"},
                    {"sha": "c" * 40, "body": "Vibe-Rejected: r", "subject": "z"}]
-        picked = pick_commits(commits, 5)
-        shas = [c["sha"] for c in picked]
+        shas = [c["sha"] for c in pick_commits(commits)]
         self.assertNotIn("a" * 40, shas)         # 无面包屑 → 排除
         self.assertEqual(shas[0], "c" * 40)      # 新→旧
 
+
+class TestSelectCleanest(unittest.TestCase):
+    def test_picks_lowest_leakage_ascending(self):
+        # 默认挑泄漏最低的(干净样本),而非最新——否则专挑被污染 commit 反向坑人
+        scored = [{"ratio": 0.5, "id": "m"}, {"ratio": 0.1, "id": "lo"},
+                  {"ratio": 0.8, "id": "hi"}]
+        out = select_cleanest(scored, 2)
+        self.assertEqual([s["id"] for s in out], ["lo", "m"])   # 0.1, 0.5(升序)
+
     def test_respects_n(self):
-        commits = [{"sha": str(i) * 40, "body": "Vibe-Decision: d", "subject": "s"}
-                   for i in range(5)]
-        self.assertEqual(len(pick_commits(commits, 2)), 2)
+        scored = [{"ratio": i / 10} for i in range(5)]
+        self.assertEqual(len(select_cleanest(scored, 2)), 2)
 
 
 class TestFormat(unittest.TestCase):

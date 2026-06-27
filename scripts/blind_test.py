@@ -56,10 +56,15 @@ def leakage(why_text, diff_text):
     return ratio, label
 
 
-def pick_commits(commits, n):
-    """带真实面包屑(决策或否决备选)的 commit,取最新 n(commits 为旧→新),返回新→旧。"""
-    crumbed = [c for c in commits if _real_why(c.get("body", ""))]
-    return list(reversed(crumbed[-n:]))
+def pick_commits(commits):
+    """带真实面包屑(决策或否决备选)的 commit,新→旧。"""
+    return list(reversed([c for c in commits if _real_why(c.get("body", ""))]))
+
+
+def select_cleanest(scored, n):
+    """scored=[{ratio,...}] → 泄漏最低的 n 个(升序)。挑『why 不在 diff』的干净盲测样本,
+    而非最新 N——最新常是高自文档化 commit、why 已夹带进 diff,默认跑那些会反向坑人。"""
+    return sorted(scored, key=lambda s: s["ratio"])[:n]
 
 
 def reconstruct_messages(diff_text):
@@ -92,33 +97,42 @@ def main(project=".", n=DEFAULT_N):
     if err:
         print(f"git 错误:{err}", file=sys.stderr)
         return 1
-    picked = pick_commits(commits, n)
-    if not picked:
+    crumbed = pick_commits(commits)
+    if not crumbed:
         print("没有带真实面包屑的 commit 可盲测。", file=sys.stderr)
         return 1
+    # 零-LLM:先给每个 candidate 算泄漏标(需 diff),据此挑最干净的 N 再跑反推
+    # ——LLM 只花在干净样本上,且默认不挑被 diff 夹带 why 的污染样本(否则反向坑人)
+    scored = []
+    for c in crumbed:
+        real = _real_why(c.get("body", ""))
+        # 先取(近)全 diff → 脱敏 → 最后才截:截点只切已脱敏文本,杜绝跨界半截 secret 漏出
+        diff = redact_data(commit_diff(pp, c["sha"], char_budget=_FETCH_BUDGET))[:_DIFF_BUDGET]
+        ratio, label = leakage(" ".join(real), diff)
+        scored.append({"ratio": ratio, "label": label, "commit": c, "real": real, "diff": diff})
+    bands = {"已夹带": 0, "部分夹带": 0, "未夹带": 0}
+    for s in scored:
+        bands["已夹带" if s["ratio"] >= 0.6 else "部分夹带" if s["ratio"] >= 0.25 else "未夹带"] += 1
+    selected = select_cleanest(scored, n)
     client = None
     try:
         client = LLMClient(load_config())
     except LLMError as exc:
         print(f"# 无 LLM(降级:只列真实记录+泄漏标,不跑反推):{exc}\n", file=sys.stderr)
-    bands = {"已夹带": 0, "部分夹带": 0, "未夹带": 0}
     blocks = []
-    for c in picked:
-        real = _real_why(c.get("body", ""))
-        # 先取(近)全 diff → 脱敏 → 最后才截:截点只切已脱敏文本,杜绝跨界半截 secret 漏出
-        diff = redact_data(commit_diff(pp, c["sha"], char_budget=_FETCH_BUDGET))[:_DIFF_BUDGET]
+    for s in selected:
         recon = ""
         if client:
             try:
-                recon = client.chat(reconstruct_messages(diff))
+                recon = client.chat(reconstruct_messages(s["diff"]))
             except LLMError as exc:
                 recon = f"(反推失败:{exc})"
-        ratio, label = leakage(" ".join(real), diff)
-        bands["已夹带" if ratio >= 0.6 else "部分夹带" if ratio >= 0.25 else "未夹带"] += 1
-        blocks.append(format_comparison(c, real, recon, ratio, label))
+        blocks.append(format_comparison(s["commit"], s["real"], recon, s["ratio"], s["label"]))
     print(f"# 护城河盲测 · {pp.name}(纯 diff 反推 vs vibetrace 真实记录)\n")
-    print(f"N={len(picked)} · 数据泄漏标:未夹带 {bands['未夹带']} / 部分夹带 {bands['部分夹带']} / "
-          f"已夹带 {bands['已夹带']}")
+    print(f"候选带面包屑 commit {len(scored)} · 全库泄漏分布:未夹带 {bands['未夹带']} / "
+          f"部分夹带 {bands['部分夹带']} / 已夹带 {bands['已夹带']}")
+    print(f"→ 已挑**泄漏最低 {len(selected)} 个(干净样本:why 不在 diff)**跑反推;"
+          f"跳过其余被污染 commit(why 已夹带进 diff,反推赢得不算数)。")
     print("(泄漏标=确定性词重叠启发式,**只测字面是否落在 diff、不测能否推断**;"
           "对短/改写 why 偏向『未夹带』即偏利好护城河,读时打折。反推对错逐条读对比、你来判。)\n")
     print("\n\n".join(blocks))
