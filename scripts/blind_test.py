@@ -7,7 +7,9 @@
 **判对错由人来,脚本不自动打分**——语义对错要么需 LLM-judge(R6 警告项、且削弱『零-LLM』招牌)、
 要么字符串重叠(R6 已证伪 HANS 0.28),都拒。脚本只确定性做两件:① 并排呈现两侧;②**数据泄漏标**
 (diff 是否已夹带 why 原文,词重叠启发式)——把 README 自己那条诚实 caveat『why 被一起 commit 进
-diff』可计算化,用来标『对比被 diff 夹带污染』的条目。
+diff』可计算化,用来标『对比被 diff 夹带污染』的条目。**泄漏标只测「why 原文是否字面落在 diff 里」,
+不测「能否推断」**:故『未夹带』只表示字面没有(反推须靠推断,命中与否仍你来判);且对**短 why
+(<4 字)或被改写的 why 会低估夹带、偏向『未夹带』**(即偏向利好护城河的方向,读时心里有数)。
 
 红线:diff 发 LLM 前 `redact_data`(数据出本机仅 LLM 例外);无 key 降级为只列真实记录+泄漏标、
 不跑反推;opt-in dev 脚本、出口已脱敏、仅 stdlib(difflib)+ 现有 LLM 封装、零新依赖。
@@ -24,8 +26,9 @@ from vibetrace.gitlog import (collect_commit_files, commit_diff,  # noqa: E402
 from vibetrace.llm import LLMClient, LLMError                    # noqa: E402
 
 DEFAULT_N = 6
-_MIN_BLOCK = 4       # 词重叠最小连续匹配长度,滤短噪
-_DIFF_BUDGET = 6000  # 喂 LLM 的 diff 上限字符(足够反推、控 token)
+_MIN_BLOCK = 4         # 词重叠最小连续匹配长度,滤短噪
+_DIFF_BUDGET = 6000    # 喂 LLM 的 diff 上限字符(足够反推、控 token)
+_FETCH_BUDGET = 200000  # 先取(近)全 diff 再脱敏,最后才截——截点只切已脱敏文本,杜绝跨界半截 secret
 
 
 def _real_why(body):
@@ -49,7 +52,7 @@ def leakage(why_text, diff_text):
     elif ratio >= 0.25:
         label = "部分夹带"
     else:
-        label = "diff 查无(纯 diff 反推只能编/推)"
+        label = "未夹带 why 原文(反推须靠推断,命中与否你来判)"
     return ratio, label
 
 
@@ -98,11 +101,12 @@ def main(project=".", n=DEFAULT_N):
         client = LLMClient(load_config())
     except LLMError as exc:
         print(f"# 无 LLM(降级:只列真实记录+泄漏标,不跑反推):{exc}\n", file=sys.stderr)
-    bands = {"已夹带": 0, "部分夹带": 0, "查无": 0}
+    bands = {"已夹带": 0, "部分夹带": 0, "未夹带": 0}
     blocks = []
     for c in picked:
         real = _real_why(c.get("body", ""))
-        diff = redact_data(commit_diff(pp, c["sha"], char_budget=_DIFF_BUDGET))  # 发 LLM 前脱敏
+        # 先取(近)全 diff → 脱敏 → 最后才截:截点只切已脱敏文本,杜绝跨界半截 secret 漏出
+        diff = redact_data(commit_diff(pp, c["sha"], char_budget=_FETCH_BUDGET))[:_DIFF_BUDGET]
         recon = ""
         if client:
             try:
@@ -110,12 +114,13 @@ def main(project=".", n=DEFAULT_N):
             except LLMError as exc:
                 recon = f"(反推失败:{exc})"
         ratio, label = leakage(" ".join(real), diff)
-        bands["已夹带" if ratio >= 0.6 else "部分夹带" if ratio >= 0.25 else "查无"] += 1
+        bands["已夹带" if ratio >= 0.6 else "部分夹带" if ratio >= 0.25 else "未夹带"] += 1
         blocks.append(format_comparison(c, real, recon, ratio, label))
     print(f"# 护城河盲测 · {pp.name}(纯 diff 反推 vs vibetrace 真实记录)\n")
-    print(f"N={len(picked)} · 数据泄漏标:查无 {bands['查无']} / 部分夹带 {bands['部分夹带']} / "
+    print(f"N={len(picked)} · 数据泄漏标:未夹带 {bands['未夹带']} / 部分夹带 {bands['部分夹带']} / "
           f"已夹带 {bands['已夹带']}")
-    print("(泄漏标=确定性词重叠启发式;反推对错请逐条读下面对比、你来判。)\n")
+    print("(泄漏标=确定性词重叠启发式,**只测字面是否落在 diff、不测能否推断**;"
+          "对短/改写 why 偏向『未夹带』即偏利好护城河,读时打折。反推对错逐条读对比、你来判。)\n")
     print("\n\n".join(blocks))
     return 0
 
