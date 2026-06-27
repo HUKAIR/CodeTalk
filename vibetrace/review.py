@@ -1,7 +1,7 @@
 """vibetrace review —— 零-LLM 的 review 现场入口。
 
 把工具从「手输 file:line 的事后考古」变「review/commit 现场粘 diff 即得」:解析统一 diff →
-对每个改动块调既有 blame.collect_segments 罗列真实历史决策 + 原话 + 置信(N commit 触达);
+对每个改动块调既有 blame.collect_graded 罗列真实历史决策 + 原话 + 溯源精度(行级/文件级/无据);
 无叙事覆盖的块**显式标「无据」而非编造**(诚实暴露接地命中率上限,对抗 AI 反推噪声)。
 唯一新代码是 diff 解析;检索/渲染全复用 blame。零 LLM、不出网、出口脱敏、解析失败降级绝不崩。
 """
@@ -9,11 +9,24 @@ import re
 import subprocess
 from pathlib import Path
 
-from .blame import _format, collect_segments
+from .blame import _format, collect_graded, segment_has_why
 from .cache import Cache
 from .config import CACHE_DB_PATH, redact_secrets
 
 _HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
+
+_PRECISION = {"line": "行级精确",
+              "file": "文件级降级(可能含本块外历史)",
+              "none": "无行历史"}
+
+
+def _precision_label(precision, segs):
+    """每块『溯源精度』标注:确定性准度信号(行级/文件级/无据)+ 有据/仅提交记录。
+    **非**判断这条 why 对不对(语义需模型,零-LLM 不判)。"""
+    base = _PRECISION.get(precision, precision)
+    detail = ("有据" if any(segment_has_why(s) for s in segs)
+              else "仅提交记录(无叙事/面包屑,可先 vibetrace enrich)")
+    return f"溯源精度:{base} · {detail}"
 
 
 def parse_unified_diff(text):
@@ -62,12 +75,16 @@ def review(project_path, diff_text=None):
     blocks = []
     for file, start, end in hunks:
         try:
-            segs = collect_segments(cache, pp, file, start, end)
+            segs, precision = collect_graded(cache, pp, file, start, end)
         except Exception:                        # noqa: BLE001 行级 git/解析失败 → 该块降级
-            segs = []
+            segs, precision = [], "none"
         if segs:
-            blocks.append(_format(file, start, end, segs))   # 复用 blame 的确定性渲染
+            body = _format(file, start, end, segs).rstrip()  # 复用 blame 的确定性渲染
+            blocks.append(f"{body}\n  {_precision_label(precision, segs)}")
         else:
             blocks.append(f"# {file}:{start}-{end}  [无据:零-LLM 无从溯源,可先 vibetrace enrich]")
     cache.close()
-    return redact_secrets("# review 接地(零 LLM,逐块历史决策)\n\n" + "\n\n".join(blocks)), None
+    header = ("# review 接地(零 LLM,逐块历史决策 + 溯源精度)\n"
+              "> 溯源精度=确定性信号(行级精确 vs 文件级降级 vs 无据),"
+              "**非**判断这条 why 对不对(语义需模型,零-LLM 不判)。\n\n")
+    return redact_secrets(header + "\n\n".join(blocks)), None
