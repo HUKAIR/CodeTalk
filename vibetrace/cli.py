@@ -4,6 +4,7 @@ import logging
 
 from . import commands
 from .adr_export import adr_export_cmd  # 命令逻辑在 adr_export.py(commands.py 守 <300)
+from .drift import drift_cmd  # 命令逻辑在 drift.py(commands.py 守 <300)
 from .config import CACHE_DB_PATH  # commands 经 cli 读取它,沿用既有测试 patch 目标
 
 
@@ -82,6 +83,10 @@ def _build_parser():
                      help='如 "3 days ago"/2026-06-20(默认近 1 天)')
     prm.add_argument("--source", choices=["claude", "cursor", "both"],
                      help="会话源(默认按 config.sources;cursor 需 opt-in)")
+    drf = _proj(sub.add_parser(
+        "drift", help="偏差自检:AI 工具改了却没提交的文件(声称 vs 实际,零 LLM)"))
+    drf.add_argument("--since", default="1 day ago",
+                     help='报告哪些会话(按会话活动时间,默认近 1 天);提交集取全史以正确对齐')
     grp = _proj(sub.add_parser("graph", help="生成决策影响图(时间轴 DAG,零 LLM)"))
     grp.add_argument("--vault", help="覆盖输出目录")
     grp.add_argument("--canvas", action="store_true",
@@ -127,6 +132,7 @@ _DISPATCH = {
     "blame": commands.blame_cmd,
     "review": commands.review_cmd,
     "adr-export": adr_export_cmd,
+    "drift": drift_cmd,
     "search": commands.search_cmd,
     "prompts": commands.prompts_cmd,
     "graph": commands.graph_cmd,
