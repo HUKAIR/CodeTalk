@@ -15,15 +15,29 @@ from .gitlog import commit_meta, file_log, line_log, merge_breadcrumbs, parse_ta
 _parse_target = parse_target          # 与 ask 同口径,搬到 gitlog 共享
 
 
-def collect_segments(cache, project_path, file, start, end):
-    """→ 触达这些行的每个 commit 一段(旧→新),含 sha/date/subject/decisions/risks。
-    行级失败降级文件级;每段 decisions = 缓存叙事决策 ∪ 面包屑(去重,缓存已折入不重复)。"""
+def segment_has_why(seg):
+    """该段是否带 authored why(narrative why / decisions / evidence 任一)。
+    Vibe-Watch(risks)是前瞻预测、非『为什么这么写』,不计(与 grounding_hitrate/recall 同口径)。"""
+    return bool((seg.get("why") or "").strip() or seg.get("decisions")
+                or seg.get("evidence"))
+
+
+def _resolve_shas(project_path, file, start, end):
+    """→ (shas 旧→新, precision)。precision 是**确定性溯源准度**信号、非语义对错:
+    line=行级精确命中;file=行级失败或无范围→文件级降级(可能含本块外历史);none=无任何历史。"""
     if start is not None:
         shas, err = line_log(project_path, file, start, end)
-        if err:                            # 行级失败 → 文件级降级
-            shas, _ = file_log(project_path, file)
-    else:
-        shas, _ = file_log(project_path, file)
+        if not err:
+            return shas, ("line" if shas else "none")
+        shas, _ = file_log(project_path, file)        # 行级失败 → 文件级降级
+        return shas, ("file" if shas else "none")
+    shas, _ = file_log(project_path, file)
+    return shas, ("file" if shas else "none")
+
+
+def _build_segments(cache, project_path, shas):
+    """shas → 每 commit 一段(旧→新),含 sha/date/subject/why/decisions/risks/evidence/refs。
+    每段 decisions = 缓存叙事决策 ∪ 面包屑(去重,缓存已折入不重复)。"""
     segments = []
     for sha in shas:
         narrative = cache.get_narrative(sha) or {}
@@ -38,6 +52,21 @@ def collect_segments(cache, project_path, file, start, end):
             "pr_refs": narrative.get("pr_refs") or [],
         })
     return segments
+
+
+def collect_segments(cache, project_path, file, start, end):
+    """→ 触达这些行的每个 commit 一段(旧→新)。行级失败降级文件级。
+    (契约不变:adr_export/review/retrieval/mcp_server/blame 五处依赖此签名与行为;
+    需溯源准度信号时用 collect_graded。)"""
+    shas, _ = _resolve_shas(project_path, file, start, end)
+    return _build_segments(cache, project_path, shas)
+
+
+def collect_graded(cache, project_path, file, start, end):
+    """同 collect_segments,但额外返回溯源精度 → (segments, precision)。
+    供 review 诚实标注每块『这块溯源有多准』(行级精确 / 文件级降级 / 无据),非判 why 对错。"""
+    shas, precision = _resolve_shas(project_path, file, start, end)
+    return _build_segments(cache, project_path, shas), precision
 
 
 def _emit_evidence(lines, evidence):
