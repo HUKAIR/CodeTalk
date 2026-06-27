@@ -30,6 +30,20 @@ class TestToAdr(unittest.TestCase):
         self.assertIn("[abc1234]", out)                      # 来源:真实 commit SHA
         self.assertIn("f.py:1-5", out)                       # 目标
 
+    def test_rejected_renders_considered_options(self):
+        seg = [{"sha": "f" * 40, "date": "2026-06-27T08:00", "subject": "走文本归因",
+                "why": "", "decisions": ["文本归因闸"],
+                "rejected": ["全局 history 无 cwd 泄露其他仓"],
+                "risks": [], "evidence": []}]
+        out = to_adr("f.py:1-3", seg, "madr")
+        self.assertIn("Considered Options", out)               # 否决备选 → Considered Options 段
+        self.assertIn("全局 history 无 cwd 泄露其他仓", out)    # 逐字
+        self.assertIn("(否决)", out)                           # 来源段每 commit 否决锚点
+
+    def test_no_rejected_omits_considered_options(self):
+        out = to_adr("f.py:1-5", _SEG, "madr")                 # _SEG 无 rejected
+        self.assertNotIn("Considered Options", out)            # 不撑空节
+
     def test_nygard_format(self):
         out = to_adr("f.py", _SEG, "nygard")
         self.assertIn("## Status", out)
