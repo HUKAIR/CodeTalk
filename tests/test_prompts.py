@@ -22,6 +22,13 @@ class TestNarrativeStyle(unittest.TestCase):
         self.assertIn("文风纪律", SYSTEM_PROMPT)
         self.assertIn("开场陈词", SYSTEM_PROMPT)
 
+    def test_style_balance_guard_protects_accuracy(self):
+        # 去味平衡护栏(research-backed:防过度去味伤准确 + 护逐字护城河):
+        # 技术术语/SHA/逐字照原样,准确高于文风。digest 与 ask 同口径。
+        for p in (SYSTEM_PROMPT, ASK_SYSTEM_PROMPT):
+            self.assertIn("照原样", p)
+            self.assertIn("准确高于文风", p)
+
 
 class TestInferenceFieldsEmpty(unittest.TestCase):
     def test_empty_array_not_filler_instruction(self):
