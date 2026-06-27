@@ -13,6 +13,7 @@ from .gitlog import parse_target
 def _seg_to_hit(seg):
     return {"sha": seg["sha"], "kind": "commit", "text": "",
             "why": seg.get("why") or "", "decisions": seg.get("decisions") or [],
+            "rejected": seg.get("rejected") or [],
             "evidence": seg.get("evidence") or [], "test_refs": seg.get("test_refs") or [],
             "pr_refs": seg.get("pr_refs") or []}
 
@@ -32,7 +33,7 @@ def _sources(hit):
 
 def _verbatim(hit):
     """纯原话拼接(无 sha/标签/标题),专供逐字高亮匹配(区别于 render_hit 脚手架)。"""
-    parts = list(hit.get("decisions") or [])
+    parts = list(hit.get("decisions") or []) + list(hit.get("rejected") or [])
     if hit.get("why"):
         parts.append(hit["why"])
     for e in hit.get("evidence") or []:

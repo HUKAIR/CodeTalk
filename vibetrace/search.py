@@ -27,16 +27,18 @@ def collect_topic_hits(cache, project_path, question):
             turn = conversation.get_turn(cache, conversation.turn_id_of(key))
             if turn:
                 hits.append({"sha": key, "kind": "conversation", "text": turn["text"],
-                             "why": "", "decisions": [], "evidence": [],
+                             "why": "", "decisions": [], "rejected": [], "evidence": [],
                              "test_refs": [], "pr_refs": []})
             continue
         narrative = cache.get_narrative(key) or {}
-        try:                                        # 决策 = 叙事决策 ∪ commit 面包屑(去重)
-            decs, _risks = merge_breadcrumbs(narrative, project_path, key)
-        except Exception:                           # noqa: BLE001 非 git/派生键 → 纯叙事决策
+        try:                                        # 决策/否决备选 = 叙事 ∪ commit 面包屑(去重)
+            decs, _risks, rej = merge_breadcrumbs(narrative, project_path, key)
+        except Exception:                           # noqa: BLE001 非 git/派生键 → 纯叙事
             decs = narrative.get("decisions") or []
+            rej = narrative.get("rejected") or []
         hits.append({"sha": key, "kind": "commit", "text": "",
                      "why": narrative.get("why") or "", "decisions": decs,
+                     "rejected": rej,
                      "evidence": narrative.get("evidence") or [],
                      "test_refs": narrative.get("test_refs") or [],
                      "pr_refs": narrative.get("pr_refs") or []})
@@ -53,6 +55,8 @@ def render_hit(hit):
         lines.append(f"  意图:{hit['why']}")
     for dec in hit["decisions"]:
         lines.append(f"  决策:{dec}")
+    for rej in hit.get("rejected") or []:
+        lines.append(f"  否决备选(曾放弃):{rej}")
     for block in (format_evidence(hit["evidence"]), format_test_refs(hit["test_refs"]),
                   format_pr_refs(hit["pr_refs"])):
         if block:                                   # 锚点块缩进进该 commit 段
