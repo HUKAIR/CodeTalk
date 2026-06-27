@@ -151,13 +151,29 @@ def parse_breadcrumbs(body):
     return decisions, watches
 
 
+def parse_rejected(body):
+    """从 commit body 提取 Vibe-Rejected 面包屑(被否决的备选)。区分大小写,行首匹配。
+    被否决方案是 diff 结构性取不到的 why-NOT(README 护城河),提成一等公民供 blame 独立标注。
+    body 为空/None 安全返回 []。"""
+    rejected = []
+    for line in (body or "").splitlines():
+        line = line.strip()
+        if line.startswith("Vibe-Rejected:"):
+            text = line[len("Vibe-Rejected:"):].strip()
+            if text:
+                rejected.append(text)
+    return rejected
+
+
 def merge_breadcrumbs(narrative, project_path, sha):
-    """命中 SHA 的缓存叙事决策/风险 ∪ commit body 面包屑(去重,叙事在前、面包屑在后)。
-    返回 (decisions, risks);供 ask/blame 共用,缓存已折入的面包屑不会重复一份。"""
-    decisions, watches = parse_breadcrumbs(commit_body(project_path, sha))
+    """命中 SHA 的缓存叙事 ∪ commit body 面包屑(去重,叙事在前、面包屑在后)。
+    返回 (decisions, risks, rejected);供 ask/blame/search 共用,缓存已折入的面包屑不重复。"""
+    body = commit_body(project_path, sha)
+    decisions, watches = parse_breadcrumbs(body)
     decs = list(dict.fromkeys((narrative.get("decisions") or []) + decisions))
     risks = list(dict.fromkeys((narrative.get("risks") or []) + watches))
-    return decs, risks
+    rejected = list(dict.fromkeys((narrative.get("rejected") or []) + parse_rejected(body)))
+    return decs, risks, rejected
 
 
 _RANGE_RE = re.compile(r"^(\d+)(?:-(\d+))?$")

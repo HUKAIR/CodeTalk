@@ -78,6 +78,20 @@ class TestReview(unittest.TestCase):
         self.assertIsNone(err)
         self.assertIn("溯源精度:文件级降级", out)
 
+    def test_review_surfaces_rejected_alternative(self):
+        # 带 Vibe-Rejected 的提交 → review/blame 把「否决备选」作一等公民标出(防重引入)
+        self.f.write_text("l1\nl2\nl3\nl4\n")            # 第 4 行由带 Vibe-Rejected 的提交引入
+        _git(["commit", "-aqm",
+              "feat: 加行\n\nVibe-Rejected: 曾想用方案X,放弃因Y"], self.d)
+        self.f.write_text("l1\nl2\nl3\nCHANGED4\n")      # 改第 4 行(未提交)
+        diff = subprocess.run(["git", "-C", self.d, "diff", "HEAD"],
+                              capture_output=True, text=True).stdout
+        with mock.patch.object(review_mod, "CACHE_DB_PATH", self.db):
+            out, err = review(self.d, diff)
+        self.assertIsNone(err)
+        self.assertIn("否决备选", out)
+        self.assertIn("曾想用方案X,放弃因Y", out)
+
     def test_review_marks_uncovered_block_as_no_evidence(self):
         # 全新文件的行无 git 历史 → 该块显式标「无据」而非编造
         diff = ("--- /dev/null\n+++ b/brand_new.py\n@@ -0,0 +1,2 @@\n+x\n+y\n")
@@ -105,6 +119,7 @@ class TestSegmentHasWhy(unittest.TestCase):
         self.assertTrue(segment_has_why({"why": "x"}))
         self.assertTrue(segment_has_why({"decisions": ["d"]}))
         self.assertTrue(segment_has_why({"evidence": [{"source": "c"}]}))
+        self.assertTrue(segment_has_why({"rejected": ["曾想用 X"]}))  # 否决备选也是 authored why
 
     def test_risks_only_and_empty_false(self):
         # Vibe-Watch(risks)是前瞻预测、非『为什么这么写』,不计

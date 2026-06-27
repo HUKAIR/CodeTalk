@@ -49,7 +49,7 @@ def _retrieve(project_path, file, start, end, cache, since=None):
     _seen_ev, _seen_test, _seen_pr = set(), set(), set()
     for sha in shas:
         narrative = cache.get_narrative(sha) or {}
-        decs, risks = merge_breadcrumbs(narrative, project_path, sha)
+        decs, risks, rejected = merge_breadcrumbs(narrative, project_path, sha)
         for ev in narrative.get("evidence") or []:    # 原话锚点,按 (session_id, ts) 去重
             key_ev = (sid, ev.get("ts")) if (sid := ev.get("session_id")) else str(ev)
             if key_ev not in _seen_ev:
@@ -68,6 +68,8 @@ def _retrieve(project_path, file, start, end, cache, since=None):
             parts.append("意图:" + narrative["why"][:EXCERPT])
         if decs:
             parts.append("决策:" + ";".join(decs)[:EXCERPT])
+        if rejected:
+            parts.append("否决备选:" + ";".join(rejected)[:EXCERPT])
         if risks:
             parts.append("风险/待验证:" + ";".join(risks)[:EXCERPT])
         blocks.append(" / ".join(parts))
