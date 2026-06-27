@@ -16,10 +16,10 @@ _parse_target = parse_target          # 与 ask 同口径,搬到 gitlog 共享
 
 
 def segment_has_why(seg):
-    """该段是否带 authored why(narrative why / decisions / evidence 任一)。
+    """该段是否带 authored why(narrative why / decisions / 否决备选 / evidence 任一)。
     Vibe-Watch(risks)是前瞻预测、非『为什么这么写』,不计(与 grounding_hitrate/recall 同口径)。"""
     return bool((seg.get("why") or "").strip() or seg.get("decisions")
-                or seg.get("evidence"))
+                or seg.get("rejected") or seg.get("evidence"))
 
 
 def _resolve_shas(project_path, file, start, end):
@@ -41,12 +41,12 @@ def _build_segments(cache, project_path, shas):
     segments = []
     for sha in shas:
         narrative = cache.get_narrative(sha) or {}
-        decs, risks = merge_breadcrumbs(narrative, project_path, sha)
+        decs, risks, rejected = merge_breadcrumbs(narrative, project_path, sha)
         date_iso, subject = commit_meta(project_path, sha)
         segments.append({
             "sha": sha, "date": date_iso, "subject": subject,
             "why": narrative.get("why") or "",
-            "decisions": decs, "risks": risks,
+            "decisions": decs, "risks": risks, "rejected": rejected,
             "evidence": narrative.get("evidence") or [],  # 旧缓存无键 .get 兼容
             "test_refs": narrative.get("test_refs") or [],
             "pr_refs": narrative.get("pr_refs") or [],
@@ -117,6 +117,8 @@ def _format(file, start, end, segments):
             lines.append(f"  意图:{seg['why']}")
         for dec in seg["decisions"]:
             lines.append(f"  决策:{dec}")
+        for rej in seg.get("rejected") or []:        # 否决备选:diff 取不到的 why-NOT,防重引入
+            lines.append(f"  否决备选(曾放弃):{rej}")
         for risk in seg["risks"]:
             lines.append(f"  待验证:{risk}")
         _emit_evidence(lines, seg.get("evidence") or [])
