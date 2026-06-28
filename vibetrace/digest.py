@@ -158,6 +158,11 @@ def digest(args):
     if with_pr:
         _maybe_pr_notice()
     enrich.enrich_commits(commits, llm, cache, str(project_path), with_pr=with_pr)
+    if cfg.get("backlinks"):                 # opt-in:产出 Obsidian 决策反链笔记(默认关)
+        from . import obsidian
+        n = obsidian.emit_decision_notes(commits, project, cfg["vault_path"], pkey)
+        if n:
+            log.info("Obsidian 反链:写出 %d 张决策笔记", n)
 
     # 按 commit 日期分桶,一天一份日报:bound 住报告长度与概览输入,
     # 并让历史各天都进 daily_digests 缓存(修复回补时 On This Day 查不到)。

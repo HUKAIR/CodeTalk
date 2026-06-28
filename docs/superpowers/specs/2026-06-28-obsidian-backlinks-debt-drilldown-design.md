@@ -17,6 +17,21 @@
 
 # Spec A — Obsidian 自动反链(写侧)
 
+## A · 实现状态(v1 已落地 2026-06-28,修正设计)
+读代码后发现下文 A2 的 `[[sha]]`、A3 的 canvas`type:file→日报` **都会死链/部分死链**:根因是 vibetrace
+笔记粒度(per-day 日报 / per-question ask)与反链想要的粒度(per-commit/决策)不匹配,链接目标(per-决策
+笔记)不存在。**修正:自动产出 per-决策笔记当链接目标**(`vibetrace/obsidian.py:emit_decision_notes`):
+- 每个带决策的 commit → `vault/vibetrace/<slug>/<sha7>.md`(决策原文 + `来源日报:[[{date}-{project}]]`);
+  `<slug>` = basename + 绝对路径哈希(防同名串库);落盘前 `redact_secrets`;同 SHA 覆写幂等;机器自动挖、非手写。
+- **反链方向**:决策笔记 → 日报。Obsidian 自动在日报侧生成反链(无需改 `report.render`),日报↔决策双向通且
+  目标都真实存在(决策笔记必建;日报是当天 digest 产物)。
+- **opt-in**:`config.backlinks`(默认关);`digest` enrich 后在 flag-on 时调用。**不搬旧产物**(故无 DA2 回读
+  glob 改动、无闭环风险)。本仓实测:近 20 天 67 个决策 → 67 张反链笔记,每张链回当天日报。
+- **较原设计的取舍**:① 砍 A2 `[[sha]]`(死链)② canvas`type:file`(A3)降真·v2(笔记集已是 markdown-native
+  反链,canvas 是可选 viz)③ 不做 A1「搬已有产物进子目录」(只新增决策笔记,零回读风险)。
+
+> 下面 A.0–A.5 为原始设计记录(部分被上述修正取代),保留作上下文。
+
 ## A.0 目标
 vibetrace 自动产出的 vault 产物之间**自动发射 `[[wikilink]]`**(机器挖、复用 `graph._assemble` 已算的
 决策→下游边 + 真实 SHA;现状 `*.py` 中 `[[`=0,融合停在文件层),让你在 Obsidian 一跳到真源。
