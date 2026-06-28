@@ -128,6 +128,28 @@ class TestConsoleThemeAndMotion(unittest.TestCase):
         self.assertNotIn("setupTimelineReveal", self.html)          # 旧的 init 即挂已移除
 
 
+class TestConsoleNavDeepLink(unittest.TestCase):
+    """导航打磨:URL hash 深链 + 记忆上次视图 + 键盘 1-5 切视图(纯 vanilla-JS,红线内)。"""
+    def setUp(self):
+        self.html = (Path(console.__file__).parent / "console.html").read_text(
+            encoding="utf-8")
+
+    def test_hash_deeplink_wired(self):
+        self.assertIn("hashchange", self.html)          # 监听 hash 变化切视图
+        self.assertIn("location.hash", self.html)       # nav/jump/键盘 经 hash 切换
+
+    def test_remembers_last_view(self):
+        self.assertIn("vibetrace.view.", self.html)     # 上次视图持久化 key
+        self.assertIn("validView", self.html)           # 恢复前校验合法视图
+
+    def test_keyboard_view_switch_guarded(self):
+        self.assertIn('"12345"', self.html)             # 数字键 1-5 切视图
+        self.assertIn("TEXTAREA", self.html)            # 输入/文本域内不劫持
+
+    def test_no_longer_hardcodes_overview_start(self):
+        self.assertNotIn('show("overview")', self.html)  # 开屏改由 hash/上次视图决定
+
+
 class TestAccessibilityAndReanswer(unittest.TestCase):
     """任务9:键盘/读屏可达 + 改答 + tunnel res.ok 确认写回。"""
 
