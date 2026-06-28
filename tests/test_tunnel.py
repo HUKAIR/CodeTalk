@@ -45,5 +45,17 @@ class TestTunnelRedaction(unittest.TestCase):
         self.assertNotIn("ZxCvB12345Mn", html)              # 引号定界 secret 不漏
 
 
+class TestTunnelKeyboard(unittest.TestCase):
+    """键盘 j/k 在 commit 行间移动焦点(长时间线免摸鼠标;不抢方向键滚动)。"""
+    def setUp(self):
+        self.html = (Path(tunnel.__file__).parent / "tunnel.html").read_text(
+            encoding="utf-8")
+
+    def test_jk_row_nav(self):
+        self.assertIn('"j"', self.html)
+        self.assertIn('"k"', self.html)
+        self.assertIn('querySelectorAll(".head")', self.html)   # j/k 在行头间移焦点
+
+
 if __name__ == "__main__":
     unittest.main()
