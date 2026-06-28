@@ -119,12 +119,13 @@ class TestReview(unittest.TestCase):
         self.assertNotIn("拦截检查", out)
 
     def test_review_marks_uncovered_block_as_no_evidence(self):
-        # 全新文件的行无 git 历史 → 该块显式标「无据」而非编造
+        # 全新文件的行无 git 历史 → 该块显式标「无据」+ 统一三档徽标「[无逐字溯源]」而非编造
         diff = ("--- /dev/null\n+++ b/brand_new.py\n@@ -0,0 +1,2 @@\n+x\n+y\n")
         with mock.patch.object(review_mod, "CACHE_DB_PATH", self.db):
             out, err = review(self.d, diff)
         self.assertIsNone(err)
         self.assertIn("无据", out)
+        self.assertIn("[无逐字溯源]", out)              # A1:无据档的一眼可读徽标
 
     def test_review_caps_hunks_on_large_diff(self):
         # 大仓大 diff:逐块 blame O(hunks) → 上限 MAX_REVIEW_HUNKS,超出截断 + 提示(防卡死/过慢)
@@ -153,6 +154,26 @@ class TestReview(unittest.TestCase):
             out, err = review(self.d)                     # 不传 diff
         self.assertIsNone(err)
         self.assertIn("a.py", out)
+
+
+class TestGroundingBadge(unittest.TestCase):
+    """A1:接地强度三档徽标(行级/文件级/无逐字溯源)一眼可读;只描述 provenance 轴,
+    绝不打语义对错(R6:零-LLM 不判 grounded/inferred/unsupported)。"""
+    def test_three_tier_badge_glanceable(self):
+        from vibetrace.review import _precision_label
+        seg = [{"why": "x"}]
+        self.assertIn("[行级溯源]", _precision_label("line", seg))
+        self.assertIn("[文件级溯源]", _precision_label("file", seg))
+        self.assertIn("[无逐字溯源]", _precision_label("none", []))
+        # 现有「溯源精度:…」细节仍在(徽标是前置概览,不替换细节)
+        self.assertIn("溯源精度:", _precision_label("line", seg))
+
+    def test_badge_is_provenance_not_semantic(self):
+        from vibetrace.review import _BADGE
+        for v in _BADGE.values():
+            for banned in ("推测", "inferred", "unsupported", "grounded",
+                           "对不对", "可信", "可靠", "正确"):
+                self.assertNotIn(banned, v)
 
 
 class TestSegmentHasWhy(unittest.TestCase):
