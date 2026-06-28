@@ -193,6 +193,20 @@ class TestConsoleFilterChips(unittest.TestCase):
         self.assertIn("clearFilters", self.html)  # Esc 一键清空搜索 + chip
 
 
+class TestConsoleFiletreeExpand(unittest.TestCase):
+    """文件树:展开全部 / 折叠全部(切换所有 details.ftd)。"""
+    def setUp(self):
+        self.html = (Path(console.__file__).parent / "console.html").read_text(
+            encoding="utf-8")
+
+    def test_expand_collapse_all(self):
+        self.assertIn("展开全部", self.html)
+        self.assertIn("折叠全部", self.html)
+        self.assertIn('id="ftexpand"', self.html)
+        self.assertIn('id="ftcollapse"', self.html)
+        self.assertIn('querySelectorAll("details.ftd")', self.html)  # 批量切换目录折叠
+
+
 class TestAccessibilityAndReanswer(unittest.TestCase):
     """任务9:键盘/读屏可达 + 改答 + tunnel res.ok 确认写回。"""
 
