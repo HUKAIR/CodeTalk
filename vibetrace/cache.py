@@ -209,7 +209,7 @@ class Cache:
         self.conn.commit()
 
     def capsule_fill_stats(self, project):
-        """(已开启数, 已回填数) —— 设计文档点名的北极星指标『回填率』。"""
+        """(已开启数, 已回填数)。回填率=护栏指标(非北极星;北极星=回面后实际处理率)。"""
         opened = self.conn.execute(
             "SELECT COUNT(*) FROM capsules WHERE project=? AND opened_date "
             "IS NOT NULL", (project,)).fetchone()[0]

@@ -61,6 +61,21 @@ def _git_diff(pp):
     return out.stdout, None
 
 
+def _intercept_section(intercepts):
+    """改动块触及『曾被否决的方案』(Vibe-Rejected)→ 顶部拦截清单。确定性把命中的否决项
+    提到眼前;**不**自动判定『同概念重引入』(散文 vs 代码需语义,R6 钉死不做)——由你人判。
+    无命中返回空串(不污染常规 review)。intercepts=[(file,start,end,[rej...])]。"""
+    if not intercepts:
+        return ""
+    lines = ["## ⚠ 拦截检查:改动触及曾否决的方案,逐条确认你不是在重引入", ""]
+    for file, start, end, rejs in intercepts:
+        for r in rejs:
+            lines.append(f"- `{file}:{start}-{end}` 曾放弃:{r}")
+    lines.append("\n确认无误即噪声;若真在重引入,按 docs/discovery/interceptions.md "
+                 "记一条——这就是『真拦下一次理由丢失型踩坑』的硬证据。\n")
+    return "\n".join(lines) + "\n\n"
+
+
 def review(project_path, diff_text=None):
     """→ (report_text, error)。diff_text=None → 用 git diff HEAD。零 LLM、不出网、落地前脱敏。"""
     pp = Path(project_path).resolve()
@@ -73,6 +88,7 @@ def review(project_path, diff_text=None):
         return "没有可分析的改动块(diff 为空或无法解析)。", None
     cache = Cache(CACHE_DB_PATH)
     blocks = []
+    intercepts = []          # 改动块触及曾否决方案 → 顶部拦截清单(人判防重引入)
     for file, start, end in hunks:
         try:
             segs, precision = collect_graded(cache, pp, file, start, end)
@@ -81,10 +97,14 @@ def review(project_path, diff_text=None):
         if segs:
             body = _format(file, start, end, segs).rstrip()  # 复用 blame 的确定性渲染
             blocks.append(f"{body}\n  {_precision_label(precision, segs)}")
+            rejs = [r for s in segs for r in (s.get("rejected") or [])]
+            if rejs:
+                intercepts.append((file, start, end, rejs))
         else:
             blocks.append(f"# {file}:{start}-{end}  [无据:零-LLM 无从溯源,可先 vibetrace enrich]")
     cache.close()
     header = ("# review 接地(零 LLM,逐块历史决策 + 溯源精度)\n"
               "> 溯源精度=确定性信号(行级精确 vs 文件级降级 vs 无据),"
               "**非**判断这条 why 对不对(语义需模型,零-LLM 不判)。\n\n")
-    return redact_secrets(header + "\n\n".join(blocks)), None
+    return redact_secrets(
+        header + _intercept_section(intercepts) + "\n\n".join(blocks)), None

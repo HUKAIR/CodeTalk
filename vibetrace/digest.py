@@ -5,6 +5,7 @@
 """
 import calendar
 import logging
+import os
 import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -78,6 +79,21 @@ def coverage_nudge(total, narrated):
     pct = 100 * narrated / total
     return (f"叙事覆盖 {narrated}/{total} = {pct:.1f}%;{missing} 个 commit 仍无叙事"
             f" —— 跑 `vibetrace enrich` 补全(digest 只富集 --since 窗口)。")
+
+
+def _capsule_days():
+    """胶囊到期窗口天数 + 是否 dogfood。env VIBETRACE_CAPSULE_DAYS 显式设值=dogfood 短窗:
+    绕过 seal-guard,当天即可密封并开胶囊,取首个真实回面数据点(对位北极星验证)。
+    坏值/未设 → (21, False) 正常窗口。注:seal_capsule 是 INSERT OR IGNORE,已封胶囊
+    (如本仓 7-01 到期的 dogfood 数据)不会被短窗重定日期,只对新 risk 生效;短窗宜配
+    窄 --since 用,避免历史回放 risk 即时密封成洪流。"""
+    raw = os.environ.get("VIBETRACE_CAPSULE_DAYS")
+    if raw is None:
+        return 21, False
+    try:
+        return max(0, int(raw)), True
+    except ValueError:
+        return 21, False
 
 
 def digest(args):
@@ -160,11 +176,12 @@ def digest(args):
         day_tok_out = llm.stats["output_tokens"] - tok_out0
         tok_in0, tok_out0 = llm.stats["input_tokens"], llm.stats["output_tokens"]
         cache.put_daily(pkey, date_str, overview, decision)
+        cap_days, dogfood = _capsule_days()
         for commit in day_commits:  # 以该天为「今日」封存,忠实重放胶囊时间线
             sealed = commit["date"].date().isoformat()
-            opens = (commit["date"].date() + timedelta(days=21)).isoformat()
-            if opens <= date_str:
-                continue  # 该天视角下已到期的不补密封,不复活成洪流
+            opens = (commit["date"].date() + timedelta(days=cap_days)).isoformat()
+            if opens <= date_str and not dogfood:
+                continue  # 该天视角下已到期的不补密封,不复活成洪流(dogfood 短窗显式放行)
             for idx, risk in enumerate(commit["narrative"].get("risks") or []):
                 cache.seal_capsule(pkey, commit["sha"], idx, risk,
                                    sealed, opens)
