@@ -207,6 +207,17 @@ function onScroll(){
   tocLinks.forEach(function(a, i){ a.classList.toggle("on", i === cur); });
 }
 addEventListener("scroll", onScroll, { passive: true }); onScroll();
+document.addEventListener("keydown", function(e){     // j/k 跳下一/上一章(不抢方向键滚动)
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  var tag = e.target && e.target.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA") return;
+  if (e.key !== "j" && e.key !== "k") return;
+  var cur = 0;
+  secs.forEach(function(s, i){ if (s.getBoundingClientRect().top < 120) cur = i; });
+  var nx = Math.max(0, Math.min(secs.length - 1, e.key === "j" ? cur + 1 : cur - 1));
+  if (secs[nx]){ e.preventDefault();
+    secs[nx].scrollIntoView({ behavior: "smooth", block: "start" }); }
+});
 
 document.getElementById("foot").textContent =
   "Local-first · 数据未离开这台机器 · " + (DATA.chapters || []).length

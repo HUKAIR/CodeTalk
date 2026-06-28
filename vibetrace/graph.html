@@ -152,6 +152,14 @@ function showPanel(id){
 document.getElementById('zin').addEventListener('click', function(){ zoom(0.8); });
 document.getElementById('zout').addEventListener('click', function(){ zoom(1.25); });
 document.getElementById('zfit').addEventListener('click', fit);
+document.addEventListener('keydown', function(e){           // 键盘缩放:+ 放大 / - 缩小 / 0·f 适配
+  if(e.metaKey || e.ctrlKey || e.altKey) return;
+  var tag = e.target && e.target.tagName;
+  if(tag === 'INPUT' || tag === 'TEXTAREA') return;
+  if(e.key === '+' || e.key === '='){ e.preventDefault(); zoom(0.8); }
+  else if(e.key === '-'){ e.preventDefault(); zoom(1.25); }
+  else if(e.key === '0' || e.key === 'f'){ e.preventDefault(); fit(); }
+});
 render();
 </script>
 </body>
