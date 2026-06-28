@@ -15,6 +15,13 @@ class TestAskGrounding(unittest.TestCase):
         self.assertIn("文风纪律", ASK_SYSTEM_PROMPT)
         self.assertIn("开场陈词", ASK_SYSTEM_PROMPT)
 
+    def test_counter_evidence_self_check(self):
+        # A2:材料含「否决备选」/「风险/待验证」时,须在 unsure 显式核对结论是否与之冲突
+        # (零成本反证据自洽,复用现有 unsure 字段;_retrieve 已把这两类拼进 context)
+        self.assertIn("否决备选", ASK_SYSTEM_PROMPT)
+        self.assertIn("风险/待验证", ASK_SYSTEM_PROMPT)
+        self.assertIn("冲突", ASK_SYSTEM_PROMPT)
+
 
 class TestNarrativeStyle(unittest.TestCase):
     def test_anti_slop_discipline_present(self):
