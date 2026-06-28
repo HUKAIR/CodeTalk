@@ -19,7 +19,7 @@ C graph→Obsidian Canvas(`--canvas` 接线 + 测试)、D 打包/`init`/README/`
 | 命令 | LLM | 结果 | 验证点 |
 |---|---|---|---|
 | `brief` | 零 | ✅ | 理解债 top3 + 「你上次停在哪」+「悬而未决」,亚秒、纯本地。 |
-| `brief --all` | 零 | ✅ | 跨项目 2 个(CodeTalk/ArtDesign);`LIKE '/%'` 滤掉 basename 幻影项目。 |
+| `brief --all` | 零 | ✅ | 跨项目 2 个(CodeTalk + 另一本地仓);`LIKE '/%'` 滤掉 basename 幻影项目。 |
 | `watch` | 零 | ✅ | 待验证收件箱空,友好提示。 |
 | `self --days 30` | 零 | ✅ | 3064 次运行 **3032 次零-LLM**——「关掉大模型仍有价值」量化自证。 |
 | `blame llm.py:64-76` | 零 | ✅ | 引真实 `b8ced37` + 其 Vibe-Decision 原话(行级溯源)。 |

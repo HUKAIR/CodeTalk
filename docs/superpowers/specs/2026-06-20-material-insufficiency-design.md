@@ -2,7 +2,7 @@
 
 > 状态:已批准设计(两处经 AskUserQuestion 锁定),待落地。
 > 日期:2026-06-20。作者:vibetrace dogfood。
-> 背景:ArtDesign 试点 + 终审发现 `材料不足` 填充会污染叙事/胶囊。PR #16 已做**下游过滤**
+> 背景:另一本地仓试点 + 终审发现 `材料不足` 填充会污染叙事/胶囊。PR #16 已做**下游过滤**
 > (`report._drop_filler` 展示防御 + `enrich._normalize` 源头滤已缓存数据)。本 spec 做**上游根治**。
 
 ## 诊断(为什么会有"材料不足")
@@ -75,7 +75,7 @@ LLM 写出字面串 `材料不足` 是被 prompt 主动教的(`llm.py:32`:「材
 ## 验证(端到端)
 
 - `python3 -m unittest discover -s tests` 全绿;各模块 <300;`grep LLMClient enrich.py` 仍只在叙事路径。
-- dogfood:对 ArtDesign 重跑 digest,确认(a)新叙事无"材料不足"占位;(b)若有纯 lockfile 提交则被跳过且 LLM 调用数下降。
+- dogfood:对另一本地仓重跑 digest,确认(a)新叙事无"材料不足"占位;(b)若有纯 lockfile 提交则被跳过且 LLM 调用数下降。
 
 ## 非目标(YAGNI)
 
