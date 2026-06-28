@@ -15,7 +15,7 @@ from .config import CACHE_DB_PATH, redact_secrets
 
 _HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
 
-# 逐块 blame 是 O(hunks)(每块一次 git log -L);大仓大 diff(实测 另一本地仓 276 块 33s)会过慢,
+# 逐块 blame 是 O(hunks)(每块一次 git log -L);大仓大 diff(实测某深历史仓 276 块约 33s)会过慢,
 # 上限内接地、超出截断并指引单点 blame——防 review 在中大仓上拖死。
 MAX_REVIEW_HUNKS = 60
 
