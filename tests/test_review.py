@@ -126,6 +126,21 @@ class TestReview(unittest.TestCase):
         self.assertIsNone(err)
         self.assertIn("无据", out)
 
+    def test_review_caps_hunks_on_large_diff(self):
+        # 大仓大 diff:逐块 blame O(hunks) → 上限 MAX_REVIEW_HUNKS,超出截断 + 提示(防卡死/过慢)
+        from vibetrace.review import MAX_REVIEW_HUNKS
+        n = MAX_REVIEW_HUNKS + 5
+        diff = "--- a/a.py\n+++ b/a.py\n" + "".join(
+            f"@@ -{i},1 +{i},1 @@\n-x\n+y\n" for i in range(1, n + 1))
+        with mock.patch.object(review_mod, "CACHE_DB_PATH", self.db):
+            out, err = review(self.d, diff)
+        self.assertIsNone(err)
+        self.assertIn(str(n), out)                       # 回显总块数
+        self.assertIn(str(MAX_REVIEW_HUNKS), out)        # 回显上限
+        self.assertIn("vibetrace blame", out)            # 指引单点查余下
+        # 只处理前 cap 块:输出里的块标记数不超过 cap
+        self.assertLessEqual(out.count("溯源精度:"), MAX_REVIEW_HUNKS)
+
     def test_review_empty_diff_friendly(self):
         with mock.patch.object(review_mod, "CACHE_DB_PATH", self.db):
             out, err = review(self.d, "")

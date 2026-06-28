@@ -15,6 +15,10 @@ from .config import CACHE_DB_PATH, redact_secrets
 
 _HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
 
+# 逐块 blame 是 O(hunks)(每块一次 git log -L);大仓大 diff(实测 ArtDesign 276 块 33s)会过慢,
+# 上限内接地、超出截断并指引单点 blame——防 review 在中大仓上拖死。
+MAX_REVIEW_HUNKS = 60
+
 _PRECISION = {"line": "行级精确",
               "file": "文件级降级(可能含本块外历史)",
               "none": "无行历史"}
@@ -86,6 +90,8 @@ def review(project_path, diff_text=None):
     hunks = parse_unified_diff(diff_text)
     if not hunks:
         return "没有可分析的改动块(diff 为空或无法解析)。", None
+    total_hunks = len(hunks)
+    hunks = hunks[:MAX_REVIEW_HUNKS]          # 上限:大仓大 diff 逐块 blame O(hunks) 会过慢
     cache = Cache(CACHE_DB_PATH)
     blocks = []
     intercepts = []          # 改动块触及曾否决方案 → 顶部拦截清单(人判防重引入)
@@ -106,5 +112,8 @@ def review(project_path, diff_text=None):
     header = ("# review 接地(零 LLM,逐块历史决策 + 溯源精度)\n"
               "> 溯源精度=确定性信号(行级精确 vs 文件级降级 vs 无据),"
               "**非**判断这条 why 对不对(语义需模型,零-LLM 不判)。\n\n")
+    if total_hunks > MAX_REVIEW_HUNKS:        # 截断提示:余下用单点 blame 查
+        header += (f"> 注:diff 含 {total_hunks} 个改动块,只接地前 {MAX_REVIEW_HUNKS}"
+                   f"(避免大仓逐块 blame 过慢);其余请用 `vibetrace blame <文件:行>` 单点查。\n\n")
     return redact_secrets(
         header + _intercept_section(intercepts) + "\n\n".join(blocks)), None
