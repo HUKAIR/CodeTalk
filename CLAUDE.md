@@ -98,7 +98,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
   (CSP `connect-src 'self'`;静态产物经 `scripts/check_static_no_external.py` 扫无外链)。
 
 ## Agent 记忆卫生(我维护本仓跨会话记忆的约定)
-跨会话记忆在 `~/.claude/projects/-Users-gavin-Github-CodeTalk/memory/`(`MEMORY.md` 索引 + 每事一文件);retro 设施已运转(`~/.claude/retro/`)。借 SuperSearch 成熟做法,克制采纳:
+跨会话记忆在 `~/.claude/projects/-Users-gavin-Github-CodeTalk/memory/`(`MEMORY.md` 索引 + 每事一文件);retro 设施已运转(`~/.claude/retro/`)。借另一本地仓的成熟做法,克制采纳:
 - **收尾按判据蒸馏,不乱记**:retro 提示 / 会话 / PR 收尾时,只有同时满足「跨会话还会用 + 不重复已有 + 不是产品功能决策(那进 spec/ROADMAP,不进记忆)」才写一条;琐碎会话跳过。类型用 `user/feedback/project/workflow/reference`,别照搬别处枚举。
 - **每条带 `Why` + `How to apply`**:结论之外写清为什么 + 下次怎么用,尤其 `project` 长文——没 How 就只是「读过」不是「会用」,下次仍会重推同一裁决。
 - **真溯源 + supersedes**:`originSessionId` 写真实当前 session_id,别复制同一默认值(伪溯源比没有更糟);事实被推翻时就地改 `MEMORY.md` 索引行 + 在旧条目正文头标一行「已被 X 取代(日期)」,自然语言标注,不引版本系统。
