@@ -58,5 +58,16 @@ class TestCourseRedaction(unittest.TestCase):
         self.assertNotIn("QwErTy123456Zx", html)         # 引号定界 secret 不漏
 
 
+class TestCourseKeyboard(unittest.TestCase):
+    """键盘 j/k 跳到下一/上一章(已有进度条+TOC scroll-spy,补键盘章节跳转)。"""
+    def setUp(self):
+        self.html = (Path(course.__file__).parent / "course.html").read_text(
+            encoding="utf-8")
+
+    def test_jk_chapter_nav(self):
+        self.assertIn('"j"', self.html)
+        self.assertIn("scrollIntoView", self.html)   # j/k 平滑滚到目标章
+
+
 if __name__ == "__main__":
     unittest.main()
