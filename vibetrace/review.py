@@ -23,14 +23,22 @@ _PRECISION = {"line": "行级精确",
               "file": "文件级降级(可能含本块外历史)",
               "none": "无行历史"}
 
+# 接地强度三档徽标:每块前置、一眼可读,把「这条 why 的逐字溯源粒度」的诚实信号顶到眼前
+# (护城河)。三档统一用「溯源粒度」措辞(行级/文件级/无),纯 provenance 轴——即便徽标
+# 被单独拎出展示也读不成语义判断,**绝不**打对错/可信。R6 钉死:零-LLM 不判
+# grounded/inferred/unsupported。
+_BADGE = {"line": "[行级溯源]",
+          "file": "[文件级溯源]",
+          "none": "[无逐字溯源]"}
+
 
 def _precision_label(precision, segs):
-    """每块『溯源精度』标注:确定性准度信号(行级/文件级/无据)+ 有据/仅提交记录。
+    """每块『溯源精度』标注:前置三档徽标 + 确定性准度细节(行级/文件级/无据)+ 有据/仅提交记录。
     **非**判断这条 why 对不对(语义需模型,零-LLM 不判)。"""
     base = _PRECISION.get(precision, precision)
     detail = ("有据" if any(segment_has_why(s) for s in segs)
               else "仅提交记录(无叙事/面包屑,可先 vibetrace enrich)")
-    return f"溯源精度:{base} · {detail}"
+    return f"{_BADGE.get(precision, _BADGE['none'])} 溯源精度:{base} · {detail}"
 
 
 def parse_unified_diff(text):
@@ -107,7 +115,8 @@ def review(project_path, diff_text=None):
             if rejs:
                 intercepts.append((file, start, end, rejs))
         else:
-            blocks.append(f"# {file}:{start}-{end}  [无据:零-LLM 无从溯源,可先 vibetrace enrich]")
+            blocks.append(f"# {file}:{start}-{end}  {_BADGE['none']} 无据:"
+                          "零-LLM 无从溯源,可先 vibetrace enrich")
     cache.close()
     header = ("# review 接地(零 LLM,逐块历史决策 + 溯源精度)\n"
               "> 溯源精度=确定性信号(行级精确 vs 文件级降级 vs 无据),"
