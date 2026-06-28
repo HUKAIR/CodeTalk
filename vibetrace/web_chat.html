@@ -58,7 +58,7 @@
   <aside id="ftdrawer" hidden></aside>
   <p class="hint">问「这段代码当初为什么这么写」——答案接地到真实 commit / 决策 / 会话原话;
     无 key 或 --no-llm 时降级为零-LLM 接地罗列(不出网)。</p>
-  <div id="log"></div>
+  <div id="log" aria-live="polite" aria-relevant="additions text"></div>
   <div id="shint" class="hint"></div>
   <form id="f">
     <textarea id="q" placeholder="例:为什么把重试从装饰器改成显式循环?(可带 文件:行)"></textarea>
@@ -71,6 +71,10 @@ var turn = 0;
 var TREE = $tree_data;
 var pendingTarget = null;
 var log = document.getElementById("log");
+// 自动滚到最新:仅在用户已在底部时(上滚阅读历史时不打断)
+function atBottom(){ return (window.innerHeight + window.scrollY)
+  >= document.documentElement.scrollHeight - 80; }
+function scrollEnd(){ window.scrollTo(0, document.documentElement.scrollHeight); }
 
 function renderFiletree(){
   var T = TREE && TREE.nodes;
@@ -110,6 +114,9 @@ function renderFiletree(){
 }
 document.getElementById("filesbtn").addEventListener("click", function(){
   var dr = document.getElementById("ftdrawer"); dr.hidden = !dr.hidden; });
+document.addEventListener("keydown", function(e){      // Esc 关文件抽屉
+  if (e.key === "Escape"){ var dr = document.getElementById("ftdrawer");
+    if (dr && !dr.hidden) dr.hidden = true; } });
 renderFiletree();
 
 // 输入框为空时按 Tab → 填入当前建议问题并切下一条(无外联,纯本地)
@@ -120,6 +127,14 @@ var sIdx = 0, qEl = document.getElementById("q"), sHint = document.getElementByI
 function showSuggest(){ sHint.textContent = "💡 Tab 填入:" + SUGGEST[sIdx]; }
 showSuggest();
 qEl.addEventListener("keydown", function(e){
+  // Enter 发送、Shift+Enter 换行;IME 合成中(中文选词)不发,避免误触
+  if (e.key === "Enter" && !e.shiftKey && !e.isComposing && e.keyCode !== 229){
+    e.preventDefault();
+    var fm = document.getElementById("f");
+    if (fm.requestSubmit){ fm.requestSubmit(); }
+    else { fm.dispatchEvent(new Event("submit", { cancelable: true })); }
+    return;
+  }
   if (e.key === "Tab" && !qEl.value.trim()){
     e.preventDefault();
     qEl.value = SUGGEST[sIdx];
@@ -207,7 +222,7 @@ document.getElementById("f").addEventListener("submit", function(e){
   add("你", "user").textContent = q;
   document.getElementById("q").value = "";
   var btn = document.getElementById("send"); btn.disabled = true;
-  var body = add("vibetrace", "bot"); body.textContent = "…接地检索中";
+  var body = add("vibetrace", "bot"); body.textContent = "…接地检索中"; scrollEnd();
   var acc = "";                                          // 累积完整答案,供 done 切段重渲染
   fetch("/api/chat/stream", { method:"POST", headers:{"Content-Type":"application/json"},
     body: JSON.stringify({ question:q, conv_id:convId, turn_seq:turn++, target: pendingTarget }) })
@@ -223,8 +238,10 @@ document.getElementById("f").addEventListener("submit", function(e){
             if (line.indexOf("data:") !== 0) return;
             var ev; try { ev = JSON.parse(line.slice(5).trim()); } catch(e){ return; }
             if (ev.type === "token"){
+              var wasBottom = atBottom();                    // 流式期间贴底,除非用户上滚
               if (!started){ body.textContent = ""; started = true; }
               body.textContent += ev.text; acc += ev.text;   // 逐块蹦字(流式)+ 累积
+              if (wasBottom) scrollEnd();
             } else if (ev.type === "done"){ renderDone(body, ev, acc); }
           });
           return pump();

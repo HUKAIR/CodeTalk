@@ -27,3 +27,25 @@ class TestWebChatFiletree(unittest.TestCase):
         self.assertIn(".children.length", self.html)     # 空树守卫判 children
         self.assertNotIn("${", self.html)                # 禁模板字面量
         self.assertEqual(self.html.count("$"), 1)        # 唯一 $ = $tree_data 占位
+
+
+class TestWebChatUX(unittest.TestCase):
+    """聊天 UX 打磨:Enter 发送(IME 安全)/ 自动滚到底 / aria-live 朗读 / Esc 关抽屉。"""
+    def setUp(self):
+        self.html = (Path(web.__file__).parent / "web_chat.html").read_text(encoding="utf-8")
+
+    def test_enter_sends_ime_safe(self):
+        self.assertIn("isComposing", self.html)          # IME 合成中不发(中文选词按 Enter 不误发)
+        self.assertIn("requestSubmit", self.html)        # Enter → 触发表单提交
+        self.assertIn("shiftKey", self.html)             # Shift+Enter 仍换行
+
+    def test_autoscroll_sticky_bottom(self):
+        self.assertIn("atBottom", self.html)             # 用户上滚阅读时不打断
+        self.assertIn("scrollTo", self.html)             # 滚到最新
+
+    def test_live_region_and_esc_drawer(self):
+        self.assertIn('aria-live="polite"', self.html)   # 流式答读屏可达
+        self.assertIn("Escape", self.html)               # Esc 关文件抽屉
+
+    def test_still_single_dollar_placeholder(self):
+        self.assertEqual(self.html.count("$"), 1)        # 改动不得引入 $(模板占位仅 $tree_data)
