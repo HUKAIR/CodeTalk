@@ -294,6 +294,12 @@ function onActivate(el, fn){
 }
 var visited = store();
 
+// ---- 视图持久化 + 深链(hash 为单一真相源:刷新/分享/后退按钮都回到当前视图)----
+var VVKEY = "vibetrace.view.$project";
+function validView(n){ return VIEWS.some(function(v){ return v[0] === n; }); }
+function storeView(n){ try { localStorage.setItem(VVKEY, n); } catch (e) {} }
+function loadView(){ try { return localStorage.getItem(VVKEY); } catch (e) { return null; } }
+
 // ---- 主题(初始偏好已在 head 解析;此处设值 + 同步图标 + 接线)----
 function setTheme(t){
   document.documentElement.setAttribute("data-theme", t);
@@ -332,7 +338,7 @@ function buildNav(){
     return '<button role="tab" data-v="'+v[0]+'" aria-controls="v-'+v[0]+'"'
       + ' aria-selected="false">'+v[1]+'</button>'; }).join("");
   document.querySelectorAll("#nav button").forEach(function(b){
-    b.addEventListener("click", function(){ show(b.getAttribute("data-v")); });
+    b.addEventListener("click", function(){ location.hash = b.getAttribute("data-v"); });
   });
 }
 
@@ -415,7 +421,7 @@ function renderOverview(){
     + '</p></div>';
   var el = document.getElementById("v-overview"); el.innerHTML = h;
   el.querySelectorAll(".jump").forEach(function(j){
-    onActivate(j, function(){ show(j.getAttribute("data-go")); }); });
+    onActivate(j, function(){ location.hash = j.getAttribute("data-go"); }); });
   (o.pending||[]).forEach(function(p, k){ wireCapAns(k); });
 }
 
@@ -717,6 +723,27 @@ function initChat(){
 }
 
 buildNav(); initTheme(); renderOverview(); renderTimeline(); renderGraph(); renderDebt();
-renderFiletree(); renderFoot(); initChat(); show("overview");
+renderFiletree(); renderFoot(); initChat();
+
+// ---- 开屏 + 深链 + 键盘导航 ----
+(function initNav(){
+  var start = validView((location.hash || "").slice(1)) ? location.hash.slice(1)
+            : (validView(loadView()) ? loadView() : "overview");
+  show(start); storeView(start);
+  if (location.hash.slice(1) !== start) {
+    try { history.replaceState(null, "", "#" + start); } catch (e) { location.hash = start; }
+  }
+  window.addEventListener("hashchange", function(){
+    var n = location.hash.slice(1);
+    if (validView(n)) { show(n); storeView(n); }
+  });
+  document.addEventListener("keydown", function(e){     // 数字键 1-5 切视图
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    var tag = e.target && e.target.tagName;             // 输入/文本域内不劫持
+    if (tag === "INPUT" || tag === "TEXTAREA" || (e.target && e.target.isContentEditable)) return;
+    var i = "12345".indexOf(e.key);
+    if (i >= 0 && i < VIEWS.length) { e.preventDefault(); location.hash = VIEWS[i][0]; }
+  });
+})();
 </script>
 </body></html>
