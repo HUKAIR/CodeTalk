@@ -102,16 +102,23 @@ vibetrace init        # 写配置模板到 ~/.vibetrace/config.json(自动 chmod
     "deepseek":  {"base_url": "https://api.deepseek.com/v1", "api_key": "sk-..."},
     "openai":    {"base_url": "https://api.openai.com/v1", "api_key": ""},
     "qwen":      {"base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1", "api_key": ""},
+    "kimi":      {"base_url": "https://api.moonshot.cn/v1", "api_key": ""},
+    "doubao":    {"base_url": "https://ark.cn-beijing.volces.com/api/v3", "api_key": ""},
+    "glm":       {"base_url": "https://open.bigmodel.cn/api/paas/v4", "api_key": ""},
+    "grok":      {"base_url": "https://api.x.ai/v1", "api_key": ""},
+    "gemini":    {"base_url": "https://generativelanguage.googleapis.com/v1beta/openai", "api_key": ""},
     "anthropic": {"api_key": ""},
     "ollama":    {"base_url": "http://localhost:11434/v1", "api_key": "ollama", "local": true}
   }
 }
 ```
 
-API key 也可用环境变量:`DEEPSEEK_API_KEY` / `OPENAI_API_KEY` / `QWEN_API_KEY` /
-`ANTHROPIC_API_KEY`。deepseek / openai / qwen 走 OpenAI 兼容协议(标准库 urllib,零额外
-依赖;DeepSeek 上下文缓存自动生效);anthropic 走官方 SDK(json_schema 结构化输出 +
-prompt caching)。
+切换模型:把顶层 `provider` 改成上面任一,并设对应 `model`(如 kimi→`kimi-k2-0905-preview`、
+glm→`glm-4.6`、grok→`grok-4`、gemini→`gemini-2.5-pro`、doubao→端点 ID 或 `doubao-seed-1-6`)。
+API key 也可用环境变量 `<PROVIDER>_API_KEY`(如 `DEEPSEEK_API_KEY` / `KIMI_API_KEY` /
+`GLM_API_KEY` / `GROK_API_KEY` / `GEMINI_API_KEY` / `DOUBAO_API_KEY` / `ANTHROPIC_API_KEY`)。
+除 anthropic 走官方 SDK(json_schema 结构化输出 + prompt caching)外,其余全走 OpenAI 兼容
+协议(标准库 urllib,零额外依赖;DeepSeek 上下文缓存自动生效)。
 
 **零-egress 本地推理**:把 `provider` 设为 `ollama`(或任何 `local: true` / 指向 `localhost`、
 `127.0.0.1` 的 OpenAI 兼容端点,如 LM Studio / llama.cpp / vLLM),综合推理就在本机跑、**连

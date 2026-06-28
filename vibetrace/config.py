@@ -22,11 +22,19 @@ DEFAULTS = {
     "sources": ["claude"],   # 会话源;加 "cursor"/"codex" 启用对应源(opt-in,数据仍不出本机)
     "no_llm": False,         # 硬开关:置 true 则显式关闭一切 LLM 调用(数据不出本机,连 LLM 例外也关)
     "backlinks": False,      # opt-in:digest 时产出 Obsidian 决策反链笔记(机器自动挖,默认关)
+    # 切换:把顶层 provider/model 改成下面任一(model 由各家自填)。除 anthropic 走官方 SDK 外,
+    # 全部经 llm.py 现成 OpenAI 兼容 HTTP 路径(纯 stdlib urllib,无新依赖)。key 填 api_key 或设
+    # 环境变量 <PROVIDER>_API_KEY(如 KIMI_API_KEY)。出网前已脱敏,数据不出本机仅 LLM 例外。
     "providers": {
-        "deepseek": {"base_url": "https://api.deepseek.com/v1", "api_key": ""},
+        "deepseek": {"base_url": "https://api.deepseek.com/v1", "api_key": ""},   # model: deepseek-v4-pro(默认)
         "openai": {"base_url": "https://api.openai.com/v1", "api_key": ""},
-        "qwen": {"base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1", "api_key": ""},
-        "anthropic": {"api_key": ""},
+        "qwen": {"base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1", "api_key": ""},  # 千问 model: qwen-max
+        "kimi": {"base_url": "https://api.moonshot.cn/v1", "api_key": ""},        # Kimi/Moonshot model: kimi-k2-0905-preview
+        "doubao": {"base_url": "https://ark.cn-beijing.volces.com/api/v3", "api_key": ""},  # 豆包/方舟 model: 端点 ID 或 doubao-seed-1-6
+        "glm": {"base_url": "https://open.bigmodel.cn/api/paas/v4", "api_key": ""},  # 智谱 model: glm-4.6
+        "grok": {"base_url": "https://api.x.ai/v1", "api_key": ""},               # xAI model: grok-4
+        "gemini": {"base_url": "https://generativelanguage.googleapis.com/v1beta/openai", "api_key": ""},  # model: gemini-2.5-pro
+        "anthropic": {"api_key": ""},                                            # 官方 SDK,model: claude-opus-4-8
         # 本地推理(零-egress):Ollama/LM Studio/llama.cpp 等 OpenAI 兼容端点,无需 key
         "ollama": {"base_url": "http://localhost:11434/v1", "api_key": "ollama", "local": True},
     },
