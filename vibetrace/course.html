@@ -10,11 +10,15 @@
           /* 标题/标签/徽标 → 像素体(身份);正文/讲解 → 可读无衬线;代码 → 等宽 */
           --sans: -apple-system, "PingFang SC", "Noto Sans CJK SC",
                 "Helvetica Neue", system-ui, sans-serif;
-          --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace; }
+          --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+          /* 转编辑感:正文英文复古衬线 + 中文 PingFang(系统字体,零 CDN);选中墨蓝 */
+          --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua",
+                Georgia, "PingFang SC", "Microsoft YaHei", serif;
+          --ink: #cfe0ff; }
   * { box-sizing: border-box; border-radius: 0 !important; }
   ::selection { background: #fff; color: #000; }
   html { scroll-behavior: smooth; }
-  body { background: #0a0a0a; color: var(--fg); margin: 0; font-family: var(--sans);
+  body { background: #0a0a0a; color: var(--fg); margin: 0; font-family: var(--serif);
     -webkit-font-smoothing: antialiased; line-height: 1.7; }
   #bar { position: fixed; top: 0; left: 0; height: 2px; background: var(--blue);
     z-index: 30; width: 0; }
@@ -31,7 +35,7 @@
     margin-bottom: 12px; }
   nav a { display: block; color: var(--g2); text-decoration: none;
     padding: 7px 0; border-bottom: 1px solid #161616; line-height: 1.4; }
-  nav a:hover, nav a.on { color: var(--fg); }
+  nav a:hover, nav a.on { color: var(--ink); }
   nav a .n { color: var(--g3); margin-right: 8px; }
   nav a.on .n { color: var(--blue); }
   .degraded { grid-column: 1/-1; border: 1px solid var(--g4); color: var(--g2);
