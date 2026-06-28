@@ -74,18 +74,49 @@ def like_terms(query):
     return _CJK2.findall(query or "")
 
 
-def like_search(conn, query, limit=8):
-    """2 字中文 LIKE 回退(MATCH 召不回时):narrative_fts.body 含该 2 字串即命中。
-    空 body 派生键天然不命中;容错降级绝不崩。→ 命中 sha 列表。"""
+def _project_filter(project):
+    """限定 narrative_fts.sha 属本项目(commit 叙事 OR 对话);project=None → ''(不过滤)。
+    返回 SQL 片段,占位符依次吃 project、project(两次)。多仓共享 cache 不跨仓泄漏。"""
+    if project is None:
+        return ""
+    return (" AND (narrative_fts.sha IN (SELECT sha FROM commit_narratives WHERE project=?)"
+            " OR narrative_fts.sha IN (SELECT 'conv:'||turn_id FROM web_conversations"
+            " WHERE project=?))")
+
+
+def like_search(conn, query, limit=8, project=None):
+    """2 字中文 LIKE 回退(MATCH 召不回时):body 含该 2 字串即命中。project 非空→按项目隔离
+    (commit OR 对话)。空 body 派生键天然不命中;容错降级绝不崩。→ 命中 sha 列表。"""
     terms = like_terms(query)
     if not terms:
         return []
-    where = " OR ".join("body LIKE ?" for _ in terms)
+    where = " OR ".join("narrative_fts.body LIKE ?" for _ in terms)
+    args = [f"%{t}%" for t in terms] + ([project, project] if project is not None else [])
     try:
         rows = conn.execute(
-            f"SELECT sha FROM narrative_fts WHERE {where} LIMIT ?",
-            [f"%{t}%" for t in terms] + [limit]).fetchall()
+            f"SELECT narrative_fts.sha FROM narrative_fts WHERE ({where})"
+            + _project_filter(project) + " LIMIT ?", args + [limit]).fetchall()
     except sqlite3.Error as exc:
         log.warning("FTS LIKE 回退失败(%s),返回空", exc)
         return []
     return [r[0] for r in rows]
+
+
+def search(conn, fts_ok, query, project=None, limit=8):
+    """主题级召回 → 命中 sha(bm25,零 LLM)。project 非空 → 限本项目(commit 叙事 OR 对话,
+    多仓共享 cache 不跨仓泄漏:搜 A 仓绝不召回 B 仓);≥3 字 MATCH,2 字中文 LIKE 回退;不可用→[]。"""
+    if not fts_ok:
+        return []
+    match = build_match(query)
+    if match:
+        args = [match] + ([project, project] if project is not None else []) + [limit]
+        try:
+            rows = conn.execute(
+                "SELECT narrative_fts.sha FROM narrative_fts WHERE narrative_fts MATCH ?"
+                + _project_filter(project) + " ORDER BY bm25(narrative_fts) LIMIT ?",
+                args).fetchall()
+            if rows:
+                return [r[0] for r in rows]
+        except sqlite3.Error as exc:
+            log.warning("FTS 检索失败(%s),试 LIKE 回退", exc)
+    return like_search(conn, query, limit, project)
