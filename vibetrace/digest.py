@@ -9,7 +9,7 @@ import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from . import align, cursor_sessions, enrich, gitlog, report, sessions
+from . import align, codex_sessions, cursor_sessions, enrich, gitlog, report, sessions
 from .cache import Cache
 from .config import VIBETRACE_DIR, load_config
 from .llm import LLMClient, LLMError
@@ -55,11 +55,13 @@ def _shift(d, *, years=0, months=0):
 
 
 def _sources(cfg, args):
-    """会话源:默认 config.sources;--source 覆盖(both=claude+cursor)。"""
+    """会话源:默认 config.sources;--source 覆盖(both=claude+cursor;all=三源全开)。"""
     srcs = list(cfg.get("sources") or ["claude"])
     sel = getattr(args, "source", None)
     if sel == "both":
         return ["claude", "cursor"]
+    if sel == "all":
+        return ["claude", "cursor", "codex"]
     if sel:
         return [sel]
     return srcs
@@ -118,6 +120,13 @@ def digest(args):
         if cur_err:
             log.warning("Cursor 会话层降级:%s", cur_err)
         session_list = session_list + cur_list
+    if "codex" in srcs:
+        codex_sessions.maybe_notice()
+        cx_list, cx_err = codex_sessions.scan_sessions(
+            project_path, _since_to_dt(args.since), cache)
+        if cx_err:
+            log.warning("Codex 会话层降级:%s", cx_err)
+        session_list = session_list + cx_list
     align.align(commits, session_list, project_path)
 
     try:
