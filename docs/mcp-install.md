@@ -42,7 +42,7 @@ printf '%s\n' \
 
 1. 打开 Claude Desktop → **Settings(设置)→ Extensions(扩展)**
 2. 点 **Install Extension…** 选 `vibetrace.mcpb`,或直接把文件拖进窗口
-3. 安装界面会要一个 **项目路径(project)** → 填某个 git 仓根目录(如 `~/Github/CodeTalk`)
+3. 安装界面会要一个 **项目路径(project)** → 填某个 git 仓根目录(如 `~/Github/你的项目`)
 4. 开启扩展 → 新建对话,工具列表里应出现 4 个 `vibetrace_*`
 
 ![Claude Desktop → Settings → Extensions:安装 vibetrace.mcpb,填 project 路径,启用后 4 个工具出现](images/mcp-desktop-install.png)
