@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .config import redact_data, redact_secrets
-from .fts import backfill, build_match, fts_body, like_search
+from .fts import backfill, fts_body, search
 
 log = logging.getLogger("vibetrace")
 
@@ -28,6 +28,9 @@ CREATE TABLE IF NOT EXISTS capsules (
 CREATE TABLE IF NOT EXISTS reviewed (
     project TEXT, sha TEXT, reviewed_at TEXT,
     PRIMARY KEY (project, sha));
+CREATE TABLE IF NOT EXISTS web_conversations (
+    turn_id TEXT PRIMARY KEY, conv_id TEXT, project TEXT, ts TEXT,
+    role TEXT, text TEXT, cited_shas TEXT);
 """
 
 
@@ -112,23 +115,9 @@ class Cache:
                           (json.dumps(n, ensure_ascii=False), sha))
         self.conn.commit()
 
-    def search_narratives(self, query, limit=8):
-        """主题级内容召回 → 命中 sha(bm25 排序)。零 LLM、确定性。
-        ≥3 字 term 走 trigram MATCH;无 match/无命中且含 2 字中文 → LIKE 回退
-        (trigram 对 2 字 CJK 无 shingle,如『脱敏』);fts_ok=False → [];sqlite3.Error 降级。"""
-        if not self.fts_ok:
-            return []
-        match = build_match(query)
-        if match:
-            try:
-                rows = self.conn.execute(
-                    "SELECT sha FROM narrative_fts WHERE narrative_fts MATCH ? "
-                    "ORDER BY bm25(narrative_fts) LIMIT ?", (match, limit)).fetchall()
-                if rows:
-                    return [r[0] for r in rows]
-            except sqlite3.Error as exc:
-                log.warning("FTS 检索失败(%s),试 LIKE 回退", exc)
-        return like_search(self.conn, query, limit)
+    def search_narratives(self, query, project=None, limit=8):
+        """主题级内容召回(委托 fts.search;project 非空→按项目隔离,多仓共享 cache 不跨仓泄漏)。"""
+        return search(self.conn, self.fts_ok, query, project, limit)
 
     def get_session(self, session_id):
         row = self.conn.execute(
