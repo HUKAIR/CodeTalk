@@ -307,5 +307,17 @@ function renderFooter(){
 }
 
 renderTimeline();
+document.addEventListener("keydown", function(e){     // j/k 在 commit 行头间移焦点
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  var tag = e.target && e.target.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA") return;
+  if (e.key !== "j" && e.key !== "k") return;
+  var heads = [].slice.call(document.querySelectorAll(".head"));
+  if (!heads.length) return;
+  var cur = heads.indexOf(document.activeElement);
+  var nx = cur < 0 ? 0 : (e.key === "j" ? cur + 1 : cur - 1);
+  nx = Math.max(0, Math.min(heads.length - 1, nx));
+  e.preventDefault(); heads[nx].focus();
+});
 </script>
 </body></html>

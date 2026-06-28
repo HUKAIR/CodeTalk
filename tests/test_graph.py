@@ -189,5 +189,17 @@ class TestGraphHtmlFeatures(unittest.TestCase):
         self.assertEqual(bare, [], "graph.html 出现非法 $:%r" % bare)
 
 
+class TestGraphKeyboard(unittest.TestCase):
+    """键盘缩放:+ 放大 / - 缩小 / 0/f 适配(补已有缩放按钮的键盘可达)。"""
+    def setUp(self):
+        self.html = (Path(graph.__file__).parent / "graph.html").read_text(
+            encoding="utf-8")
+
+    def test_keyboard_zoom_wired(self):
+        self.assertIn("keydown", self.html)          # 此前无键盘
+        self.assertIn("e.key === '+'", self.html)    # 放大键
+        self.assertIn("e.key === '0'", self.html)    # 适配键
+
+
 if __name__ == "__main__":
     unittest.main()
