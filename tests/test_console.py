@@ -128,6 +128,28 @@ class TestConsoleThemeAndMotion(unittest.TestCase):
         self.assertNotIn("setupTimelineReveal", self.html)          # 旧的 init 即挂已移除
 
 
+class TestConsoleDebtDrilldown(unittest.TestCase):
+    """Track B 债下钻:渲染未回看决策 + 待填胶囊,降债只认胶囊结局(护栏弱信号=回看)。"""
+    def setUp(self):
+        self.html = (Path(console.__file__).parent / "console.html").read_text(
+            encoding="utf-8")
+
+    def test_drilldown_renders_real_composition(self):
+        self.assertIn("function debtDrill", self.html)
+        self.assertIn("r.unreviewed", self.html)       # 未回看决策清单
+        self.assertIn("r.pending_caps", self.html)     # 待填胶囊清单
+        self.assertIn("看债构成", self.html)            # 下钻入口
+
+    def test_drilldown_signal_framing(self):            # B2:真降债=胶囊结局,回看=弱信号
+        self.assertIn("护栏弱信号", self.html)
+        self.assertIn("已解决", self.html)
+
+    def test_askbtn_wired_by_index_not_attr(self):      # 决策原文不进 HTML 属性(esc 不转引号)
+        self.assertIn('.dd .askbtn', self.html)
+        self.assertIn("asks[i].sha", self.html)
+        self.assertIn("asks.push", self.html)
+
+
 class TestConsoleNavDeepLink(unittest.TestCase):
     """导航打磨:URL hash 深链 + 记忆上次视图 + 键盘 1-5 切视图(纯 vanilla-JS,红线内)。"""
     def setUp(self):

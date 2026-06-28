@@ -178,6 +178,14 @@
   .debt .bar2 { height: 8px; background: var(--accent); }
   .debt .meta { font-family: var(--mono); font-size: 11px; color: var(--faint);
     grid-column: 1 / -1; }
+  .debt .dd { grid-column: 1 / -1; margin-top: 2px; }
+  .debt .dd > summary { cursor: pointer; font-family: var(--mono); font-size: 12px;
+    color: var(--dim); }
+  .debt .ddi { padding: 6px 0 6px 12px; margin: 6px 0 0 4px;
+    border-left: 1px solid var(--line); }
+  .debt .ddi .d { font-size: 13px; color: var(--dim); margin: 3px 0; }
+  .debt .ddi .imp { color: var(--accent); font-family: var(--mono); font-size: 12px; }
+  .debt .ddh { color: var(--faint); font-size: 11px; margin-top: 3px; }
   .empty { color: var(--faint); font-size: 13px; font-style: italic; }
   footer { max-width: 820px; margin: 0 auto; padding: 0 24px 50px;
     color: var(--faint); font-size: 12px; font-family: var(--mono); }
@@ -690,20 +698,47 @@ function renderGraph(){
 }
 
 // ---- ④ 理解债 ----
+// 下钻成真实构成(零-LLM 重派生):未回看的决策 commit + 到期待填胶囊。
+// 降债只认真处理:填胶囊『已解决』为主信号;回看(点开即记账)显式标护栏弱信号。
+// askbtn 经 asks 数组按 DOM 序闭包接线,不把决策原文塞进 HTML 属性(esc 不转义引号)。
+function debtDrill(r, asks){
+  var un = r.unreviewed || [], pc = r.pending_caps || [];
+  if (!un.length && !pc.length) return '';
+  var h = '<details class="dd"><summary>看债构成 · 未回看决策 '+un.length
+    + ' · 待填胶囊 '+pc.length+' ▾</summary>';
+  un.forEach(function(u){
+    h += '<div class="ddi"><span class="sha">'+esc(u.sha)+'</span> '+esc(u.subject);
+    (u.decisions||[]).forEach(function(d){ h += '<div class="d">· '+esc(d)+'</div>'; });
+    h += '<div class="ddh">回看即记账(护栏弱信号);真降债 = 给该决策的胶囊填『已解决』</div>';
+    if (CHAT){ h += '<button class="askbtn" type="button">接地追问这个决策 →</button>';
+      asks.push({sha:u.sha, subject:u.subject}); }
+    h += '</div>';
+  });
+  pc.forEach(function(c){
+    h += '<div class="ddi"><span class="imp">待填胶囊</span> '+esc(c.risk)
+      + '<div class="ddh">去「开工概览」回填结局——填『已解决』才算真降债</div></div>';
+  });
+  return h + '</details>';
+}
 function renderDebt(){
   var D = DATA.debt || [], h = '<h2 class="vh">理解债 — AI 改得多、你回看少的模块</h2>';
   if (!D.length){ document.getElementById("v-debt").innerHTML = h
     + '<p class="empty">暂无理解债数据。</p>'; return; }
-  var peak = D[0].debt || 1;
+  var peak = D[0].debt || 1, asks = [];
   D.forEach(function(r){
     h += '<div class="debt"><span class="f">'+esc(r.file)+'</span>'
       + '<span class="sha">债 '+r.debt+'</span>'
       + '<div class="bar2" style="width:'+Math.max(4, Math.round(r.debt/peak*100))+'%"></div>'
       + '<span class="meta">改'+r.churn+' · 回看'+r.reviewed+'/'+r.commits
       + (r.caps_total?' · 胶囊'+r.caps_filled+'/'+r.caps_total:"")
-      + (r.last_decision?' · 上次决定:'+esc(r.last_decision):"")+'</span></div>';
+      + (r.last_decision?' · 上次决定:'+esc(r.last_decision):"")+'</span>'
+      + debtDrill(r, asks)+'</div>';
   });
-  document.getElementById("v-debt").innerHTML = h;
+  var el = document.getElementById("v-debt");
+  el.innerHTML = h;
+  if (CHAT) el.querySelectorAll(".dd .askbtn").forEach(function(b, i){
+    b.addEventListener("click", function(){ openChatWith(asks[i].sha, asks[i].subject); });
+  });
 }
 
 function renderFiletree(){
