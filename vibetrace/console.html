@@ -16,14 +16,19 @@
     --bg: #0d0d0f; --fg: #e8e8ea; --dim: #8b8b92; --faint: #5a5a62;
     --line: #26262b; --card: #16161a; --card2: #1c1c22;
     --accent: #5b9cff; --warn: #e0a44a; --ok: #57b87a;
+    --ink: #cfe0ff;                       /* 选中/hover 文字色(深色主题:浅墨蓝,可读)*/
     --header: rgba(13,13,15,.94);
     --sans: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
     --mono: "SF Mono", ui-monospace, "Cascadia Code", Menlo, monospace;
+    /* 英文复古衬线 + 中文回退 PingFang(系统字体,不引 CDN;英文衬线、中文仍清爽无衬线)*/
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia,
+      "PingFang SC", "Microsoft YaHei", serif;
   }
   :root[data-theme="light"] {
     --bg: #fbfbfd; --fg: #1b1b1f; --dim: #5f5f68; --faint: #9a9aa3;
     --line: #e4e4ea; --card: #ffffff; --card2: #f2f2f6;
     --accent: #2f6fe0; --warn: #b07415; --ok: #2e8b57;
+    --ink: #16365c;                       /* 浅色主题:深墨蓝(选中/hover 文字,清晰不消失)*/
     --header: rgba(251,251,253,.92);
   }
   @keyframes fadeup { from { opacity: 0; transform: translateY(8px); }
@@ -34,7 +39,7 @@
   [role="button"]:focus-visible, nav button:focus-visible, .jump:focus-visible,
   .reanswer:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   body { margin: 0; background: var(--bg); color: var(--fg);
-    font-family: var(--sans); line-height: 1.6; -webkit-font-smoothing: antialiased;
+    font-family: var(--serif); line-height: 1.65; -webkit-font-smoothing: antialiased;
     transition: background-color .3s ease, color .3s ease; }
   ::selection { background: var(--accent); color: #fff; }
   header { position: sticky; top: 0; z-index: 5; background: var(--header);
@@ -52,7 +57,7 @@
     color: var(--dim); background: none; border: none; border-bottom: 2px solid transparent;
     padding: 10px 16px; cursor: pointer; }
   nav button:hover { color: var(--fg); }
-  nav button.on { color: #fff; border-bottom-color: var(--accent); }
+  nav button.on { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
   main { max-width: 820px; margin: 0 auto; padding: 32px 24px 120px; }
   .view { display: none; }
   .view.on { display: block; }
@@ -60,8 +65,8 @@
     letter-spacing: .1em; text-transform: uppercase; margin: 0 0 18px; font-weight: 400; }
 
   /* 概览卡片 */
-  .card { background: var(--card); border: 1px solid var(--line);
-    padding: 16px 18px; margin-bottom: 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 18px 20px; margin-bottom: 16px; box-shadow: 0 1px 2px rgba(20,20,40,.04); }
   .card h3 { margin: 0 0 10px; font-size: 13px; font-family: var(--mono);
     color: var(--dim); letter-spacing: .06em; }
   .card .jump { float: right; font-size: 12px; color: var(--accent);
@@ -71,13 +76,32 @@
     padding-left: 12px; margin: 8px 0; }
   .muted { color: var(--faint); font-size: 13px; }
 
+  /* 开工概览:hero 引文 + 指标 tile(高端编辑感)*/
+  .hero { margin: 4px 0 30px; }
+  .hero .lead { font-family: var(--serif); font-size: 23px; line-height: 1.5;
+    color: var(--fg); margin: 0 0 12px; font-weight: 500; }
+  .hero .lead-sub { font-size: 14.5px; color: var(--dim);
+    border-left: 3px solid var(--accent); padding-left: 13px; margin: 0; }
+  .hero code { font-family: var(--mono); font-size: 13px; background: var(--card2);
+    padding: 1px 6px; border-radius: 4px; }
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 0 0 26px; }
+  .tile { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px; box-shadow: 0 1px 2px rgba(20,20,40,.04); }
+  .tile.jump { cursor: pointer; transition: border-color .15s ease, transform .15s ease; }
+  .tile.jump:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .tnum { font-family: var(--serif); font-size: 27px; font-weight: 600; line-height: 1.05;
+    color: var(--fg); }
+  .tlbl { font-family: var(--mono); font-size: 11px; color: var(--dim);
+    letter-spacing: .06em; margin-top: 5px; }
+  @media (max-width: 560px) { .tiles { grid-template-columns: repeat(2, 1fr); } }
+
   /* 胶囊回答 */
   .cap-q { font-size: 14px; margin: 10px 0 6px; }
   .cap-q .ago { color: var(--dim); }
   .btns { display: flex; flex-wrap: wrap; gap: 8px; }
   .btn { font: inherit; font-size: 13px; color: var(--fg); background: var(--card2);
     border: 1px solid var(--line); padding: 5px 13px; cursor: pointer; }
-  .btn:hover:not(:disabled) { border-color: var(--accent); color: #fff; }
+  .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--ink); }
   .btn:disabled { opacity: .4; cursor: not-allowed; }
   .ro { font-size: 12px; color: var(--faint); margin-top: 8px; font-family: var(--mono); }
   .reanswer { font-size: 12px; color: var(--accent); cursor: pointer;
@@ -97,7 +121,7 @@
   .head .top { display: flex; gap: 10px; align-items: baseline; }
   .sha { font-family: var(--mono); font-size: 12px; color: var(--faint); }
   .subj { font-size: 15px; flex: 1; min-width: 0; }
-  .head:hover .subj { color: #fff; }
+  .head:hover .subj { color: var(--ink); }
   .badges { font-family: var(--mono); font-size: 11px; color: var(--faint); white-space: nowrap; }
   .badges .d { color: var(--accent); } .badges .r { color: var(--warn); } .badges .c { color: var(--ok); }
   .prev { color: var(--dim); font-size: 13px; margin: 2px 0 0;
@@ -401,13 +425,32 @@ function answerCapsule(capId, outcome, k){
   });
 }
 function renderOverview(){
-  var o = DATA.overview, h = '<h2 class="vh">开工概览 — 你上次停在哪</h2>';
-  // 上次停在哪
-  h += '<div class="card"><h3>上次停在哪</h3>';
-  if (o.last) { h += '<p>'+esc(o.last.overview)+'</p>';
-    if (o.last.decision) h += '<p class="quote">上次的决定 — '+esc(o.last.decision)+'</p>';
-  } else h += '<p class="muted">还没有日报 — 终端跑 vibetrace digest。</p>';
+  var o = DATA.overview, h = '';
+  // Hero:上次停在哪(大字引文,英文衬线)
+  h += '<div class="hero">';
+  if (o.last){
+    h += '<p class="lead">'+esc(o.last.overview)+'</p>';
+    if (o.last.decision) h += '<p class="lead-sub">上次的决定 · '+esc(o.last.decision)+'</p>';
+  } else {
+    h += '<p class="lead">还没有日报。</p>'
+      + '<p class="lead-sub">终端跑 <code>vibetrace digest</code> 生成你的开工概览。</p>';
+  }
   h += '</div>';
+  // 指标 tile(一眼概览,可点跳对应视图)
+  var cov = o.coverage ? (o.coverage[0]+'/'+o.coverage[1]) : '—';
+  var debtTop = (o.debt_top && o.debt_top[0]) ? o.debt_top[0].debt : '—';
+  function tile(val, label, go){
+    var a = go ? ' class="tile jump" role="button" tabindex="0" data-go="'+esc(go)+'"'
+               : ' class="tile"';
+    return '<div'+a+'><div class="tnum">'+esc(String(val))+'</div>'
+      + '<div class="tlbl">'+esc(label)+'</div></div>';
+  }
+  h += '<div class="tiles">'
+    + tile((DATA.timeline||[]).length, 'COMMIT', 'timeline')
+    + tile((o.pending||[]).length, '待验证胶囊')
+    + tile(cov, '面包屑覆盖')
+    + tile(debtTop, 'TOP 理解债', 'debt')
+    + '</div>';
   // 待验证胶囊
   if ((o.pending||[]).length){
     h += '<div class="card"><h3>到期待验证的预测 · '+o.pending.length+' 枚</h3>';
@@ -429,14 +472,10 @@ function renderOverview(){
     });
     h += '</div>';
   }
-  // 面包屑覆盖
-  if (o.coverage){
-    h += '<div class="card"><h3>决策面包屑覆盖</h3><p class="muted">近 '+o.coverage[1]
-      + ' 个 commit 有 '+o.coverage[0]+' 个带 Vibe-Decision/Watch — ask/graph 据此更准。</p></div>';
-  }
+  // 更多入口(时光轴 / 面包屑覆盖已上移为 tile)
   h += '<div class="card"><h3>更多</h3><p><span class="jump" role="button" tabindex="0"'
-    + ' data-go="timeline">时光轴 →</span>'
-    + ' &nbsp; <span class="jump" role="button" tabindex="0" data-go="graph">决策图 →</span>'
+    + ' data-go="graph">决策图 →</span>'
+    + ' &nbsp; <span class="jump" role="button" tabindex="0" data-go="filetree">文件树 →</span>'
     + '</p></div>';
   var el = document.getElementById("v-overview"); el.innerHTML = h;
   el.querySelectorAll(".jump").forEach(function(j){
