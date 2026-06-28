@@ -8,12 +8,30 @@ from datetime import datetime, timezone
 from pathlib import Path
 from string import Template
 
-from . import brief, filetree, graph, tunnel
+from . import brief, filetree, graph, self_report, tunnel
 from .cache import Cache
-from .config import CACHE_DB_PATH, load_config, redact_data, redact_secrets
+from .config import (CACHE_DB_PATH, USAGE_LOG_PATH, load_config, redact_data,
+                     redact_secrets)
 from .debt import debt_board
 from .gitlog import collect_commit_files
 from .webserve import inline_json
+
+
+def _last_digest_date(pkey):
+    """最近一次本项目 digest 运行的本地日期(ISO);usage.log 缺失/坏行/无记录 → None。
+    容错红线:旁路信号,任何失败都降级为 None,绝不拖垮控制台装配。"""
+    try:
+        lines = Path(USAGE_LOG_PATH).read_text(encoding="utf-8").splitlines()
+    except (FileNotFoundError, OSError, UnicodeError):
+        return None
+    best = None
+    for rec in self_report.parse_lines(lines):
+        if rec.get("command") != "digest" or rec.get("project") != pkey:
+            continue
+        ts = self_report._parse_ts(rec)
+        if ts and (best is None or ts > best):
+            best = ts
+    return best.astimezone().date().isoformat() if best else None
 
 
 def _file_grounding(changed_paths, commits, narratives):
@@ -66,6 +84,8 @@ def _assemble(project_path, cache):
             "debt_top": debt[:3],
             "pending": cache.pending_capsules(pkey),
             "coverage": list(cov) if cov else None,
+            "last_digest": _last_digest_date(pkey),   # 今日提醒:今天跑过 digest 没
+            "today": today.isoformat(),
         },
         "timeline": tunnel._payload(commits, narratives, capsules_by_sha, today),
         "graph": (graph._assemble(commits[-graph.SCAN_LIMIT:], pp, project, cache)
