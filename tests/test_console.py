@@ -150,6 +150,26 @@ class TestConsoleNavDeepLink(unittest.TestCase):
         self.assertNotIn('show("overview")', self.html)  # 开屏改由 hash/上次视图决定
 
 
+class TestConsoleSearch(unittest.TestCase):
+    """搜索/过滤:头部搜索框过滤时光轴 + 命中计数 + / 聚焦 + Esc 清空(纯 vanilla-JS)。"""
+    def setUp(self):
+        self.html = (Path(console.__file__).parent / "console.html").read_text(
+            encoding="utf-8")
+
+    def test_search_input_present(self):
+        self.assertIn('id="q"', self.html)
+        self.assertIn('type="search"', self.html)
+
+    def test_timeline_filter_wired(self):
+        self.assertIn("TLQ", self.html)          # 过滤词状态
+        self.assertIn("tlMatch", self.html)      # 匹配函数(sha/subject/what/why/决策)
+        self.assertIn("条命中", self.html)        # 命中计数标题
+
+    def test_slash_focuses_search_and_esc_clears(self):
+        self.assertIn('"/"', self.html)          # / 键聚焦搜索
+        self.assertIn("Escape", self.html)       # Esc 清空
+
+
 class TestAccessibilityAndReanswer(unittest.TestCase):
     """任务9:键盘/读屏可达 + 改答 + tunnel res.ok 确认写回。"""
 
