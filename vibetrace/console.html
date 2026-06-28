@@ -94,6 +94,24 @@
   .tlbl { font-family: var(--mono); font-size: 11px; color: var(--dim);
     letter-spacing: .06em; margin-top: 5px; }
   @media (max-width: 560px) { .tiles { grid-template-columns: repeat(2, 1fr); } }
+  /* 今日提醒:今天跑过 digest 没(零-LLM,据 usage.log)*/
+  .ran { margin: 0 0 22px; padding: 10px 14px; border: 1px solid var(--line);
+    border-radius: 9px; font-size: 13.5px; }
+  .ran code { font-family: var(--mono); font-size: 12.5px; background: var(--card2);
+    padding: 1px 6px; border-radius: 4px; }
+  .ran.due { border-color: var(--warn); color: var(--fg); }
+  .ran.ok { color: var(--dim); }
+  /* 首页「想弄清什么」动作行:用用户问句替代裸视图名,贴近 JTBD */
+  .acts { display: grid; gap: 8px; }
+  .act { padding: 11px 13px; border: 1px solid var(--line); border-radius: 9px;
+    cursor: pointer; transition: border-color .15s ease, background .15s ease; }
+  .act:hover, .act:focus-visible { border-color: var(--accent); background: var(--card2);
+    outline: none; }
+  .act-q { font-family: var(--serif); font-size: 15.5px; color: var(--fg); display: flex;
+    justify-content: space-between; align-items: baseline; gap: 12px; }
+  .act:hover .act-q, .act:focus-visible .act-q { color: var(--ink); }
+  .act-go { font-family: var(--mono); font-size: 13px; color: var(--accent); flex: none; }
+  .act-sub { font-size: 12.5px; color: var(--faint); margin-top: 4px; line-height: 1.5; }
 
   /* 胶囊回答 */
   .cap-q { font-size: 14px; margin: 10px 0 6px; }
@@ -424,6 +442,11 @@ function answerCapsule(capId, outcome, k){
       '<div class="ro" style="color:var(--warn)">写回失败,请重试</div>');
   });
 }
+function actRow(go, q, sub){   // 首页动作行:用户问句 + 一句话作用 + 去处(复用 .jump 键盘可达)
+  return '<div class="act jump" role="button" tabindex="0" data-go="'+esc(go)+'">'
+    + '<div class="act-q">'+esc(q)+'<span class="act-go">→</span></div>'
+    + '<div class="act-sub">'+esc(sub)+'</div></div>';
+}
 function renderOverview(){
   var o = DATA.overview, h = '';
   // Hero:上次停在哪(大字引文,英文衬线)
@@ -436,6 +459,14 @@ function renderOverview(){
       + '<p class="lead-sub">终端跑 <code>vibetrace digest</code> 生成你的开工概览。</p>';
   }
   h += '</div>';
+  // 今日提醒:今天跑过 digest 没?(零-LLM:据 usage.log 最近一次本项目 digest 运行日期)
+  if (o.last_digest){
+    if (o.last_digest === o.today)
+      h += '<div class="ran ok">✓ 今天已跑过 <code>vibetrace digest</code> · 记录是新的</div>';
+    else
+      h += '<div class="ran due">今天还没跑 <code>vibetrace digest</code> · 上次 '
+        + esc(o.last_digest) + ' —— 去终端跑一下,把今天和 AI 的协作沉淀下来</div>';
+  }
   // 指标 tile(一眼概览,可点跳对应视图)
   var cov = o.coverage ? (o.coverage[0]+'/'+o.coverage[1]) : '—';
   var debtTop = (o.debt_top && o.debt_top[0]) ? o.debt_top[0].debt : '—';
@@ -472,14 +503,22 @@ function renderOverview(){
     });
     h += '</div>';
   }
-  // 更多入口(时光轴 / 面包屑覆盖已上移为 tile)
-  h += '<div class="card"><h3>更多</h3><p><span class="jump" role="button" tabindex="0"'
-    + ' data-go="graph">决策图 →</span>'
-    + ' &nbsp; <span class="jump" role="button" tabindex="0" data-go="filetree">文件树 →</span>'
-    + '</p></div>';
+  // 「想弄清什么?」—— 用用户的问句措辞替代裸视图名(贴近 JTBD「这段代码当初为什么这么写」)
+  h += '<div class="card"><h3>想弄清什么?</h3><div class="acts">';
+  if (CHAT)
+    h += actRow('chat', '随便问:这段代码当初为什么这么写',
+                '用真实 commit / 测试 / PR 原话作答,不让 AI 现编');
+  h += actRow('graph', '某个决策,后来牵动了哪些改动?',
+              '顺着一个决策,看它的下游连锁改动')
+     + actRow('filetree', '某个改过的文件,当初为什么改?',
+              '从变更文件直接跳到它的来龙去脉')
+     + '</div></div>';
   var el = document.getElementById("v-overview"); el.innerHTML = h;
   el.querySelectorAll(".jump").forEach(function(j){
-    onActivate(j, function(){ location.hash = j.getAttribute("data-go"); }); });
+    onActivate(j, function(){
+      var go = j.getAttribute("data-go");
+      if (go === "chat") openChat(); else location.hash = go;
+    }); });
   (o.pending||[]).forEach(function(p, k){ wireCapAns(k); });
 }
 
