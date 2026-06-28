@@ -119,6 +119,21 @@ class TestBuildWatch(unittest.TestCase):
         out = brief.build_watch(c, [few, many], self.today)
         self.assertLess(out.index(Path(many).name), out.index(Path(few).name))
 
+    def test_verbatim_watch_tagged_and_sorted_first(self):
+        # 逐字 Vibe-Watch(commit body 真有该行)标 🎯 并排前;LLM 预测 risk 标 🤖 在后
+        c = Cache(":memory:")
+        p = self._tmpdir()
+        self._open_capsule(c, p, "AI 猜的风险", sha="s1", idx=0)
+        self._open_capsule(c, p, "我亲手标的", sha="s2", idx=0)
+
+        def fake_body(proj, sha):
+            return "Vibe-Watch: 我亲手标的" if sha == "s2" else ""
+        with mock.patch.object(brief, "commit_body", fake_body):
+            out = brief.build_watch(c, [p], self.today)
+        self.assertIn("🎯 你标的", out)
+        self.assertIn("🤖 AI 预测", out)
+        self.assertLess(out.index("我亲手标的"), out.index("AI 猜的风险"))  # 逐字排前
+
     def test_bad_sealed_date_does_not_crash(self):
         c = Cache(":memory:")
         p = self._tmpdir()

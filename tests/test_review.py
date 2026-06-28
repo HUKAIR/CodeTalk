@@ -92,6 +92,32 @@ class TestReview(unittest.TestCase):
         self.assertIn("否决备选", out)
         self.assertIn("曾想用方案X,放弃因Y", out)
 
+    def test_review_top_interception_checklist(self):
+        # 改动触及带 Vibe-Rejected 的块 → 顶部「⚠ 拦截检查」清单(人判防重引入),在正文块之前
+        self.f.write_text("l1\nl2\nl3\nl4\n")
+        _git(["commit", "-aqm",
+              "feat: 加行\n\nVibe-Rejected: 曾想用方案X,放弃因Y"], self.d)
+        self.f.write_text("l1\nl2\nl3\nCHANGED4\n")
+        diff = subprocess.run(["git", "-C", self.d, "diff", "HEAD"],
+                              capture_output=True, text=True).stdout
+        with mock.patch.object(review_mod, "CACHE_DB_PATH", self.db):
+            out, err = review(self.d, diff)
+        self.assertIsNone(err)
+        self.assertIn("拦截检查", out)                         # 顶部拦截清单
+        self.assertIn("曾想用方案X,放弃因Y", out)
+        self.assertLess(out.index("拦截检查"), out.index("溯源精度:"))  # 在正文块(精度标注带冒号)之前
+        self.assertIn("interceptions.md", out)                 # 指向里程碑的家
+
+    def test_review_no_interception_section_when_clean(self):
+        # 改动块只有 Vibe-Decision(无 Rejected)→ 不出拦截清单(不污染常规 review)
+        self.f.write_text("l1\nCHANGED\nl3\n")
+        diff = subprocess.run(["git", "-C", self.d, "diff", "HEAD"],
+                              capture_output=True, text=True).stdout
+        with mock.patch.object(review_mod, "CACHE_DB_PATH", self.db):
+            out, err = review(self.d, diff)
+        self.assertIsNone(err)
+        self.assertNotIn("拦截检查", out)
+
     def test_review_marks_uncovered_block_as_no_evidence(self):
         # 全新文件的行无 git 历史 → 该块显式标「无据」而非编造
         diff = ("--- /dev/null\n+++ b/brand_new.py\n@@ -0,0 +1,2 @@\n+x\n+y\n")
