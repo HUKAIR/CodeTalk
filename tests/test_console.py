@@ -193,6 +193,29 @@ class TestConsoleFilterChips(unittest.TestCase):
         self.assertIn("clearFilters", self.html)  # Esc 一键清空搜索 + chip
 
 
+class TestConsoleVisual(unittest.TestCase):
+    """视觉重设计:hover 墨蓝(非白字消失)/ 英文复古衬线(无 CDN)/ 概览 hero+指标 tile。"""
+    def setUp(self):
+        self.html = (Path(console.__file__).parent / "console.html").read_text(
+            encoding="utf-8")
+
+    def test_hover_uses_ink_not_white(self):
+        self.assertIn("--ink", self.html)                          # 墨蓝变量
+        self.assertIn(".head:hover .subj { color: var(--ink)", self.html)
+        self.assertIn("nav button.on { color: var(--ink)", self.html)
+
+    def test_english_serif_no_cdn(self):
+        self.assertIn("--serif", self.html)
+        self.assertIn("Palatino", self.html)                       # 复古衬线栈(系统字体)
+        self.assertIn("font-family: var(--serif)", self.html)      # body 用衬线
+        self.assertNotIn("fonts.googleapis", self.html)            # 不引 web 字体 CDN
+
+    def test_overview_redesign(self):
+        self.assertIn('class="hero"', self.html)                   # hero 引文
+        self.assertIn("tnum", self.html)                           # 指标 tile 数字
+        self.assertIn(".tiles", self.html)
+
+
 class TestConsoleFiletreeExpand(unittest.TestCase):
     """文件树:展开全部 / 折叠全部(切换所有 details.ftd)。"""
     def setUp(self):
