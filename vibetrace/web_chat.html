@@ -39,6 +39,9 @@
   button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:0 18px;
     font:inherit;cursor:pointer}
   button:disabled{opacity:.5;cursor:not-allowed}
+  .copybtn{background:transparent;color:var(--dim);border:1px solid var(--line);
+    border-radius:6px;padding:1px 8px;font-size:11px;cursor:pointer;margin-left:8px}
+  .copybtn:hover{border-color:var(--accent);color:var(--accent)}
   .hint{color:var(--dim);font-size:13px;margin:6px 0 0}
 #ftdrawer{position:fixed;top:0;right:0;width:min(80vw,340px);height:100vh;overflow:auto;
   background:#0f0f12;border-left:1px solid rgba(255,255,255,.12);padding:12px;z-index:30;
@@ -160,6 +163,16 @@ function renderDone(body, ev, acc){
     b.className = "badge"; b.textContent = "零-LLM 接地(未调模型)";
     body.parentNode.querySelector(".who").appendChild(b);
   }
+  var cp = document.createElement("button");            // 复制答案(127.0.0.1 = clipboard 安全上下文)
+  cp.type = "button"; cp.className = "copybtn"; cp.textContent = "复制";
+  cp.addEventListener("click", function(){
+    function ok(){ cp.textContent = "已复制";
+      setTimeout(function(){ cp.textContent = "复制"; }, 1200); }
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(acc).then(ok, function(){ cp.textContent = "复制失败"; });
+    } else { cp.textContent = "复制失败"; }
+  });
+  body.parentNode.querySelector(".who").appendChild(cp);
   function setBody(html){ body.innerHTML = html; }      // 全文件唯一 innerHTML sink
   var H = ev.highlights || [];
   if (H.length){
