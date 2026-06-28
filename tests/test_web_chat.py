@@ -47,5 +47,10 @@ class TestWebChatUX(unittest.TestCase):
         self.assertIn('aria-live="polite"', self.html)   # 流式答读屏可达
         self.assertIn("Escape", self.html)               # Esc 关文件抽屉
 
+    def test_copy_answer_button(self):
+        self.assertIn("copybtn", self.html)              # 每条答案的复制按钮
+        self.assertIn("clipboard", self.html)            # 复制到剪贴板(127.0.0.1 安全上下文)
+        self.assertIn("已复制", self.html)                # 复制后反馈
+
     def test_still_single_dollar_placeholder(self):
         self.assertEqual(self.html.count("$"), 1)        # 改动不得引入 $(模板占位仅 $tree_data)
