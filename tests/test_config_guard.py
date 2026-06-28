@@ -25,6 +25,28 @@ class TestProvidersShapeGuard(unittest.TestCase):
             self.assertIsInstance(cfg["providers"], dict)
 
 
+class TestProviderEntries(unittest.TestCase):
+    """新增 kimi/豆包/glm/grok/gemini 入口(deepseek/qwen 已有);全复用 llm.py 现成
+    OpenAI 兼容 HTTP 路径,纯 stdlib 无新 SDK(守 M0 红线)。每个须有 https base_url,
+    api_key 走 <PROVIDER>_API_KEY 环境变量回退。"""
+    OPENAI_COMPAT = ["deepseek", "qwen", "kimi", "doubao", "glm", "grok", "gemini"]
+
+    def test_all_requested_providers_registered(self):
+        provs = cfgmod.DEFAULTS["providers"]
+        for name in self.OPENAI_COMPAT:
+            self.assertIn(name, provs, f"{name} 未注册")
+            self.assertTrue(
+                str(provs[name].get("base_url", "")).startswith("https://"),
+                f"{name} 缺 OpenAI 兼容 base_url")
+
+    def test_api_key_env_fallback_for_new_providers(self):
+        for name in ("kimi", "glm", "grok", "gemini", "doubao"):
+            with unittest.mock.patch.dict(
+                    "os.environ", {f"{name.upper()}_API_KEY": "k-" + name}):
+                self.assertEqual(
+                    cfgmod.resolve_api_key(cfgmod.DEFAULTS, name), "k-" + name)
+
+
 class TestRedactProseFalsePositive(unittest.TestCase):
     """通用 key-value secret 正则:含数字的真值仍脱敏,纯字母连字符散文不误伤。"""
 
