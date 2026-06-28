@@ -22,7 +22,8 @@ def collect_topic_hits(cache, project_path, question):
     """主题级零-LLM 检索 → 结构化命中 list[dict]。解析真实 commit 命中(get_narrative +
     merge_breadcrumbs)与对话命中(conv: → web_conversations);叙事缺失/非 git 仓容错降级。"""
     hits = []
-    for key in cache.search_narratives(question):
+    pkey = str(project_path)        # 与 commit_narratives.project 同口径(调用方已 resolve),按项目隔离
+    for key in cache.search_narratives(question, pkey):
         if conversation.is_conv_key(key):           # 反哺:落库的讨论也是接地源
             turn = conversation.get_turn(cache, conversation.turn_id_of(key))
             if turn:
