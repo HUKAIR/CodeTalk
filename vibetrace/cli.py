@@ -21,7 +21,7 @@ def _build_parser():
     dig.add_argument("--vault", help="覆盖日报输出目录")
     dig.add_argument("--provider", help="覆盖 LLM provider")
     dig.add_argument("--model", help="覆盖模型 ID")
-    dig.add_argument("--source", choices=["claude", "cursor", "both"],
+    dig.add_argument("--source", choices=["claude", "cursor", "codex", "both", "all"],
                      help="会话源(默认按 config.sources;cursor 需 opt-in)")
     dig.add_argument("--with-pr", action="store_true",
                      help="额外用 GitHub PR 讨论作 why 源(数据出本机,opt-in)")
@@ -47,7 +47,7 @@ def _build_parser():
                      help='富集范围(默认全史;如 "3 months ago")')
     enr.add_argument("--no-llm", action="store_true",
                      help="显式关闭 LLM(仍做零-LLM 的 evidence 补;未叙事项跳过)")
-    enr.add_argument("--source", choices=["claude", "cursor", "both"],
+    enr.add_argument("--source", choices=["claude", "cursor", "codex", "both", "all"],
                      help="会话源(默认按 config.sources;影响 evidence 原话锚点收割)")
     crs = _proj(sub.add_parser("course", help="生成演进课程(项目怎么长成的,实验)"))
     crs.add_argument("--no-llm", action="store_true",
@@ -81,7 +81,7 @@ def _build_parser():
         help="指令回看:按会话时间线列出你发给 AI 的指令 + 改过的文件(零 LLM)"))
     prm.add_argument("--since", default="1 day ago",
                      help='如 "3 days ago"/2026-06-20(默认近 1 天)')
-    prm.add_argument("--source", choices=["claude", "cursor", "both"],
+    prm.add_argument("--source", choices=["claude", "cursor", "codex", "both", "all"],
                      help="会话源(默认按 config.sources;cursor 需 opt-in)")
     drf = _proj(sub.add_parser(
         "drift", help="偏差自检:AI 工具改了却没提交的文件(声称 vs 实际,零 LLM)"))
