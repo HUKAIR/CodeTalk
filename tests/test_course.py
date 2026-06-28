@@ -69,5 +69,19 @@ class TestCourseKeyboard(unittest.TestCase):
         self.assertIn("scrollIntoView", self.html)   # j/k 平滑滚到目标章
 
 
+class TestCourseVisual(unittest.TestCase):
+    """视觉对齐:正文英文复古衬线(--serif)+ hover/选中墨蓝(--ink);保留像素标签作身份。"""
+    def setUp(self):
+        self.html = (Path(course.__file__).parent / "course.html").read_text(
+            encoding="utf-8")
+
+    def test_serif_body_and_ink_nav(self):
+        self.assertIn("--serif", self.html)
+        self.assertIn("Palatino", self.html)                   # 复古衬线栈(系统字体,无 CDN)
+        self.assertIn("font-family: var(--serif)", self.html)  # body 用衬线
+        self.assertIn("color: var(--ink)", self.html)          # nav hover/选中 → 墨蓝
+        self.assertNotIn("fonts.googleapis", self.html)        # 不引 web 字体 CDN
+
+
 if __name__ == "__main__":
     unittest.main()
