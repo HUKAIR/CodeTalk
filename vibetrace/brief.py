@@ -5,7 +5,7 @@ from pathlib import Path
 
 from . import debt as debt_mod
 from .config import redact_secrets
-from .gitlog import collect_commit_files, parse_breadcrumbs
+from .gitlog import collect_commit_files, commit_body, parse_breadcrumbs
 
 
 def _debt_block(board):
@@ -127,15 +127,26 @@ def _days_sealed(sealed_date, today):
         return None
 
 
+def _is_verbatim_watch(project, sha, risk):
+    """该 risk 是否逐字来自 commit 的 Vibe-Watch 面包屑(确定性,零-LLM)。
+    commit_body 失败 → '' → 无 watches → 视为非逐字(LLM 预测),降级不崩。"""
+    _decs, watches = parse_breadcrumbs(commit_body(project, sha))
+    return risk in watches
+
+
 def _watch_block(name, path, pending, opened, filled, today):
-    """单项目待回填块:risk + 已封天数 + 该项目回填率。"""
+    """单项目待回填块:risk + 已封天数 + 回填率(护栏)。逐字 Vibe-Watch(你亲手标的)排前
+    标 🎯,LLM 预测 risk 标 🤖 在后——优先回面你真在意的,别被 LLM 预测噪声稀释。"""
     rate = f"{filled}/{opened}" if opened else "0/0"
     lines = [f"## {name}  {_shorten(path)}",
              f"_回填率 {rate}_", ""]
-    for cap in pending:
+    tagged = [(_is_verbatim_watch(path, c["sha"], c["risk"]), c) for c in pending]
+    tagged.sort(key=lambda t: not t[0])          # 逐字 Watch(True)排前
+    for verbatim, cap in tagged:
         days = _days_sealed(cap["sealed_date"], today)
         since = f"(已封 {days} 天)" if days is not None else ""
-        lines.append(f"- (`{cap['sha'][:7]}`)你曾担心:「{cap['risk']}」"
+        tag = "🎯 你标的" if verbatim else "🤖 AI 预测"
+        lines.append(f"- {tag}(`{cap['sha'][:7]}`)你曾担心:「{cap['risk']}」"
                      f"{since}——现在验证了吗?")
     lines.append("")
     return lines
@@ -143,7 +154,7 @@ def _watch_block(name, path, pending, opened, filled, today):
 
 def build_watch(cache, projects, today):
     """跨项目 watch 收件箱:列出所有项目里『已到期开启、未回填』的胶囊,零 LLM。
-    预测-验证闭环的日常入口,直接服务北极星『回填率』。
+    预测-验证闭环的日常入口;回填率是护栏指标,北极星=回面后实际处理率。
     projects=绝对路径列表(cache.distinct_projects())。返回已脱敏 markdown。"""
     rows = []
     for p in projects:
