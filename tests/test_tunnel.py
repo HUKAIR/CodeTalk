@@ -57,5 +57,18 @@ class TestTunnelKeyboard(unittest.TestCase):
         self.assertIn('querySelectorAll(".head")', self.html)   # j/k 在行头间移焦点
 
 
+class TestTunnelVisual(unittest.TestCase):
+    """视觉对齐 console:英文复古衬线 + hover/选中墨蓝(--ink)。"""
+    def setUp(self):
+        self.html = (Path(tunnel.__file__).parent / "tunnel.html").read_text(
+            encoding="utf-8")
+
+    def test_serif_and_ink(self):
+        self.assertIn("--serif", self.html)
+        self.assertIn("Palatino", self.html)             # 复古衬线栈(系统字体,无 CDN)
+        self.assertIn("--ink", self.html)
+        self.assertIn(".head:hover .subj { color: var(--ink)", self.html)  # hover 墨蓝
+
+
 if __name__ == "__main__":
     unittest.main()
