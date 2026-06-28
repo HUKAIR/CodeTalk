@@ -242,6 +242,10 @@
     border: 1px solid var(--line); border-radius: 5px; padding: 2px 8px; cursor: pointer;
     margin-top: 10px; }
   .askbtn:hover { border-color: var(--accent); }
+  #q { width: 100%; box-sizing: border-box; margin-top: 8px; padding: 7px 10px;
+    border: 1px solid var(--line); border-radius: 8px; background: transparent;
+    color: inherit; font: inherit; }
+  #q:focus { outline: none; border-color: var(--accent); }
 </style></head><body>
 <header>
   <div class="bar">
@@ -249,6 +253,8 @@
     <span>LOCAL-FIRST · $generated<button id="themebtn" class="themebtn" title="切换浅色/深色">☀</button></span>
   </div>
   <nav id="nav"></nav>
+  <input id="q" type="search" placeholder="搜时光轴 — 关键词(按 / 聚焦,Esc 清空)"
+    aria-label="搜索时光轴">
 </header>
 <main>
   <section class="view on" id="v-overview" role="tabpanel" tabindex="0"></section>
@@ -299,6 +305,7 @@ var VVKEY = "vibetrace.view.$project";
 function validView(n){ return VIEWS.some(function(v){ return v[0] === n; }); }
 function storeView(n){ try { localStorage.setItem(VVKEY, n); } catch (e) {} }
 function loadView(){ try { return localStorage.getItem(VVKEY); } catch (e) { return null; } }
+var TLQ = "";   // 时光轴搜索过滤词(已小写;空=不过滤)
 
 // ---- 主题(初始偏好已在 head 解析;此处设值 + 同步图标 + 接线)----
 function setTheme(t){
@@ -445,12 +452,24 @@ function rowBody(c){
   if (CHAT) h += '<button class="askbtn" type="button">接地追问这段 →</button>';
   return h;
 }
+function tlMatch(c){   // sha/subject/what/why/决策/待验证 任一含 TLQ(子串,已小写)
+  var s = (c.sha+" "+c.subject+" "+(c.what||"")+" "+(c.why||"")+" "
+    +(c.decisions||[]).join(" ")+" "+(c.risks||[]).join(" ")).toLowerCase();
+  return s.indexOf(TLQ) >= 0;
+}
 function renderTimeline(){
-  var T = DATA.timeline, h = '<h2 class="vh">时光轴 — 最新在顶,点开看叙事</h2>';
+  var T = DATA.timeline;
+  var hits = TLQ ? T.filter(tlMatch).length : T.length;
+  var sub = TLQ ? (hits + ' 条命中 / 共 ' + T.length + '(Esc 清空)')
+                : '最新在顶,点开看叙事';
+  var h = '<h2 class="vh">时光轴 — ' + sub + '</h2>';
   if (!T.length){ document.getElementById("v-timeline").innerHTML = h
     + '<p class="empty">还没有 commit。</p>'; return; }
+  if (TLQ && !hits){ document.getElementById("v-timeline").innerHTML = h
+    + '<p class="empty">无命中:换个关键词。</p>'; return; }
   var lastDay = null;
   T.forEach(function(c, i){
+    if (TLQ && !tlMatch(c)) return;            // 过滤:跳过不命中的行(及其空日期头)
     if (c.day !== lastDay){ lastDay = c.day;
       h += '<div class="day">'+c.day+' · '+agoText(c.days_ago)+'</div>'; }
     var cls = "row"+(visited[c.sha]?" read":"")+(c.risks.length?" risky":"");
@@ -466,6 +485,7 @@ function renderTimeline(){
   document.getElementById("v-timeline").innerHTML = h;
   T.forEach(function(c, i){
     var head = document.getElementById("th"+i);
+    if (!head) return;                         // 被过滤掉的行无 DOM,跳过接线
     onActivate(head, function(){
       var row = document.getElementById("tr"+i), open = row.classList.toggle("open");
       head.setAttribute("aria-expanded", open ? "true" : "false");
@@ -741,9 +761,21 @@ renderFiletree(); renderFoot(); initChat();
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     var tag = e.target && e.target.tagName;             // 输入/文本域内不劫持
     if (tag === "INPUT" || tag === "TEXTAREA" || (e.target && e.target.isContentEditable)) return;
+    if (e.key === "/") { var qf = document.getElementById("q");
+      if (qf) { e.preventDefault(); qf.focus(); } return; }
     var i = "12345".indexOf(e.key);
     if (i >= 0 && i < VIEWS.length) { e.preventDefault(); location.hash = VIEWS[i][0]; }
   });
+  var qel = document.getElementById("q");        // 搜索框:实时过滤时光轴
+  if (qel) {
+    qel.addEventListener("input", function(){
+      TLQ = qel.value.trim().toLowerCase(); renderTimeline();
+      if (TLQ && location.hash.slice(1) !== "timeline") location.hash = "timeline";
+    });
+    qel.addEventListener("keydown", function(e){
+      if (e.key === "Escape") { qel.value = ""; TLQ = ""; renderTimeline(); qel.blur(); }
+    });
+  }
 })();
 </script>
 </body></html>
