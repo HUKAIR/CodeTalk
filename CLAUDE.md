@@ -6,6 +6,13 @@ Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-s
 
 **编码纪律选用:** 本项目「重活」(写 / 改 / 调试 / 审代码)优先调起 `/karpathy-enhanced` —— 它是下面 4 条的超集(另加:读后写、验证、调试、依赖、沟通、命名反模式目录);下面 4 条是其精炼核心,轻量任务够用。
 
+**按分量分档(别一刀切上全套):**
+- **琐碎**(改常量 / 重命名 / 一行 / 文案):直接改 + 跑相关测试;跳 TDD 仪式、跳对抗 subagent 审、能直接合就别走 PR 全套。
+- **中等**(一个函数 / 一个小功能 / 一个 bug):读相关文件 + TDD 红→绿 + 跑全量。**性价比甜区,默认档。**
+- **重活**(架构 / 跨多文件 / 有回滚成本 / 动 M0 红线):`/karpathy-enhanced` 超集 + 对抗审 + superpowers 流水线(brainstorm→spec→对抗审 spec→plan→subagent-TDD→PR)。
+- **刚性三条**(§4 surgical、§5 验证、§7 调试):成本极低、专拦最贵事故,**任何分量都守**。
+- **对抗 subagent 审触发阈值**:中高风险 diff 或 ultracode 开启时才挂;琐碎 / 已 TDD + 全量绿的小改**不挂**(过度加工)。
+
 ## 1. Think Before Coding
 
 **Don't assume. Don't hide confusion. Surface tradeoffs.**
