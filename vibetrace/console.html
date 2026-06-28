@@ -246,6 +246,10 @@
     border: 1px solid var(--line); border-radius: 8px; background: transparent;
     color: inherit; font: inherit; }
   #q:focus { outline: none; border-color: var(--accent); }
+  #chips { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px;
+    background: transparent; color: inherit; font: inherit; font-size: 12px; cursor: pointer; }
+  .chip.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
 </style></head><body>
 <header>
   <div class="bar">
@@ -255,6 +259,11 @@
   <nav id="nav"></nav>
   <input id="q" type="search" placeholder="搜时光轴 — 关键词(按 / 聚焦,Esc 清空)"
     aria-label="搜索时光轴">
+  <div id="chips">
+    <button class="chip" data-f="crumb" aria-pressed="false">带决策</button>
+    <button class="chip" data-f="risk" aria-pressed="false">有待验证</button>
+    <button class="chip" data-f="cap" aria-pressed="false">有胶囊</button>
+  </div>
 </header>
 <main>
   <section class="view on" id="v-overview" role="tabpanel" tabindex="0"></section>
@@ -457,19 +466,35 @@ function tlMatch(c){   // sha/subject/what/why/决策/待验证 任一含 TLQ(�
     +(c.decisions||[]).join(" ")+" "+(c.risks||[]).join(" ")).toLowerCase();
   return s.indexOf(TLQ) >= 0;
 }
+var TLF = { crumb:false, risk:false, cap:false };   // 时光轴快捷过滤(与搜索 AND 组合)
+function tlActive(){ return !!(TLQ || TLF.crumb || TLF.risk || TLF.cap); }
+function tlPass(c){
+  if (TLQ && !tlMatch(c)) return false;
+  if (TLF.crumb && !(c.decisions && c.decisions.length)) return false;
+  if (TLF.risk && !(c.risks && c.risks.length)) return false;
+  if (TLF.cap && !((c.capsules||[]).length)) return false;
+  return true;
+}
+function clearFilters(){    // Esc 一键清空:搜索词 + 全部 chip
+  TLQ = ""; TLF.crumb = TLF.risk = TLF.cap = false;
+  var q = document.getElementById("q"); if (q) q.value = "";
+  document.querySelectorAll("#chips .chip").forEach(function(b){
+    b.classList.remove("on"); b.setAttribute("aria-pressed", "false"); });
+  renderTimeline();
+}
 function renderTimeline(){
-  var T = DATA.timeline;
-  var hits = TLQ ? T.filter(tlMatch).length : T.length;
-  var sub = TLQ ? (hits + ' 条命中 / 共 ' + T.length + '(Esc 清空)')
-                : '最新在顶,点开看叙事';
+  var T = DATA.timeline, active = tlActive();
+  var hits = active ? T.filter(tlPass).length : T.length;
+  var sub = active ? (hits + ' 条命中 / 共 ' + T.length + '(Esc 清空)')
+                   : '最新在顶,点开看叙事';
   var h = '<h2 class="vh">时光轴 — ' + sub + '</h2>';
   if (!T.length){ document.getElementById("v-timeline").innerHTML = h
     + '<p class="empty">还没有 commit。</p>'; return; }
-  if (TLQ && !hits){ document.getElementById("v-timeline").innerHTML = h
-    + '<p class="empty">无命中:换个关键词。</p>'; return; }
+  if (active && !hits){ document.getElementById("v-timeline").innerHTML = h
+    + '<p class="empty">无命中:换个关键词或筛选。</p>'; return; }
   var lastDay = null;
   T.forEach(function(c, i){
-    if (TLQ && !tlMatch(c)) return;            // 过滤:跳过不命中的行(及其空日期头)
+    if (active && !tlPass(c)) return;          // 过滤:跳过不命中的行(及其空日期头)
     if (c.day !== lastDay){ lastDay = c.day;
       h += '<div class="day">'+c.day+' · '+agoText(c.days_ago)+'</div>'; }
     var cls = "row"+(visited[c.sha]?" read":"")+(c.risks.length?" risky":"");
@@ -773,9 +798,18 @@ renderFiletree(); renderFoot(); initChat();
       if (TLQ && location.hash.slice(1) !== "timeline") location.hash = "timeline";
     });
     qel.addEventListener("keydown", function(e){
-      if (e.key === "Escape") { qel.value = ""; TLQ = ""; renderTimeline(); qel.blur(); }
+      if (e.key === "Escape") { clearFilters(); qel.blur(); }
     });
   }
+  document.querySelectorAll("#chips .chip").forEach(function(b){
+    b.addEventListener("click", function(){
+      var f = b.getAttribute("data-f"); TLF[f] = !TLF[f];
+      b.classList.toggle("on", TLF[f]);
+      b.setAttribute("aria-pressed", TLF[f] ? "true" : "false");
+      renderTimeline();
+      if (tlActive() && location.hash.slice(1) !== "timeline") location.hash = "timeline";
+    });
+  });
 })();
 </script>
 </body></html>

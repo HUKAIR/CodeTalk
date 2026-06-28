@@ -170,6 +170,29 @@ class TestConsoleSearch(unittest.TestCase):
         self.assertIn("Escape", self.html)       # Esc 清空
 
 
+class TestConsoleFilterChips(unittest.TestCase):
+    """时光轴快捷过滤 chip:带决策 / 有待验证 / 有胶囊,与搜索 AND 组合,Esc 清空全部。"""
+    def setUp(self):
+        self.html = (Path(console.__file__).parent / "console.html").read_text(
+            encoding="utf-8")
+
+    def test_chips_present(self):
+        self.assertIn('id="chips"', self.html)
+        for f in ("crumb", "risk", "cap"):
+            self.assertIn('data-f="' + f + '"', self.html)
+        self.assertIn("带决策", self.html)
+        self.assertIn("有待验证", self.html)
+        self.assertIn("有胶囊", self.html)
+
+    def test_combined_filter_wired(self):
+        self.assertIn("tlPass", self.html)       # 搜索 AND chip 的合并判定
+        self.assertIn("tlActive", self.html)     # 任一过滤生效
+        self.assertIn("aria-pressed", self.html)  # chip 切换态可读屏
+
+    def test_clear_all_filters(self):
+        self.assertIn("clearFilters", self.html)  # Esc 一键清空搜索 + chip
+
+
 class TestAccessibilityAndReanswer(unittest.TestCase):
     """任务9:键盘/读屏可达 + 改答 + tunnel res.ok 确认写回。"""
 
