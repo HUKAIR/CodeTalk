@@ -36,24 +36,23 @@ def _render_or_serve(args, render, serve, label):  # tunnel/console 共用:serve
 
 
 def _scan_sessions(cfg, args, pp, cache):
-    """按 config.sources/--source 扫 claude/cursor 会话(增量缓存)→ session 列表;降级不崩。
+    """按 config.sources/--source 扫 claude/cursor/codex 会话(增量缓存)→ session 列表;降级不崩。
     供 prompts/enrich 共用(对齐拿 prompts 时间线 / 收割 evidence 原话锚点)。"""
-    from . import cursor_sessions, sessions
+    from . import codex_sessions, cursor_sessions, sessions
     from .digest import _since_to_dt, _sources
     since_dt = _since_to_dt(args.since)
     srcs = _sources(cfg, args)
     sess = []
-    if "claude" in srcs:
-        s_list, s_err = sessions.scan_sessions(pp, since_dt, cache)
-        if s_err:
-            log.warning("会话层降级:%s", s_err)
-        sess += s_list
-    if "cursor" in srcs:
-        cursor_sessions.maybe_notice()
-        c_list, c_err = cursor_sessions.scan_sessions(pp, since_dt, cache)
-        if c_err:
-            log.warning("Cursor 会话层降级:%s", c_err)
-        sess += c_list
+    for name, mod in (("claude", sessions), ("cursor", cursor_sessions),
+                      ("codex", codex_sessions)):
+        if name not in srcs:
+            continue
+        if name != "claude":          # cursor/codex 首用一次性告知(claude 无 notice)
+            mod.maybe_notice()
+        lst, err = mod.scan_sessions(pp, since_dt, cache)
+        if err:
+            log.warning("%s 会话层降级:%s", name, err)
+        sess += lst
     return sess
 
 
