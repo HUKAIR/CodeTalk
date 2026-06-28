@@ -201,5 +201,19 @@ class TestGraphKeyboard(unittest.TestCase):
         self.assertIn("e.key === '0'", self.html)    # 适配键
 
 
+class TestGraphVisual(unittest.TestCase):
+    """视觉对齐:外壳/面板正文转复古衬线(--serif);图节点 SVG 文本保留等宽(--px)精确对齐。"""
+    def setUp(self):
+        self.html = (Path(graph.__file__).parent / "graph.html").read_text(
+            encoding="utf-8")
+
+    def test_serif_chrome_mono_nodes(self):
+        self.assertIn("--serif", self.html)
+        self.assertIn("Palatino", self.html)                       # 复古衬线栈(系统字体,无 CDN)
+        self.assertIn("font-family:var(--serif)", self.html)       # body 衬线(压缩 CSS,无空格)
+        self.assertIn("svg text{font-family:var(--px)", self.html)  # 节点仍等宽,精确对齐
+        self.assertNotIn("image-rendering:pixelated", self.html)    # 去像素化(SVG 矢量,编辑感)
+
+
 if __name__ == "__main__":
     unittest.main()
