@@ -52,5 +52,11 @@ class TestWebChatUX(unittest.TestCase):
         self.assertIn("clipboard", self.html)            # 复制到剪贴板(127.0.0.1 安全上下文)
         self.assertIn("已复制", self.html)                # 复制后反馈
 
+    def test_english_serif_no_cdn(self):
+        self.assertIn("--serif", self.html)
+        self.assertIn("Palatino", self.html)             # 复古衬线栈(系统字体)
+        self.assertIn("var(--serif)", self.html)         # body 用衬线
+        self.assertNotIn("fonts.googleapis", self.html)  # 不引 web 字体 CDN
+
     def test_still_single_dollar_placeholder(self):
         self.assertEqual(self.html.count("$"), 1)        # 改动不得引入 $(模板占位仅 $tree_data)
