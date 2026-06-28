@@ -37,7 +37,7 @@ shell history 是**全局**的(`~/.zsh_history` / `~/.bash_history`),**不记 cw
 **解法 = 双闸归因(保守、低召回、诚实)**
 
 1. **文本归因闸(主 + 隐私闸)** —— 只保留命令文本**显式引用本仓**的条目。命令 `c` 引用本仓 ⟺ `c` 文本包含以下任一:
-   - (a) 仓**绝对路径**(`Path(project).resolve()` 的字符串),如 `cd ~/Github/CodeTalk`;
+   - (a) 仓**绝对路径**(`Path(project).resolve()` 的字符串),如 `cd ~/Github/你的项目`;
    - (b) 仓 **basename 作词边界 token**(仅当 `len(basename) >= 4`,避免 `cd src` 类误中),如 `cd CodeTalk`;
    - (c) 任一**含 `/` 的 tracked 相对路径**作子串(多段路径,低碰撞),如 `pytest tests/test_drift.py`、`vim vibetrace/cli.py`。
    **故意排除**裸顶层文件名(`README.md`/`pyproject.toml` 满世界都是,误中其他仓)。**不引用本仓的命令直接丢弃,永不入缓存/不进任何输出/不落 vault。**
