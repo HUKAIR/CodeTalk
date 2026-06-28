@@ -250,6 +250,9 @@
   .chip { padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px;
     background: transparent; color: inherit; font: inherit; font-size: 12px; cursor: pointer; }
   .chip.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .ftbtn { font-size: 11px; padding: 1px 8px; margin-left: 6px; border: 1px solid var(--line);
+    border-radius: 6px; background: transparent; color: inherit; cursor: pointer; font-family: inherit; }
+  .ftbtn:hover { border-color: var(--accent); }
 </style></head><body>
 <header>
   <div class="bar">
@@ -629,7 +632,9 @@ function renderFiletree(){
   var T = (DATA.tree && DATA.tree.nodes) || null;
   var G = (DATA.tree && DATA.tree.grounding) || [];
   var sec = document.getElementById("v-filetree");
-  var head = '<h2 class="vh">文件树 — 工作区变更 + 点开看「当初为什么」</h2>';
+  var head = '<h2 class="vh">文件树 — 工作区变更 + 点开看「当初为什么」'
+    + ' <button id="ftexpand" class="ftbtn" type="button">展开全部</button>'
+    + '<button id="ftcollapse" class="ftbtn" type="button">折叠全部</button></h2>';
   if (!T || !T.children || !T.children.length){
     sec.innerHTML = head + '<p class="empty">无文件或非 git 仓。</p>'; return; }
   var gmap = {}; G.forEach(function(e){ gmap[e.path] = e.commits || []; });
@@ -653,6 +658,11 @@ function renderFiletree(){
     + T.children.map(function(c){ return nodeHtml(c, 0); }).join("")
     + '</div><div class="ftpanel" id="ftpanel">'
     + '<p class="empty">点左侧文件看它的决策历史(零 LLM)。</p></div></div>';
+  var eb = document.getElementById("ftexpand"), cb = document.getElementById("ftcollapse");
+  if (eb) eb.addEventListener("click", function(){
+    sec.querySelectorAll("details.ftd").forEach(function(d){ d.open = true; }); });
+  if (cb) cb.addEventListener("click", function(){
+    sec.querySelectorAll("details.ftd").forEach(function(d){ d.open = false; }); });
   function showPanel(path){
     var rows = gmap[path], p = document.getElementById("ftpanel");
     if (!rows || !rows.length){
