@@ -50,10 +50,13 @@ def debt_board(project_path, cache, today, top=None):
             # 已删除/未跟踪文件不计入:无法回看、无债可还,否则会挤占 top 名额
             if tracked is not None and f not in tracked:
                 continue
-            m = mods.setdefault(f, {"churn": 0, "shas": set(),
-                                    "last_touch": None, "last_decision": None})
+            m = mods.setdefault(f, {"churn": 0, "shas": set(), "last_touch": None,
+                                    "last_decision": None, "dec_by_sha": {}})
             m["churn"] += len(decisions) + 1
             m["shas"].add(sha)
+            if decisions:   # 下钻:记每个决策 commit 的 sha→{subject,decisions}(供未回看清单)
+                m["dec_by_sha"][sha] = {"subject": commit.get("subject", ""),
+                                        "decisions": decisions}
             if m["last_touch"] is None or commit["date"] > m["last_touch"]:
                 m["last_touch"] = commit["date"]
                 m["last_decision"] = decisions[0] if decisions else None
@@ -74,6 +77,11 @@ def debt_board(project_path, cache, today, top=None):
             "churn": m["churn"], "reviewed": reviewed_n, "commits": len(shas),
             "caps_filled": filled, "caps_total": len(rel_caps),
             "last_decision": m["last_decision"],
+            # 下钻真实构成(零-LLM 重派生):未回看的决策 commit + 到期待填胶囊
+            "unreviewed": [{"sha": s, "subject": v["subject"], "decisions": v["decisions"]}
+                           for s, v in m["dec_by_sha"].items() if s not in reviewed],
+            "pending_caps": [{"capsule_id": c["capsule_id"], "risk": c["risk"]}
+                             for c in rel_caps if c.get("opened") and not c["outcome"]],
         })
     rows.sort(key=lambda r: r["debt"], reverse=True)
     return rows[:top] if top else rows
