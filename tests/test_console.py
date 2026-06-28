@@ -385,5 +385,71 @@ class TestConsoleCLI(unittest.TestCase):
         self.assertTrue(called)
 
 
+class TestOverviewActions(unittest.TestCase):
+    """首页「更多」框重设计为「想弄清什么?」—— 用用户问句(JTBD)替代裸视图名,
+    chat 启用时首列「随便问:这段代码当初为什么这么写」。"""
+    def setUp(self):
+        self.html = (Path(console.__file__).parent / "console.html").read_text(
+            encoding="utf-8")
+
+    def test_user_question_framing_replaces_bare_more(self):
+        self.assertNotIn(">更多</h3>", self.html)              # 旧「更多」标题已弃
+        self.assertIn("想弄清什么", self.html)                  # 新标题=用户视角
+        self.assertIn("当初为什么这么写", self.html)            # 核心 JTBD 问句
+        self.assertIn("牵动了哪些改动", self.html)              # 决策图,用问句而非视图名
+        self.assertIn("当初为什么改", self.html)                # 文件树,问句化
+
+    def test_action_rows_wire_views_and_chat(self):
+        self.assertIn("function actRow", self.html)            # 复用的动作行构造器
+        self.assertIn('class="act jump"', self.html)           # 复用 .jump 键盘可达
+        self.assertIn("data-go=", self.html)
+        self.assertIn('=== "chat"', self.html)                 # chat 行走 openChat 非 hash
+        self.assertIn("openChat()", self.html)
+
+
+class TestRanTodayReminder(unittest.TestCase):
+    """首页今日提醒:零-LLM 据 usage.log 判「今天跑过 digest 没」,陈旧则提示去跑。"""
+    def setUp(self):
+        self.html = (Path(console.__file__).parent / "console.html").read_text(
+            encoding="utf-8")
+
+    def test_last_digest_date_matches_today_and_degrades(self):
+        import json as _json
+        from datetime import datetime, timezone
+        d = tempfile.mkdtemp(); self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        log = Path(d) / "usage.log"
+        now = datetime.now(timezone.utc).isoformat()
+        pkey = "/proj/abc"
+        log.write_text(
+            _json.dumps({"command": "digest", "project": pkey, "ts": now}) + "\n"
+            + _json.dumps({"command": "console", "project": pkey, "ts": now}) + "\n"
+            + "{ broken json\n",                                  # 坏行须容错跳过
+            encoding="utf-8")
+        today = datetime.now(timezone.utc).astimezone().date().isoformat()
+        with mock.patch.object(console, "USAGE_LOG_PATH", str(log)):
+            self.assertEqual(console._last_digest_date(pkey), today)   # 今天跑过 digest
+            self.assertIsNone(console._last_digest_date("/other"))     # 别的项目无记录
+        with mock.patch.object(console, "USAGE_LOG_PATH", str(Path(d) / "nope.log")):
+            self.assertIsNone(console._last_digest_date(pkey))         # 文件缺失降级 None
+
+    def test_assemble_overview_exposes_today_and_last_digest(self):
+        d = tempfile.mkdtemp(); self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        _git(["init", "-q"], d); _git(["config", "user.email", "t@t"], d)
+        _git(["config", "user.name", "t"], d)
+        (Path(d) / "a.py").write_text("1\n"); _git(["add", "."], d)
+        _git(["commit", "-q", "-m", "c1"], d)
+        data, err = console._assemble(d, Cache(":memory:"))
+        self.assertIsNone(err)
+        self.assertIn("today", data["overview"])                # 供前端比对
+        self.assertIn("last_digest", data["overview"])
+
+    def test_reminder_dom_markup(self):
+        self.assertIn("o.last_digest", self.html)               # 据运行记录判
+        self.assertIn("o.today", self.html)
+        self.assertIn('class="ran due"', self.html)             # 陈旧 → 提示去跑
+        self.assertIn('class="ran ok"', self.html)              # 今天已跑 → 安心
+        self.assertIn("今天还没跑", self.html)
+
+
 if __name__ == "__main__":
     unittest.main()
