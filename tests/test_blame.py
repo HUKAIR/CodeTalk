@@ -1,6 +1,7 @@
 """blame:零-LLM 行级决策溯源(真 git 临时仓)。
 确定性罗列触达指定行的 commit → 缓存叙事 + Vibe-Decision 面包屑;无 key 也能用。"""
 import io
+import json
 import shutil
 import subprocess
 import tempfile
@@ -207,6 +208,21 @@ class TestBlameRun(unittest.TestCase):
         code, out = self._run("f.py")
         self.assertEqual(code, 0)
         self.assertIn("c1 初版", out)
+
+    def test_json_output_is_valid_json(self):
+        buf = io.StringIO()
+        with mock.patch.object(blame, "Cache",
+                               lambda _p: Cache(":memory:")), \
+             redirect_stdout(buf):
+            code = blame.blame(self.repo.dir, "f.py:2-2", json_output=True)
+        self.assertEqual(code, 0)
+        data = json.loads(buf.getvalue())
+        self.assertIsInstance(data, list)
+        self.assertGreaterEqual(len(data), 1)
+        seg = data[0]
+        for key in ("sha", "date", "subject", "why", "decisions", "risks"):
+            self.assertIn(key, seg, f"missing key: {key}")
+        self.assertIsInstance(seg["decisions"], list)
 
 
 if __name__ == "__main__":

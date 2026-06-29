@@ -65,6 +65,8 @@ def _build_parser():
     blm = _proj(sub.add_parser("blame",
                                help="行级决策溯源(零 LLM,确定性罗列,无 key 也能用)"))
     blm.add_argument("target", help='文件或 文件:起-止,如 vibetrace/llm.py:72-78')
+    blm.add_argument("--json", action="store_true", dest="as_json",
+                     help="结构化 JSON 输出(供 IDE 扩展/agent 消费)")
     rev = _proj(sub.add_parser(
         "review", help="review 现场:粘 diff/git diff → 逐改动块的历史决策+真实引用(零 LLM)"))
     rev.add_argument("--diff", help="读 diff 文件(默认 git diff HEAD;或 git diff | vibetrace review)")

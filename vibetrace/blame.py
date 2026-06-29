@@ -4,6 +4,7 @@
 行的 commit,映射到已缓存叙事 + Vibe-Decision 面包屑,确定性打印每段决策史
 (SHA·日期·subject·decisions)。ask 用 LLM 综合,blame 只如实罗列;无 key 也能用。
 """
+import json
 import sys
 from pathlib import Path
 
@@ -128,7 +129,7 @@ def _format(file, start, end, segments):
     return "\n".join(lines).rstrip() + "\n"
 
 
-def blame(project_path, target):
+def blame(project_path, target, json_output=False):
     """CLI 入口:解析→收集→确定性打印,返回退出码。零 LLM,无 key 也能用。"""
     file, start, end = _parse_target(target)
     pp = Path(project_path).resolve()
@@ -138,6 +139,8 @@ def blame(project_path, target):
     if not segments:
         print(f"错误:{file} 没有可用的提交历史,无从溯源。", file=sys.stderr)
         return 2
-    # 出口脱敏:subject / 决策面包屑来自 git 原始元数据,未经 cache 脱敏,出 stdout 前兜底
-    print(redact_secrets(_format(file, start, end, segments)), end="")
+    if json_output:
+        print(redact_secrets(json.dumps(segments, ensure_ascii=False)), end="")
+    else:
+        print(redact_secrets(_format(file, start, end, segments)), end="")
     return 0
