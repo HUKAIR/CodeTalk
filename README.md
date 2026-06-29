@@ -38,9 +38,9 @@ vibetrace grounds "why" in real commit history — verbatim citations you can cl
 | 可核验 | 否——听起来对但无据 | 是——点开 SHA 看原文 |
 | 数据 | 发往云端 | 不出本机 |
 
-> **Honest boundaries / 诚实边界:** Blind test is N=5, this repo only, human-judged — not a population claim. Coverage ceiling ~90% (commits with narratives, `grounding_hitrate.py` to reproduce). vibetrace finds "what was actually said and decided", not "whether the code is correct" — source records themselves may be wrong. Full methodology: `docs/discovery/2026-06-29-护城河对照卡-真实记录vs反推.md`.
+> **Honest boundaries / 诚实边界:** Blind test is N=5, this repo only, human-judged — not a population claim. Coverage ceiling 96% (188/195 commits with narratives or breadcrumbs, `grounding_hitrate.py` to reproduce; line-level reach 100% on source files). vibetrace finds "what was actually said and decided", not "whether the code is correct" — source records themselves may be wrong. Full methodology: `docs/discovery/2026-06-29-护城河对照卡-真实记录vs反推.md`.
 >
-> 盲测 N=5、本仓、人工判读，不是人群结论。接地覆盖上限 ~90%（有叙事的 commit，`grounding_hitrate.py` 可复跑）。vibetrace 找的是「当初到底说了什么、为什么这么写」，不保证代码正确——源记录本身可能有误。完整方法见 `docs/discovery/` 下对照卡和盲测文档。
+> 盲测 N=5、本仓、人工判读，不是人群结论。接地覆盖上限 96%（188/195 commit 有叙事或面包屑，`grounding_hitrate.py` 可复跑；源码行级可达率 100%）。vibetrace 找的是「当初到底说了什么、为什么这么写」，不保证代码正确——源记录本身可能有误。完整方法见 `docs/discovery/` 下对照卡和盲测文档。
 
 ## 安装
 
