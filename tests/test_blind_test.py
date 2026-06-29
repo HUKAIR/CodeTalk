@@ -73,6 +73,35 @@ class TestFormat(unittest.TestCase):
         self.assertIn("diff 查无", out)
 
 
+class TestCodeOnlyDiff(unittest.TestCase):
+    """滤掉散文:doc 文件段从 diff 剔除(doc 编辑的 diff 本身是理由,留着让纯 diff 反推
+    变『读散文』而非真考古);doc-only commit 的 diff 变空 → main 将排除。"""
+    def test_strips_doc_section_keeps_code(self):
+        from scripts.blind_test import _code_only_diff
+        diff = ("diff --git a/CLAUDE.md b/CLAUDE.md\n@@ -1 +1 @@\n-x\n+理由散文在此\n"
+                "diff --git a/vibetrace/x.py b/vibetrace/x.py\n@@ -1 +1 @@\n-a\n+b\n")
+        out = _code_only_diff(diff)
+        self.assertIn("vibetrace/x.py", out)
+        self.assertNotIn("理由散文在此", out)        # doc 段被剔除
+        self.assertNotIn("CLAUDE.md", out)
+
+    def test_doc_only_becomes_empty(self):
+        from scripts.blind_test import _code_only_diff
+        diff = "diff --git a/docs/spec.md b/docs/spec.md\n@@ -1 +1 @@\n-x\n+散文理由\n"
+        self.assertEqual(_code_only_diff(diff).strip(), "")
+
+    def test_no_diff_header_returned_asis(self):
+        from scripts.blind_test import _code_only_diff
+        self.assertEqual(_code_only_diff("just text no header"), "just text no header")
+
+    def test_is_doc_classification(self):
+        from scripts.blind_test import _is_doc
+        self.assertTrue(_is_doc("README.md"))
+        self.assertTrue(_is_doc("docs/anything.py"))   # docs/ 区一律视为文档
+        self.assertFalse(_is_doc("vibetrace/x.py"))
+        self.assertFalse(_is_doc("vibetrace/console.html"))
+
+
 class TestRedactionBeforeEgress(unittest.TestCase):
     """红线:diff 到达 LLM 前必脱敏(唯一出网点)。防未来重构悄悄挪掉 redact。"""
     def test_diff_redacted_before_reaching_llm(self):
