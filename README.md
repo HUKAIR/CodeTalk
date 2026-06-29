@@ -1,39 +1,46 @@
 # vibetrace
 
-**回答「这段代码当初为什么这么写」——零-LLM 确定性接地到你项目里真实的 commit / PR / 会话原话(M0)。**
-别人要你**手写**决策记录(ADR / Notion),vibetrace 从你已有的 `git log` + Claude Code 会话里
-**自动挖出「当初为什么」并逐字接地**,对抗 AI 反推式编造。答案沉淀成 markdown / 单文件 HTML 写进
-Obsidian,偿还 AI 高速写码欠下的**理解债**。
+**AI writes your code. Three months later, nobody knows why it was written that way.**
 
-护城河是一个复合体(别人难同时给齐):**① 零-LLM 确定性 · ② 逐字引真实记录(可点开核验,不是 LLM
-重述)· ③ 自动挖掘(非手写)· ④ 数据不出本机**。`brief` / `graph` / `blame` / `search` 及理解债
-**完全不调用 LLM**——关掉大模型照样有价值,这是和「套壳」的分界线。接地**覆盖上限**(能零-LLM
-确定性接地回答 why 的 commit 占比,**非答对率**)本仓 dogfood 自测约九成(撰写时 `78/85 = 91.8%`,
-2026-06-25;随 commit 增长漂移,以复跑当下输出为准:`python3 scripts/grounding_hitrate.py`,口径=本仓
-commit、不外推你的仓)。
+vibetrace grounds "why" in real commit history — verbatim citations you can click and verify, not AI confabulation. Zero-LLM, local-only, pure stdlib.
 
-为什么非得引真实记录、而不是让 AI 从 diff 反推:有三类 why **结构性**地不在 diff 里——**① why-NOT /
-defer**(「为什么**没**这么做」「为什么先缓」,diff 只录已发生的改动)· **② diff 不可见的外部约束**
-(如「沙箱无 `node` 故走零-build vanilla-JS」,约束不在代码里)· **③ `Vibe-Watch` 待验证项**(作者标的
-「这条到期要回看」,diff 无此维度)。反推这些只能靠**编**——它还会**凭空捏造被否决的备选**(diff 里
-根本没有的「考虑过 X 但放弃」)。这正是 Cursor / Claude Code 那种只能**从当前 diff 反推** why 的 git
-考古结构上够不到的地方,也是 vibetrace 逐字引真实 commit / 会话原话、而非让 AI 事后编一个理由的地方。
+---
 
-> 本仓 6 commit 盲测自证(N=1,口径=本仓、非人群断言,见
-> `docs/discovery/2026-06-25-护城河与北极星验证.md`;原为手工对抗实验,**现已可复跑**:
-> `python3 scripts/blind_test.py [仓] [N]`——任意仓取 N 个带面包屑 commit,纯 diff 反推 vs 真实记录
-> 并排 + 确定性「数据泄漏标」(标 why 是否已被 diff 夹带),**判对错由你**(语义需人,不自动打分)):
-> 取 6 个带真实 `Vibe-Decision` 的 commit,让只看 diff 的 agent 重建「当初为什么」再逐条比对——
-> **6/6 都有编造或遗漏,2/6 完全弄错真实理由**(`ed14b3c` 漏掉真决策、`b8ced37` 把因果讲反)。诚实
-> 说明:看似「基本命中」的少数里有一半,只因 diff 本身**夹带了作者一并 commit 进去的说明文本**——是
-> why 被一起提交进 diff,不是 diff 反推出了 why;扣掉这层数据泄漏,纯 diff 反推命中更低。
-> **可复跑工具 + 干净样本复验**(`docs/discovery/2026-06-27-护城河盲测-可复跑+干净样本.md`;**与上面手工
-> 6/6 是不同口径**——这里工具**默认自动挑「泄漏最低」的干净 commit**(why 不在 diff、对反推最有利)跑反推):
-> 本仓 3 个干净样本上**反推 3/3 漏真决策、2/3 露骨编造**(含幻觉数字、整条认错主题)。诚实口径:N=3、
-> 本仓、人工判读、未自动打分。
+**AI 高速写码，三个月后没人知道当初为什么这么写。** vibetrace 把「为什么」钉在真实 commit 记录上——逐字引用、可点开核验，不是 AI 反推编造。零 LLM、数据不出本机、纯标准库。
 
-> 注:接地的是「当初到底说了什么、为什么这么写」这份**可核验的真实记录**,**不等于保证代码正确**
-> ——源记录本身可能有误。vibetrace 解决的是「找回 why、对抗反推编造」,不是「替你审对错」。
+### Why this matters
+
+- **Trust is collapsing.** 46% of developers actively distrust AI output; only 3% highly trust it. *(Stack Overflow 2025, N=33,244)*
+- **AI "explanations" are fabricated.** We blind-tested 5 real commits: AI inferred "why" from diffs alone — **5/5 missed the real decisions, 2/5 completely wrong.** *(This repo, reproducible: `python3 scripts/blind_test.py . 5`)*
+- **Your chat history is fragile.** 8+ bug reports across Cursor, Claude Code, and Copilot: conversations silently vanish — data still on disk, UI can't surface it.
+
+### 为什么重要
+
+- **信任正在崩塌。** 46% 开发者不信 AI 输出，仅 3% 高度信任。*(SO 2025, N=33,244)*
+- **AI「解释」是编造的。** 本仓 5 commit 盲测：纯 diff 反推 5/5 漏真实决策、2/5 完全弄错。*(可复跑: `python3 scripts/blind_test.py . 5`)*
+- **你的对话历史很脆弱。** Cursor / Claude Code / Copilot 共 8+ bug 报告：对话静默消失——数据还在磁盘，UI 接不回。
+
+### How vibetrace is different
+
+| | AI inference (Cursor/Copilot) | vibetrace |
+|---|---|---|
+| Source | current diff | real commit + session transcript |
+| Method | LLM guesses from code | zero-LLM deterministic lookup by SHA |
+| Verifiable | no — plausible but ungrounded | yes — click SHA to see original |
+| Data | sent to cloud | never leaves your machine |
+
+### vibetrace 有什么不同
+
+| | AI 反推 (Cursor/Copilot) | vibetrace |
+|---|---|---|
+| 来源 | 当前 diff | 真实 commit + 会话原话 |
+| 方法 | LLM 从代码猜测 | 零-LLM 确定性按 SHA 查找 |
+| 可核验 | 否——听起来对但无据 | 是——点开 SHA 看原文 |
+| 数据 | 发往云端 | 不出本机 |
+
+> **Honest boundaries / 诚实边界:** Blind test is N=5, this repo only, human-judged — not a population claim. Coverage ceiling ~90% (commits with narratives, `grounding_hitrate.py` to reproduce). vibetrace finds "what was actually said and decided", not "whether the code is correct" — source records themselves may be wrong. Full methodology: `docs/discovery/2026-06-29-护城河对照卡-真实记录vs反推.md`.
+>
+> 盲测 N=5、本仓、人工判读，不是人群结论。接地覆盖上限 ~90%（有叙事的 commit，`grounding_hitrate.py` 可复跑）。vibetrace 找的是「当初到底说了什么、为什么这么写」，不保证代码正确——源记录本身可能有误。完整方法见 `docs/discovery/` 下对照卡和盲测文档。
 
 ## 安装
 
