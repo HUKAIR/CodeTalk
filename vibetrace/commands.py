@@ -203,7 +203,8 @@ def ask_cmd(args):
 
 def blame_cmd(args):
     from .blame import blame
-    return blame(args.project, args.target)
+    return blame(args.project, args.target,
+                 json_output=getattr(args, "as_json", False))
 
 
 def review_cmd(args):

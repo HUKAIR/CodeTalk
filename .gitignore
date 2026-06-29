@@ -19,3 +19,5 @@ docs/**/*.html
 .cursor/
 .idea/
 .mcp.json
+# VS Code extension build artifacts
+vscode-vibetrace/node_modules/
