@@ -18,10 +18,13 @@
     }
   },
   "tools": [
-    { "name": "vibetrace_ask", "description": "就某段代码接地提问『当初为什么这么写』(接 commit 叙事+决策面包屑;无 key 降级为确定性检索)" },
-    { "name": "vibetrace_blame", "description": "行级决策溯源(零 LLM,确定性罗列触达这些行的 commit 及决策史)" },
-    { "name": "vibetrace_graph", "description": "决策影响图(时间轴 DAG,零 LLM):哪个决策 commit 波及了后续改动" },
-    { "name": "vibetrace_search", "description": "主题级『当初为什么』召回(零 LLM):全项目记忆按关键词找相关 commit 的真实 why/原话锚点" }
+    { "name": "vibetrace_ask", "description": "Grounded code Q&A: answer 'why was this code written this way' using real commit narratives and verbatim citations with SHA" },
+    { "name": "vibetrace_blame", "description": "Line-level decision provenance (zero-LLM): lists commits that touched these lines with real decisions and verbatim citations" },
+    { "name": "vibetrace_graph", "description": "Decision impact graph (timeline DAG, zero-LLM): which decision commits rippled into subsequent changes" },
+    { "name": "vibetrace_search", "description": "Topic-level 'why' recall (zero-LLM): search project memory by keyword for real why/decisions from matching commits" },
+    { "name": "vibetrace_drift", "description": "Deviation report (zero-LLM): AI tool actions vs actual git commits — shows files edited but never committed" },
+    { "name": "vibetrace_prompts", "description": "Replay your prompts to AI coding agents (zero-LLM, local-only) with soft-aligned commits" },
+    { "name": "vibetrace_adr", "description": "Export Architecture Decision Record from real git history (zero-LLM) with verbatim commit citations" }
   ],
   "tools_generated": false,
   "user_config": {

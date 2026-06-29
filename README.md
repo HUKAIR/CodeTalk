@@ -56,10 +56,18 @@ pip install -e ".[anthropic]"    # 可选:仅 anthropic provider 需要
 python3 -m scripts.build_mcpb     # 产出 vibetrace.mcpb
 ```
 
-把 `vibetrace.mcpb` 拖进客户端的扩展安装入口,装时选一个项目根目录即可。暴露 4 个工具:
-`vibetrace_ask` / `vibetrace_blame` / `vibetrace_graph` / `vibetrace_search`。其中
-`blame`/`graph`/`search` **零 LLM、stdio 同机直连、数据不出本机**;`ask` 会调用你
-`~/.vibetrace/config.json` 里配置的云端 LLM 做综合(无 key 时降级为确定性检索,不崩)。
+把 `vibetrace.mcpb` 拖进客户端的扩展安装入口,装时选一个项目根目录即可。暴露 **7 个工具**
+(全标 `readOnlyHint: true`,Claude Code / Cursor 可自动批准不弹确认):
+
+| 工具 | 作用 | LLM |
+|---|---|---|
+| `vibetrace_ask` | 接地提问「当初为什么这么写」 | 有 key 用 LLM;无 key 降级确定性 |
+| `vibetrace_blame` | 行级决策溯源 | 零 LLM |
+| `vibetrace_graph` | 决策影响图(时间轴 DAG) | 零 LLM |
+| `vibetrace_search` | 主题级「为什么」召回 | 零 LLM |
+| `vibetrace_drift` | 偏差自检:AI 改了但没提交的文件 | 零 LLM |
+| `vibetrace_prompts` | 指令回看:你给 AI 下了什么指令 | 零 LLM |
+| `vibetrace_adr` | ADR 导出:从 git 历史自动生成架构决策记录 | 零 LLM |
 
 > 各客户端逐步安装 + 自检 + 排错见 **[`docs/mcp-install.md`](docs/mcp-install.md)**。
 
