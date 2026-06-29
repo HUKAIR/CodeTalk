@@ -12,6 +12,8 @@ dist/
 vibetrace-reports/
 *-graph.html
 *-graph.canvas
+# docs 下的渲染产物(如问卷汇报导出);源码模板在 vibetrace/ 不受影响
+docs/**/*.html
 /tmp_vibetrace/
 # 本地 IDE / MCP 配置(可能含密钥或本地上下文)——永不入库
 .cursor/
