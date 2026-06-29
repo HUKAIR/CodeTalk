@@ -8,7 +8,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from string import Template
 
-from . import brief, filetree, graph, self_report, tunnel
+from . import brief, filetree, gitlog as gl, graph, self_report, sessions, tunnel
+from .align import align
+from .digest import _since_to_dt
+from .prompts_view import build_prompts_view
 from .cache import Cache
 from .config import (CACHE_DB_PATH, USAGE_LOG_PATH, load_config, redact_data,
                      redact_secrets)
@@ -92,11 +95,14 @@ def _assemble(project_path, cache):
                   if commits else {"nodes": [], "edges": []}),
         "debt": debt,
     }
-    tp = filetree.tree_payload(pp)                   # 复用装配(零 LLM,消除同构双份 + 省 1 次 git 子进程)
+    tp = filetree.tree_payload(pp)
     data["tree"] = {
         "nodes": tp["nodes"],
         "grounding": _file_grounding([s["path"] for s in tp["status"]], commits, narratives),
     }
+    sess, _ = sessions.scan_sessions(pp, _since_to_dt("7 days ago"), cache)
+    align(commits, sess, pp)
+    data["prompts_md"] = build_prompts_view(sess, commits, pp)
     return data, None
 
 
