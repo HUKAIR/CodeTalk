@@ -1,0 +1,38 @@
+{
+  "name": "vscode-vibetrace",
+  "displayName": "vibetrace — Inline Decision Blame",
+  "description": "See why code was written this way, not just who/when. Real decision history from git + AI session records.",
+  "version": "0.1.0",
+  "publisher": "vibetrace",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "vibetrace",
+      "properties": {
+        "vibetrace.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable inline decision annotations"
+        },
+        "vibetrace.pythonPath": {
+          "type": "string",
+          "default": "python3",
+          "description": "Path to Python interpreter with vibetrace installed"
+        }
+      }
+    }
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.4.0"
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "package": "npx @vscode/vsce package --no-dependencies"
+  }
+}
