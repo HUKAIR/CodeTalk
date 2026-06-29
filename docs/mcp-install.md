@@ -129,7 +129,7 @@ claude mcp add vibetrace -- python3 -m vibetrace mcp-serve --project /abs/path/t
 
 ---
 
-## 附:工具速查
+## 附:工具速查(7 个)
 
 | 工具 | 作用 | LLM |
 |---|---|---|
@@ -137,3 +137,11 @@ claude mcp add vibetrace -- python3 -m vibetrace mcp-serve --project /abs/path/t
 | `vibetrace_blame` | 行级决策溯源(罗列触达这些行的 commit + 决策史) | 零 LLM |
 | `vibetrace_graph` | 决策影响图(哪个决策 commit 波及后续改动) | 零 LLM |
 | `vibetrace_search` | 主题级「当初为什么」召回(全项目按关键词找真实 why) | 零 LLM |
+| `vibetrace_drift` | 偏差自检:AI 工具改了但没提交的文件(「说了没做」检测) | 零 LLM |
+| `vibetrace_prompts` | 指令回看:你给 AI 下了什么指令 + 软对齐 commit | 零 LLM |
+| `vibetrace_adr` | ADR 导出:从真实 git 历史自动生成架构决策记录(MADR/Nygard) | 零 LLM |
+
+> 📌 所有 7 个工具都标注了 `readOnlyHint: true`——Claude Code / Cursor 可自动批准,不弹确认。
+
+> 📌 仓根的 `.mcp.json` 是本地开发用便利配置(含硬编码路径),不是模板。
+> 如需复制配置到你自己的项目,请用 **`.mcp.json.example`** 作为起点。

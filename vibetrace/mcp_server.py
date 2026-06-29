@@ -1,76 +1,28 @@
-"""vibetrace MCP server(纯 stdlib stdio,无 MCP SDK)。
+"""vibetrace MCP server (pure stdlib stdio, no MCP SDK).
 
-把零-LLM 接地能力(ask / blame / graph / search)暴露成 MCP 工具,供 Claude Code /
-Cursor / Windsurf 等客户端在 agent / code-review 工作流里直接调用。从 stdin 读换行分隔的 JSON-RPC 2.0、
-向 stdout 写响应、所有日志只走 stderr。对照 MCP 规范 2025-11-25(stdio = 换行分隔
-JSON-RPC,消息内不含换行,server 可写 stderr,stdout 仅含合法 MCP 消息)。
+Thin JSON-RPC 2.0 serve loop. Tool definitions + dispatch live in mcp_tools.py.
+Reads newline-delimited JSON-RPC from stdin, writes responses to stdout,
+all logs go to stderr only. MCP spec 2025-11-25.
 
-纪律(load-bearing):
-- stdout 纯净:只调返回字符串的闭包(answer_question(...,as_json=True)、
-  collect_segments+_format、build_graph_json),绝不调 ask.ask()/blame.blame()/
-  build_graph(它们 print/写盘);logging 重定向 stderr;任何 print 走 stderr。
-- 出口脱敏:成功文本统一过 redact_secrets 再放进 content(交 MCP 客户端=出本机)。
-- 容错降级绝不崩:畸形 JSON / 未知 method / 工具内部异常 → JSON-RPC error 或
-  isError:true,serve 循环不退出。
+Discipline (load-bearing):
+- stdout pure: only valid MCP JSON-RPC messages, one per line.
+- Exit redaction: all tool output goes through mcp_tools._ok_content/_err_content.
+- Graceful degradation: malformed JSON / unknown method / tool exceptions → JSON-RPC
+  error or isError:true, serve loop never exits.
 """
 import json
 import logging
 import sys
-from pathlib import Path
 
-from .ask import answer_question
-from .blame import collect_segments, _format as _blame_format
 from .cache import Cache
-from .config import CACHE_DB_PATH, load_config, redact_secrets
-from .graph import build_graph_json
+from .config import CACHE_DB_PATH, load_config
 from .llm import LLMClient, LLMError
-from .search import topic_search
+from .mcp_tools import TOOLS, call_tool
 
 log = logging.getLogger("vibetrace")
 
 SERVER_VERSION = "0.1.0"
-PROTOCOL_VERSION = "2025-11-25"          # 服务端支持值;initialize 优先回显客户端值
-
-_TOOLS = [
-    {"name": "vibetrace_ask",
-     "description": "就某段代码接地提问:接项目记忆(commit 叙事 + 决策面包屑)回答"
-                    "『这段代码当初为什么这么写』。无 key 时降级为确定性检索结果。",
-     "inputSchema": {"type": "object", "properties": {
-         "target": {"type": "string",
-                    "description": "文件或 文件:起-止,如 vibetrace/llm.py:72-78"},
-         "path": {"type": "string", "description": "GitHub-MCP 风格文件路径(target 的别名)"},
-         "startLine": {"type": "integer", "description": "起始行(配 path)"},
-         "endLine": {"type": "integer", "description": "结束行(配 path)"},
-         "question": {"type": "string", "description": "你的问题"},
-         "project": {"type": "string", "description": "项目路径(默认当前目录)"}},
-         "required": ["question"]}},
-    {"name": "vibetrace_blame",
-     "description": "行级决策溯源(零 LLM,确定性罗列触达这些行的 commit 及其决策史)。"
-                    "code review 时对一段改动的行范围问『这些行历史上的关键决策 / 当初为什么"
-                    "这么写』,拿确定性引用(真实 commit/原话)而非 LLM 反推。",
-     "inputSchema": {"type": "object", "properties": {
-         "target": {"type": "string",
-                    "description": "文件或 文件:起-止,如 vibetrace/llm.py:72-78"},
-         "path": {"type": "string", "description": "GitHub-MCP 风格文件路径(target 的别名)"},
-         "startLine": {"type": "integer", "description": "起始行(配 path)"},
-         "endLine": {"type": "integer", "description": "结束行(配 path)"},
-         "project": {"type": "string", "description": "项目路径(默认当前目录)"}},
-         "required": []}},
-    {"name": "vibetrace_graph",
-     "description": "决策影响图(时间轴 DAG,零 LLM):哪个决策 commit 波及了后续哪些"
-                    "改动。返回 {nodes, edges} 的 JSON。",
-     "inputSchema": {"type": "object", "properties": {
-         "project": {"type": "string", "description": "项目路径(默认当前目录)"}},
-         "required": []}},
-    {"name": "vibetrace_search",
-     "description": "主题级『当初为什么』召回(零 LLM,确定性接地):不带文件目标,在整个"
-                    "项目记忆里按关键词找相关 commit,返回真实 why/决策/原话锚点(不重述)。"
-                    "适合 review/排查时按主题找相关决策与历史上下文。",
-     "inputSchema": {"type": "object", "properties": {
-         "question": {"type": "string", "description": "主题/关键词(需 ≥3 字符)"},
-         "project": {"type": "string", "description": "项目路径(默认当前目录)"}},
-         "required": ["question"]}},
-]
+PROTOCOL_VERSION = "2025-11-25"
 
 
 def _err(req_id, code, message):
@@ -80,84 +32,6 @@ def _err(req_id, code, message):
 
 def _result(req_id, result):
     return {"jsonrpc": "2.0", "id": req_id, "result": result}
-
-
-def _ok_content(text):
-    return {"content": [{"type": "text", "text": redact_secrets(text)}],
-            "isError": False}
-
-
-def _err_content(text):
-    # 错误内容同样出本机(交 MCP 客户端),与 _ok_content 同口径出口脱敏:
-    # 异常原文可能含 git remote URL 内嵌 token 等 secret。
-    return {"content": [{"type": "text", "text": redact_secrets(text)}],
-            "isError": True}
-
-
-def _project_path(arguments, default_project, stderr):
-    pp = Path(arguments.get("project") or default_project).resolve()
-    print(f"vibetrace mcp: tool on project {pp}", file=stderr)  # 审计行(stderr)
-    return pp
-
-
-def _resolve_target(arguments):
-    """target 直给 → 用之;否则用 GitHub-MCP 风格 path[+startLine/endLine] 拼成 file:start-end
-    (集成层:agent 从 GitHub MCP 拿到的行范围可原样递进来,不必重映射)。都没给 → None。
-    owner/repo 等多余参数本就被忽略(只 .get 取需要的键)。"""
-    if arguments.get("target"):
-        return arguments["target"]
-    path = arguments.get("path")
-    if not path:
-        return None
-    start, end = arguments.get("startLine"), arguments.get("endLine")
-    return f"{path}:{start}-{end}" if start and end else path
-
-
-def _call_tool(name, arguments, cache, cfg, llm, default_project, stderr):
-    """dispatch 到三工具之一 → tools/call 的 result(content + isError)。
-    校验工具名/参数齐全;整段包 try → isError:true,绝不崩循环。成功文本出口脱敏。"""
-    if name not in {t["name"] for t in _TOOLS}:
-        return _err_content(f"未知工具:{name}")
-    if arguments is None:                   # MCP 协议 arguments 可选,缺省=空对象
-        arguments = {}
-    if not isinstance(arguments, dict):
-        return _err_content("arguments 必须是对象(JSON object)")
-    schema = next(t["inputSchema"] for t in _TOOLS if t["name"] == name)
-    missing = [k for k in schema["required"] if not arguments.get(k)]
-    if missing:
-        return _err_content(f"缺少必填参数:{'、'.join(missing)}")
-    try:
-        pp = _project_path(arguments, default_project, stderr)
-        if name == "vibetrace_ask":
-            target = _resolve_target(arguments)
-            if not target:
-                return _err_content("缺少 target(或 path[+startLine/endLine])")
-            text, err = answer_question(
-                cache, llm, pp, pp.name, target,
-                arguments["question"], as_json=True)
-            if err:
-                return _err_content(err)
-            return _ok_content(text)
-        if name == "vibetrace_blame":
-            from .blame import _parse_target
-            target = _resolve_target(arguments)
-            if not target:
-                return _err_content("缺少 target(或 path[+startLine/endLine])")
-            file, start, end = _parse_target(target)
-            segments = collect_segments(cache, pp, file, start, end)
-            if not segments:
-                return _err_content(f"{file} 没有可用的提交历史,无从溯源。")
-            return _ok_content(_blame_format(file, start, end, segments))
-        if name == "vibetrace_search":         # 主题级零-LLM 召回,出口同样脱敏
-            return _ok_content(topic_search(cache, pp, arguments["question"]))
-        # vibetrace_graph
-        text, err = build_graph_json(pp, cache)
-        if err:
-            return _err_content(err)
-        return _ok_content(text)
-    except Exception as exc:               # 业务层任何异常 → isError,不崩循环
-        log.warning("tool %s 调用失败:%s", name, exc)
-        return _err_content(f"工具内部错误:{exc}")
 
 
 def _handle(req, cache, cfg, llm, default_project=".", stderr=sys.stderr):
@@ -176,13 +50,13 @@ def _handle(req, cache, cfg, llm, default_project=".", stderr=sys.stderr):
     if method == "ping":
         return _result(req_id, {})
     if method == "tools/list":
-        return _result(req_id, {"tools": _TOOLS})
+        return _result(req_id, {"tools": TOOLS})
     if method == "tools/call":
         params = req.get("params") or {}
-        result = _call_tool(params.get("name"), params.get("arguments"),
-                            cache, cfg, llm, default_project, stderr)
+        result = call_tool(params.get("name"), params.get("arguments"),
+                           cache, cfg, llm, default_project, stderr)
         return _result(req_id, result)
-    return _err(req_id, -32601, f"未知 method:{method}")
+    return _err(req_id, -32601, f"Unknown method: {method}")
 
 
 def serve(stdin, stdout, cache, cfg, llm, default_project=".", stderr=sys.stderr):
@@ -198,7 +72,7 @@ def serve(stdin, stdout, cache, cfg, llm, default_project=".", stderr=sys.stderr
             _write(stdout, _err(None, -32700, "Parse error"))
             continue
         if isinstance(req, list):          # batch 不支持
-            _write(stdout, _err(None, -32600, "不支持批量请求(JSON 数组)"))
+            _write(stdout, _err(None, -32600, "Batch requests (JSON arrays) not supported"))
             continue
         if not isinstance(req, dict):
             _write(stdout, _err(None, -32600, "Invalid Request"))
