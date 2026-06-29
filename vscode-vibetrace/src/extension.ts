@@ -4,6 +4,17 @@ import { promisify } from 'util';
 
 const exec = promisify(execFile);
 
+interface TestRef {
+  path: string;
+  names: string[];
+}
+
+interface PrRef {
+  number: number;
+  title: string;
+  snippet: string;
+}
+
 interface BlameSegment {
   sha: string;
   date: string;
@@ -13,6 +24,8 @@ interface BlameSegment {
   risks: string[];
   rejected: string[];
   evidence: unknown[];
+  test_refs: TestRef[];
+  pr_refs: PrRef[];
 }
 
 interface FileBlameData {
@@ -28,7 +41,7 @@ function segmentHasWhy(seg: BlameSegment): boolean {
     seg.why?.trim() ||
     seg.decisions?.length ||
     seg.rejected?.length ||
-    (seg.evidence as unknown[])?.length
+    seg.evidence?.length
   );
 }
 
@@ -92,6 +105,21 @@ function buildHoverCard(seg: BlameSegment): vscode.MarkdownString {
   if (seg.risks?.length) {
     md.appendMarkdown('**Risks:**\n');
     for (const r of seg.risks) md.appendMarkdown(`- ${r}\n`);
+    md.appendMarkdown('\n');
+  }
+  if (seg.test_refs?.length) {
+    md.appendMarkdown('**Tests:**\n');
+    for (const t of seg.test_refs) {
+      const names = t.names?.join(', ') || '(no explicit tests)';
+      md.appendMarkdown(`- \`${t.path}\` — ${names}\n`);
+    }
+    md.appendMarkdown('\n');
+  }
+  if (seg.pr_refs?.length) {
+    md.appendMarkdown('**PR context:**\n');
+    for (const p of seg.pr_refs) {
+      md.appendMarkdown(`- #${p.number} ${p.title} — ${p.snippet}\n`);
+    }
     md.appendMarkdown('\n');
   }
   md.appendMarkdown('---\n\n');
