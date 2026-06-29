@@ -222,6 +222,18 @@ export function activate(context: vscode.ExtensionContext): void {
             blameCache.delete(editor.document.uri.fsPath);
             refresh(editor);
           }
+        }),
+        vscode.workspace.onDidChangeConfiguration((e) => {
+          if (!e.affectsConfiguration('vibetrace')) return;
+          const editor = vscode.window.activeTextEditor;
+          if (!editor) return;
+          const config = vscode.workspace.getConfiguration('vibetrace');
+          if (!config.get<boolean>('enabled', true)) {
+            editor.setDecorations(decorationType, []);
+            blameCache.delete(editor.document.uri.fsPath);
+          } else {
+            refresh(editor);
+          }
         })
       );
 
