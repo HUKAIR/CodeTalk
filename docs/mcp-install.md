@@ -145,3 +145,19 @@ claude mcp add vibetrace -- python3 -m vibetrace mcp-serve --project /abs/path/t
 
 > 📌 仓根的 `.mcp.json` 是本地开发用便利配置(含硬编码路径),不是模板。
 > 如需复制配置到你自己的项目,请用 **`.mcp.json.example`** 作为起点。
+
+---
+
+## 另一种集成:IDE 扩展(VS Code / Cursor / Windsurf)
+
+MCP 是在 agent 对话里用 vibetrace;如果你想在编辑器里**直接看到行内决策批注**(hover 一行
+就看到 why / decisions / rejected / risks),可以装 VS Code 扩展:
+
+```bash
+cd vscode-vibetrace && npm install && npm run build
+npx @vscode/vsce package --no-dependencies
+cursor --install-extension vscode-vibetrace-0.1.0.vsix
+```
+
+详见 **[`vscode-vibetrace/README.md`](../vscode-vibetrace/README.md)**。两者互补:
+MCP 给 agent 用(问答式)、IDE 扩展给你自己用(浏览式)。

@@ -78,6 +78,35 @@ python3 -m scripts.build_mcpb     # 产出 vibetrace.mcpb
 
 > 各客户端逐步安装 + 自检 + 排错见 **[`docs/mcp-install.md`](docs/mcp-install.md)**。
 
+## IDE Extension (VS Code / Cursor / Windsurf)
+
+Inline decision annotations — hover any line to see **why** it was written that way, with real commit citations. Like GitLens but for decisions, not just authorship.
+
+**IDE 扩展**——行内决策批注：hover 任意行即看「当初为什么这么写」，带真实 commit 引用。类 GitLens 但补 why。
+
+```bash
+cd vscode-vibetrace
+npm install && npm run build                        # 构建
+npx @vscode/vsce package --no-dependencies          # 打包 .vsix
+```
+
+安装（三选一）：
+
+```bash
+cursor --install-extension vscode-vibetrace-0.1.0.vsix   # Cursor
+code --install-extension vscode-vibetrace-0.1.0.vsix      # VS Code
+# Windsurf: Extensions → Install from VSIX → 选文件
+```
+
+装完 Cmd+Shift+P → **Reload Window**，打开有 vibetrace 缓存的项目即可看到行末灰色批注。
+
+| 设置 | 默认 | 说明 |
+|---|---|---|
+| `vibetrace.enabled` | `true` | 主开关 |
+| `vibetrace.pythonPath` | `"python3"` | 装了 vibetrace 的 Python 解释器路径 |
+
+> 详细安装 + 排错 + 配置见 **[`vscode-vibetrace/README.md`](vscode-vibetrace/README.md)**。
+
 ## vibetrace web —— 自托管接地对话(新)
 
 一个本地优先的交互网页:和 LLM 多轮讨论「这段代码当初为什么这么写」,但每一轮**先零-LLM
