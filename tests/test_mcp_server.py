@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from vibetrace import mcp_server
+from vibetrace import mcp_server, mcp_tools
 from vibetrace.cache import Cache
 
 
@@ -64,17 +64,20 @@ class TestInitialize(unittest.TestCase):
 
 
 class TestToolsList(unittest.TestCase):
-    def test_lists_four_tools_with_input_schema(self):
+    def test_lists_seven_tools_with_input_schema_and_annotations(self):
         req = {"jsonrpc": "2.0", "id": 4, "method": "tools/list"}
         resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
         tools = resp["result"]["tools"]
         names = {t["name"] for t in tools}
         self.assertEqual(names, {"vibetrace_ask", "vibetrace_blame",
-                                 "vibetrace_graph", "vibetrace_search"})
+                                 "vibetrace_graph", "vibetrace_search",
+                                 "vibetrace_drift", "vibetrace_prompts",
+                                 "vibetrace_adr"})
         for t in tools:
             self.assertIn("inputSchema", t)
             self.assertEqual(t["inputSchema"]["type"], "object")
             self.assertIn("description", t)
+            self.assertTrue(t["annotations"]["readOnlyHint"])
 
     def test_search_tool_requires_question_only(self):
         req = {"jsonrpc": "2.0", "id": 41, "method": "tools/list"}
@@ -88,7 +91,7 @@ class TestToolsList(unittest.TestCase):
 
 class TestToolsCallSearch(unittest.TestCase):
     def test_search_hit_returns_why_not_error(self):
-        with mock.patch.object(mcp_server, "topic_search",
+        with mock.patch.object(mcp_tools, "topic_search",
                                lambda *a, **k: "# 主题召回\n[abc1234]\n  意图:用乐观锁"):
             req = {"jsonrpc": "2.0", "id": 42, "method": "tools/call",
                    "params": {"name": "vibetrace_search",
@@ -106,7 +109,7 @@ class TestToolsCallSearch(unittest.TestCase):
 
     def test_search_egress_redacted(self):
         with mock.patch.object(
-                mcp_server, "topic_search",
+                mcp_tools, "topic_search",
                 lambda *a, **k: "[abc1234]\n  意图:key sk-abcdefghijklmnop1234"):
             req = {"jsonrpc": "2.0", "id": 44, "method": "tools/call",
                    "params": {"name": "vibetrace_search",
@@ -119,7 +122,7 @@ class TestToolsCallSearch(unittest.TestCase):
 
 class TestToolsCallAsk(unittest.TestCase):
     def test_ask_returns_json_text_not_error(self):
-        with mock.patch.object(mcp_server, "answer_question",
+        with mock.patch.object(mcp_tools, "answer_question",
                                lambda *a, **k: ('{"mode":"llm","answer":"x"}',
                                                 None)):
             req = {"jsonrpc": "2.0", "id": 5, "method": "tools/call",
@@ -134,7 +137,7 @@ class TestToolsCallAsk(unittest.TestCase):
 
     def test_ask_degraded_when_llm_none_no_error(self):
         # 真实 answer_question:llm=None → degraded,不 print,isError:false
-        with mock.patch.object(mcp_server, "answer_question",
+        with mock.patch.object(mcp_tools, "answer_question",
                                lambda c, llm, *a, **k:
                                ('{"mode":"degraded"}', None) if llm is None
                                else ('{"mode":"llm"}', None)):
@@ -155,7 +158,7 @@ class TestToolsCallAsk(unittest.TestCase):
         self.assertIn("question", resp["result"]["content"][0]["text"])
 
     def test_ask_business_error_is_error_not_crash(self):
-        with mock.patch.object(mcp_server, "answer_question",
+        with mock.patch.object(mcp_tools, "answer_question",
                                lambda *a, **k: (None, "没有提交历史")):
             req = {"jsonrpc": "2.0", "id": 8, "method": "tools/call",
                    "params": {"name": "vibetrace_ask",
@@ -167,7 +170,7 @@ class TestToolsCallAsk(unittest.TestCase):
     def test_ask_exception_caught_is_error(self):
         def _boom(*a, **k):
             raise RuntimeError("内部炸了")
-        with mock.patch.object(mcp_server, "answer_question", _boom):
+        with mock.patch.object(mcp_tools, "answer_question", _boom):
             req = {"jsonrpc": "2.0", "id": 10, "method": "tools/call",
                    "params": {"name": "vibetrace_ask",
                               "arguments": {"target": "x.py", "question": "Q"}}}
@@ -180,7 +183,7 @@ class TestToolsCallAsk(unittest.TestCase):
         def _boom(*a, **k):
             raise RuntimeError(
                 "git failed: https://x:ghp_ABCDEFGHIJKLMNOP1234@github.com")
-        with mock.patch.object(mcp_server, "answer_question", _boom):
+        with mock.patch.object(mcp_tools, "answer_question", _boom):
             req = {"jsonrpc": "2.0", "id": 18, "method": "tools/call",
                    "params": {"name": "vibetrace_ask",
                               "arguments": {"target": "x.py", "question": "Q"}}}
@@ -197,7 +200,7 @@ class TestToolsCallValidation(unittest.TestCase):
                "params": {"name": "vibetrace_nope", "arguments": {}}}
         resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
         self.assertTrue(resp["result"]["isError"])
-        self.assertIn("vibetrace_nope", resp["result"]["content"][0]["text"])
+        self.assertIn("Unknown tool", resp["result"]["content"][0]["text"])
 
     def test_arguments_not_dict_is_error(self):
         req = {"jsonrpc": "2.0", "id": 12, "method": "tools/call",
@@ -211,7 +214,7 @@ class TestToolsCallBlameRedaction(unittest.TestCase):
         seg = [{"sha": "a" * 40, "date": "2026-06-01", "subject": "s",
                 "why": "key 是 sk-abcdefghijklmnop1234", "decisions": [],
                 "risks": [], "evidence": [], "test_refs": [], "pr_refs": []}]
-        with mock.patch.object(mcp_server, "collect_segments",
+        with mock.patch.object(mcp_tools, "collect_segments",
                                lambda *a, **k: seg):
             req = {"jsonrpc": "2.0", "id": 13, "method": "tools/call",
                    "params": {"name": "vibetrace_blame",
@@ -235,7 +238,7 @@ class TestParamAlias(unittest.TestCase):
 
         def fake(cache, pp, file, start, end):
             cap["t"] = (file, start, end); return self._SEG
-        with mock.patch.object(mcp_server, "collect_segments", fake):
+        with mock.patch.object(mcp_tools, "collect_segments", fake):
             req = {"jsonrpc": "2.0", "id": 1, "method": "tools/call",
                    "params": {"name": "vibetrace_blame",
                               "arguments": {"path": "f.py", "startLine": 3,
@@ -249,7 +252,7 @@ class TestParamAlias(unittest.TestCase):
 
         def fake(cache, pp, file, start, end):
             cap["t"] = (file, start, end); return self._SEG
-        with mock.patch.object(mcp_server, "collect_segments", fake):
+        with mock.patch.object(mcp_tools, "collect_segments", fake):
             req = {"jsonrpc": "2.0", "id": 2, "method": "tools/call",
                    "params": {"name": "vibetrace_blame",
                               "arguments": {"path": "f.py"}}}
@@ -269,7 +272,7 @@ class TestParamAlias(unittest.TestCase):
 
         def fake(cache, llm, pp, name, target, q, **k):
             cap["target"] = target; return ('{"mode":"degraded"}', None)
-        with mock.patch.object(mcp_server, "answer_question", fake):
+        with mock.patch.object(mcp_tools, "answer_question", fake):
             req = {"jsonrpc": "2.0", "id": 4, "method": "tools/call",
                    "params": {"name": "vibetrace_ask",
                               "arguments": {"path": "f.py", "startLine": 1,
@@ -281,7 +284,7 @@ class TestParamAlias(unittest.TestCase):
 
 class TestToolsCallGraph(unittest.TestCase):
     def test_graph_returns_json(self):
-        with mock.patch.object(mcp_server, "build_graph_json",
+        with mock.patch.object(mcp_tools, "build_graph_json",
                                lambda *a, **k: ('{"nodes":[],"edges":[]}', None)):
             req = {"jsonrpc": "2.0", "id": 14, "method": "tools/call",
                    "params": {"name": "vibetrace_graph", "arguments": {}}}
@@ -292,7 +295,7 @@ class TestToolsCallGraph(unittest.TestCase):
 
     def test_graph_no_arguments_key_is_not_error(self):
         # MCP 协议中 params.arguments 可选;无 required 的 graph 应零参可用
-        with mock.patch.object(mcp_server, "build_graph_json",
+        with mock.patch.object(mcp_tools, "build_graph_json",
                                lambda *a, **k: ('{"nodes":[],"edges":[]}', None)):
             req = {"jsonrpc": "2.0", "id": 15, "method": "tools/call",
                    "params": {"name": "vibetrace_graph"}}  # 不带 arguments 键
@@ -344,7 +347,7 @@ class TestServeLoop(unittest.TestCase):
 
     def test_logging_goes_to_stderr_not_stdout(self):
         # answer_question 触发 _log_usage 等不应污染 stdout;用真实降级路径
-        with mock.patch.object(mcp_server, "answer_question",
+        with mock.patch.object(mcp_tools, "answer_question",
                                lambda *a, **k: ('{"mode":"degraded"}', None)):
             call = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
                                "params": {"name": "vibetrace_ask",
@@ -387,6 +390,78 @@ class TestServeRealPath(unittest.TestCase):
             text = json.loads(lines[1])["result"]["content"][0]["text"]
             self.assertNotIn("sk-abcdef0123456789ABCD", text)   # 真实 blame 出口脱敏
             self.assertIn("[REDACTED]", text)
+
+
+class TestToolsCallDrift(unittest.TestCase):
+    def test_drift_returns_json_not_error(self):
+        with mock.patch.object(mcp_tools, "drift_json",
+                               lambda *a, **k: '{"flagged":[],"session_count":0}'):
+            req = {"jsonrpc": "2.0", "id": 50, "method": "tools/call",
+                   "params": {"name": "vibetrace_drift", "arguments": {}}}
+            resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
+        self.assertFalse(resp["result"]["isError"])
+        data = json.loads(resp["result"]["content"][0]["text"])
+        self.assertIn("flagged", data)
+
+    def test_drift_with_since(self):
+        cap = {}
+        def fake(proj, since="7 days ago"):
+            cap["since"] = since
+            return '{"flagged":[]}'
+        with mock.patch.object(mcp_tools, "drift_json", fake):
+            req = {"jsonrpc": "2.0", "id": 51, "method": "tools/call",
+                   "params": {"name": "vibetrace_drift",
+                              "arguments": {"since": "1 day ago"}}}
+            resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
+        self.assertFalse(resp["result"]["isError"])
+        self.assertEqual(cap["since"], "1 day ago")
+
+
+class TestToolsCallPrompts(unittest.TestCase):
+    def test_prompts_returns_markdown_not_error(self):
+        with mock.patch("vibetrace.sessions.scan_sessions",
+                        lambda *a, **k: ([], None)), \
+             mock.patch("vibetrace.gitlog.collect_commit_files",
+                        lambda *a, **k: ([], None)), \
+             mock.patch("vibetrace.align.align",
+                        lambda *a, **k: None), \
+             mock.patch.object(mcp_tools, "build_prompts_view",
+                               lambda *a, **k: "# Prompts\nno prompts"):
+            req = {"jsonrpc": "2.0", "id": 52, "method": "tools/call",
+                   "params": {"name": "vibetrace_prompts",
+                              "arguments": {}}}
+            resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
+        self.assertFalse(resp["result"]["isError"])
+        self.assertIn("Prompts", resp["result"]["content"][0]["text"])
+
+
+class TestToolsCallAdr(unittest.TestCase):
+    def test_adr_returns_markdown_not_error(self):
+        with mock.patch.object(mcp_tools, "adr_export",
+                               lambda *a, **k: ("# ADR\ndecision", None)):
+            req = {"jsonrpc": "2.0", "id": 53, "method": "tools/call",
+                   "params": {"name": "vibetrace_adr",
+                              "arguments": {"target": "f.py:1-10"}}}
+            resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
+        self.assertFalse(resp["result"]["isError"])
+        self.assertIn("ADR", resp["result"]["content"][0]["text"])
+
+    def test_adr_missing_target_is_error(self):
+        req = {"jsonrpc": "2.0", "id": 54, "method": "tools/call",
+               "params": {"name": "vibetrace_adr", "arguments": {}}}
+        resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
+        self.assertTrue(resp["result"]["isError"])
+        self.assertIn("target", resp["result"]["content"][0]["text"].lower())
+
+    def test_adr_error_from_export(self):
+        with mock.patch.object(mcp_tools, "adr_export",
+                               lambda *a, **k: (None, "No commit history")):
+            req = {"jsonrpc": "2.0", "id": 55, "method": "tools/call",
+                   "params": {"name": "vibetrace_adr",
+                              "arguments": {"target": "x.py"}}}
+            resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
+        self.assertTrue(resp["result"]["isError"])
+        self.assertIn("No commit history", resp["result"]["content"][0]["text"])
 
 
 if __name__ == "__main__":
