@@ -4,16 +4,8 @@ import { promisify } from 'util';
 
 const exec = promisify(execFile);
 
-interface TestRef {
-  path: string;
-  names: string[];
-}
-
-interface PrRef {
-  number: number;
-  title: string;
-  snippet: string;
-}
+interface TestRef { path: string; names: string[]; }
+interface PrRef { number: number; title: string; snippet: string; }
 
 interface BlameSegment {
   sha: string;
@@ -34,7 +26,7 @@ interface FileBlameData {
 }
 
 const blameCache = new Map<string, FileBlameData>();
-let decorationType: vscode.TextEditorDecorationType;
+const expandedState = new Map<string, Set<string>>();
 
 function segmentHasWhy(seg: BlameSegment): boolean {
   return !!(
@@ -89,9 +81,7 @@ function buildHoverCard(seg: BlameSegment): vscode.MarkdownString {
   const date = (seg.date || '').slice(0, 10);
 
   md.appendMarkdown(`**[${sha7}]** ${date} · ${seg.subject}\n\n`);
-  if (seg.why) {
-    md.appendMarkdown(`**Why:** ${seg.why}\n\n`);
-  }
+  if (seg.why) md.appendMarkdown(`**Why:** ${seg.why}\n\n`);
   if (seg.decisions?.length) {
     md.appendMarkdown('**Decisions:**\n');
     for (const d of seg.decisions) md.appendMarkdown(`- ${d}\n`);
@@ -117,15 +107,12 @@ function buildHoverCard(seg: BlameSegment): vscode.MarkdownString {
   }
   if (seg.pr_refs?.length) {
     md.appendMarkdown('**PR context:**\n');
-    for (const p of seg.pr_refs) {
+    for (const p of seg.pr_refs)
       md.appendMarkdown(`- #${p.number} ${p.title} — ${p.snippet}\n`);
-    }
     md.appendMarkdown('\n');
   }
   md.appendMarkdown('---\n\n');
-  const termArgs = encodeURIComponent(
-    JSON.stringify({ text: `git show ${sha7}\n` })
-  );
+  const termArgs = encodeURIComponent(JSON.stringify({ text: `git show ${sha7}\n` }));
   md.appendMarkdown(
     `[\`git show ${sha7}\`](command:workbench.action.terminal.sendSequence?${termArgs})` +
       ' · vibetrace blame'
@@ -133,62 +120,122 @@ function buildHoverCard(seg: BlameSegment): vscode.MarkdownString {
   return md;
 }
 
-function applyDecorations(
-  editor: vscode.TextEditor,
-  data: FileBlameData
-): void {
-  const segBySha = new Map<string, BlameSegment>();
-  for (const seg of data.segments) segBySha.set(seg.sha, seg);
+function truncate(s: string, max: number): string {
+  return s.length > max ? s.slice(0, max - 3) + '...' : s;
+}
 
-  const decorations: vscode.DecorationOptions[] = [];
-  let prevSha: string | null = null;
+class VibetraceCodeLensProvider implements vscode.CodeLensProvider {
+  private _onDidChange = new vscode.EventEmitter<void>();
+  readonly onDidChangeCodeLenses = this._onDidChange.event;
 
-  for (let line = 0; line < editor.document.lineCount; line++) {
-    const sha = data.lineMap.get(line);
-    if (!sha) {
-      prevSha = null;
-      continue;
+  refresh(): void { this._onDidChange.fire(); }
+
+  provideCodeLenses(document: vscode.TextDocument): vscode.CodeLens[] {
+    const config = vscode.workspace.getConfiguration('vibetrace');
+    if (!config.get<boolean>('enabled', true)) return [];
+
+    const data = blameCache.get(document.uri.fsPath);
+    if (!data) return [];
+
+    const expanded = expandedState.get(document.uri.fsPath) ?? new Set();
+    const segBySha = new Map<string, BlameSegment>();
+    for (const seg of data.segments) segBySha.set(seg.sha, seg);
+
+    const lenses: vscode.CodeLens[] = [];
+    let prevSha: string | null = null;
+    const lines = [...data.lineMap.entries()].sort((a, b) => a[0] - b[0]);
+
+    for (const [line, sha] of lines) {
+      if (sha === prevSha) continue;
+      prevSha = sha;
+
+      const seg = segBySha.get(sha);
+      if (!seg || !segmentHasWhy(seg)) continue;
+
+      const sha7 = sha.slice(0, 7);
+      const range = new vscode.Range(line, 0, line, 0);
+      const toggleArgs = [document.uri.fsPath, sha];
+
+      if (expanded.has(sha)) {
+        const date = (seg.date || '').slice(0, 10);
+        lenses.push(new vscode.CodeLens(range, {
+          title: `▾ ${sha7} · ${date} · ${truncate(seg.subject, 60)}`,
+          command: 'vibetrace.toggleBlame',
+          arguments: toggleArgs,
+        }));
+        if (seg.why) {
+          lenses.push(new vscode.CodeLens(range, {
+            title: `    Why: ${truncate(seg.why, 80)}`,
+            command: 'vibetrace.toggleBlame',
+            arguments: toggleArgs,
+          }));
+        }
+        for (const d of seg.decisions ?? []) {
+          lenses.push(new vscode.CodeLens(range, {
+            title: `    决策: ${truncate(d, 70)}`,
+            command: 'vibetrace.toggleBlame',
+            arguments: toggleArgs,
+          }));
+        }
+        for (const r of seg.rejected ?? []) {
+          lenses.push(new vscode.CodeLens(range, {
+            title: `    否决: ${truncate(r, 70)}`,
+            command: 'vibetrace.toggleBlame',
+            arguments: toggleArgs,
+          }));
+        }
+        for (const r of seg.risks ?? []) {
+          lenses.push(new vscode.CodeLens(range, {
+            title: `    风险: ${truncate(r, 70)}`,
+            command: 'vibetrace.toggleBlame',
+            arguments: toggleArgs,
+          }));
+        }
+      } else {
+        const counts: string[] = [];
+        if (seg.decisions?.length) counts.push(`决策(${seg.decisions.length})`);
+        if (seg.rejected?.length) counts.push(`否决(${seg.rejected.length})`);
+        if (seg.risks?.length) counts.push(`风险(${seg.risks.length})`);
+        const summary = counts.join(' ') || 'why';
+        lenses.push(new vscode.CodeLens(range, {
+          title: `▸ ${sha7} · ${summary}`,
+          command: 'vibetrace.toggleBlame',
+          arguments: toggleArgs,
+        }));
+      }
     }
-    if (sha === prevSha) continue;
-    prevSha = sha;
-
-    const seg = segBySha.get(sha);
-    if (!seg || !segmentHasWhy(seg)) continue;
-
-    const sha7 = sha.slice(0, 7);
-    const label = seg.decisions?.[0] || seg.why || '';
-    let text = ` ${sha7} · ${label}`;
-    if (text.length > 80) text = text.slice(0, 77) + '...';
-
-    decorations.push({
-      range: new vscode.Range(line, Infinity, line, Infinity),
-      renderOptions: {
-        after: {
-          contentText: text,
-          color: new vscode.ThemeColor('editorInlayHint.foreground'),
-          fontStyle: 'italic',
-        },
-      },
-    });
+    return lenses;
   }
-  editor.setDecorations(decorationType, decorations);
 }
 
 export function activate(context: vscode.ExtensionContext): void {
   const ws = vscode.workspace.workspaceFolders?.[0];
   if (!ws) return;
 
-  execFile(
-    'git',
-    ['rev-parse', '--git-dir'],
-    { cwd: ws.uri.fsPath },
-    (err) => {
-      if (err) return;
+  execFile('git', ['rev-parse', '--git-dir'], { cwd: ws.uri.fsPath }, (err) => {
+    if (err) return;
 
-      decorationType = vscode.window.createTextEditorDecorationType({});
-      context.subscriptions.push(decorationType);
+    const codeLensProvider = new VibetraceCodeLensProvider();
 
-      const hoverProvider = vscode.languages.registerHoverProvider('*', {
+    context.subscriptions.push(
+      vscode.commands.registerCommand(
+        'vibetrace.toggleBlame',
+        (filePath: string, sha: string) => {
+          let set = expandedState.get(filePath);
+          if (!set) { set = new Set(); expandedState.set(filePath, set); }
+          if (set.has(sha)) set.delete(sha);
+          else set.add(sha);
+          codeLensProvider.refresh();
+        }
+      )
+    );
+
+    context.subscriptions.push(
+      vscode.languages.registerCodeLensProvider('*', codeLensProvider)
+    );
+
+    context.subscriptions.push(
+      vscode.languages.registerHoverProvider('*', {
         provideHover(document, position) {
           const data = blameCache.get(document.uri.fsPath);
           if (!data) return null;
@@ -198,52 +245,43 @@ export function activate(context: vscode.ExtensionContext): void {
           if (!seg || !segmentHasWhy(seg)) return null;
           return new vscode.Hover(buildHoverCard(seg));
         },
-      });
-      context.subscriptions.push(hoverProvider);
+      })
+    );
 
-      async function refresh(editor?: vscode.TextEditor): Promise<void> {
-        if (!editor) return;
-        const config = vscode.workspace.getConfiguration('vibetrace');
-        if (!config.get<boolean>('enabled', true)) return;
-
-        const filePath = vscode.workspace.asRelativePath(editor.document.uri);
-        const data = await fetchBlameData(filePath, ws!.uri.fsPath);
-        if (data) {
-          blameCache.set(editor.document.uri.fsPath, data);
-          applyDecorations(editor, data);
-        }
-      }
-
-      context.subscriptions.push(
-        vscode.window.onDidChangeActiveTextEditor(refresh),
-        vscode.workspace.onDidSaveTextDocument(() => {
-          const editor = vscode.window.activeTextEditor;
-          if (editor) {
-            blameCache.delete(editor.document.uri.fsPath);
-            refresh(editor);
-          }
-        }),
-        vscode.workspace.onDidChangeConfiguration((e) => {
-          if (!e.affectsConfiguration('vibetrace')) return;
-          const editor = vscode.window.activeTextEditor;
-          if (!editor) return;
-          const config = vscode.workspace.getConfiguration('vibetrace');
-          if (!config.get<boolean>('enabled', true)) {
-            editor.setDecorations(decorationType, []);
-            blameCache.delete(editor.document.uri.fsPath);
-          } else {
-            refresh(editor);
-          }
-        })
-      );
-
-      if (vscode.window.activeTextEditor) {
-        refresh(vscode.window.activeTextEditor);
+    async function refresh(editor?: vscode.TextEditor): Promise<void> {
+      if (!editor) return;
+      const config = vscode.workspace.getConfiguration('vibetrace');
+      if (!config.get<boolean>('enabled', true)) return;
+      const filePath = vscode.workspace.asRelativePath(editor.document.uri);
+      const data = await fetchBlameData(filePath, ws!.uri.fsPath);
+      if (data) {
+        blameCache.set(editor.document.uri.fsPath, data);
+        codeLensProvider.refresh();
       }
     }
-  );
+
+    context.subscriptions.push(
+      vscode.window.onDidChangeActiveTextEditor(refresh),
+      vscode.workspace.onDidSaveTextDocument(() => {
+        const editor = vscode.window.activeTextEditor;
+        if (editor) {
+          blameCache.delete(editor.document.uri.fsPath);
+          refresh(editor);
+        }
+      }),
+      vscode.workspace.onDidChangeConfiguration((e) => {
+        if (!e.affectsConfiguration('vibetrace')) return;
+        codeLensProvider.refresh();
+      })
+    );
+
+    if (vscode.window.activeTextEditor) {
+      refresh(vscode.window.activeTextEditor);
+    }
+  });
 }
 
 export function deactivate(): void {
   blameCache.clear();
+  expandedState.clear();
 }
