@@ -32,10 +32,12 @@ class TestManifest(unittest.TestCase):
         self.assertIn("${user_config.project}", srv["mcp_config"]["args"])
         self.assertEqual(m["user_config"]["project"]["type"], "directory")
 
-    def test_lists_four_tools(self):
+    def test_lists_seven_tools(self):
         names = {t["name"] for t in self._manifest().get("tools", [])}
         self.assertEqual(names, {"vibetrace_ask", "vibetrace_blame",
-                                 "vibetrace_graph", "vibetrace_search"})
+                                 "vibetrace_graph", "vibetrace_search",
+                                 "vibetrace_drift", "vibetrace_prompts",
+                                 "vibetrace_adr"})
 
 
 class TestBuild(unittest.TestCase):
