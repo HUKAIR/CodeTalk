@@ -1,17 +1,32 @@
-# vibetrace — Inline Decision Blame
+# vibetrace — Decision Blame
 
-Hover any line to see **why** it was written that way. Real commit decisions, not AI guesses.
+See **why** code was written this way. Foldable CodeLens with real commit decisions + hover cards.
 
 Like GitLens but for "why", not just "who/when". One extension covers VS Code, Cursor, and Windsurf.
 
 ## What you see
 
-**Inline annotations** (line end, gray italic):
+**CodeLens** (foldable, above each commit block):
 ```
-const cache = new Map()   a1b2c3d · 用 Map 不引 LRU 依赖
+▸ a1b2c3d · 决策(2) 风险(1)          ← click to expand
+def blame(project_path, target):
+    ...
 ```
 
-**Hover card** (full decision context):
+Expanded:
+```
+▾ a1b2c3d · 2026-06-21 · refactor cache layer
+    Why: Map 够用, LRU 增加复杂度...
+    决策: 用 Map 不引 LRU 依赖
+    决策: blame 只如实罗列不综合
+    风险: 并发安全待验证
+def blame(project_path, target):
+    ...
+```
+
+Click any expanded line to collapse. Commands: `vibetrace: Expand All Decisions` / `vibetrace: Collapse All Decisions` (Cmd+Shift+P).
+
+**Hover card** (on any line — full context with tests, PR refs, `git show` link):
 ```
 [a1b2c3d] 2026-06-29 · refactor cache layer
 
@@ -30,7 +45,7 @@ Tests:
 `git show a1b2c3d` · vibetrace blame
 ```
 
-Only lines with real decisions/why get annotated. Consecutive lines from the same commit only show once.
+Only blocks with real decisions/why get CodeLens. Hover works on any line.
 
 ## Prerequisites
 

@@ -192,7 +192,7 @@ def parse_target(target):
     return target, None, None
 
 
-LINE_LOG_LIMIT = 12
+LINE_LOG_LIMIT = 50
 _SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 
 

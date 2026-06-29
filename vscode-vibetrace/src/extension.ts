@@ -227,7 +227,22 @@ export function activate(context: vscode.ExtensionContext): void {
           else set.add(sha);
           codeLensProvider.refresh();
         }
-      )
+      ),
+      vscode.commands.registerCommand('vibetrace.expandAll', () => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) return;
+        const data = blameCache.get(editor.document.uri.fsPath);
+        if (!data) return;
+        const set = new Set(data.segments.filter(segmentHasWhy).map(s => s.sha));
+        expandedState.set(editor.document.uri.fsPath, set);
+        codeLensProvider.refresh();
+      }),
+      vscode.commands.registerCommand('vibetrace.collapseAll', () => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) return;
+        expandedState.delete(editor.document.uri.fsPath);
+        codeLensProvider.refresh();
+      })
     );
 
     context.subscriptions.push(
