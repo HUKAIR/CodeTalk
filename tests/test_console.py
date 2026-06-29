@@ -46,7 +46,8 @@ class TestConsoleAssemble(unittest.TestCase):
         data, err = console._assemble(self.d, self.cache)
         self.assertIsNone(err)
         self.assertEqual(set(data),
-                         {"overview", "timeline", "graph", "debt", "tree"})
+                         {"overview", "timeline", "graph", "debt", "tree",
+                          "prompts_md"})
         self.assertIn("nodes", data["tree"])
         self.assertIn("grounding", data["tree"])
         self.assertEqual(data["tree"]["nodes"]["type"], "dir")

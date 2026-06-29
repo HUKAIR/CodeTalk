@@ -324,6 +324,7 @@
   <section class="view" id="v-graph" role="tabpanel" tabindex="0"></section>
   <section class="view" id="v-debt" role="tabpanel" tabindex="0"></section>
   <section class="view" id="v-filetree" role="tabpanel" tabindex="0"></section>
+  <section class="view" id="v-prompts" role="tabpanel" tabindex="0"></section>
 </main>
 <button id="chatfab" hidden>💬 接地追问</button>
 <div id="chatdock" role="dialog" aria-label="接地对话">
@@ -340,7 +341,7 @@ var DATA = $data;
 var SERVE = $serve;
 var CHAT = $chat;
 var VKEY = "vibetrace.visited.$project";
-var VIEWS = [["overview","开工概览"],["timeline","时光轴"],["graph","决策图"],["debt","理解债"],["filetree","文件树"]];
+var VIEWS = [["overview","开工概览"],["timeline","时光轴"],["graph","决策图"],["debt","理解债"],["filetree","文件树"],["prompts","指令回看"]];
 
 function esc(s){ return String(s == null ? "" : s)
   .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
@@ -799,6 +800,26 @@ function renderFiletree(){
   });
 }
 
+function renderPrompts(){
+  var md = DATA.prompts_md || "";
+  var sec = document.getElementById("v-prompts");
+  if (!md || md.indexOf("没有抓到指令") >= 0) {
+    sec.innerHTML = '<h2 class="vh">指令回看</h2><p style="opacity:.6;padding:24px">'
+      + 'No AI prompts found in the last 7 days.</p>';
+    return;
+  }
+  var html = esc(md)
+    .replace(/^### (.+)$$/gm, '<h4>$$1</h4>')
+    .replace(/^## (.+)$$/gm, '<h3 style="margin-top:20px">$$1</h3>')
+    .replace(/^# (.+)$$/gm, '<h2 class="vh">$$1</h2>')
+    .replace(/^- (.+)$$/gm, '<div style="padding:2px 0 2px 16px;border-left:2px solid var(--border)">$$1</div>')
+    .replace(/^ {2}&gt; (.+)$$/gm, '<div style="padding:2px 0 2px 24px;opacity:.7;font-style:italic">$$1</div>')
+    .replace(/^ {2}\*\*AI responded:\*\*$$/gm, '<div style="padding:4px 0 2px 16px;font-weight:600;font-size:12px;opacity:.5">AI responded:</div>')
+    .replace(/→ (.+)$$/gm, '<div style="padding:2px 0 2px 16px;opacity:.8">→ $$1</div>')
+    .replace(/\n/g, '<br>');
+  sec.innerHTML = html;
+}
+
 function renderFoot(){
   var read = DATA.timeline.filter(function(c){ return visited[c.sha]; }).length;
   document.getElementById("foot").textContent = "已读 "+read+"/"+DATA.timeline.length
@@ -891,7 +912,7 @@ function initChat(){
 }
 
 buildNav(); initTheme(); renderOverview(); renderTimeline(); renderGraph(); renderDebt();
-renderFiletree(); renderFoot(); initChat();
+renderFiletree(); renderPrompts(); renderFoot(); initChat();
 
 // ---- 开屏 + 深链 + 键盘导航 ----
 (function initNav(){
