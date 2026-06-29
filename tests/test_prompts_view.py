@@ -60,6 +60,23 @@ class TestPromptsView(unittest.TestCase):
         self.assertNotIn("已提交", out)                 # 绝不冒充因果
         self.assertNotIn("✓", out)
 
+    def test_excerpts_shown_as_ai_response(self):
+        s = _sess(excerpts=["I'll add the prompts view with session grouping and soft-aligned commits."])
+        out = build_prompts_view([s], [], Path("/proj"))
+        self.assertIn("AI responded", out)
+        self.assertIn("prompts view with session grouping", out)
+
+    def test_no_excerpts_no_ai_responded_section(self):
+        s = _sess()  # no excerpts key
+        out = build_prompts_view([s], [], Path("/proj"))
+        self.assertNotIn("AI responded", out)
+
+    def test_excerpt_secret_redacted(self):
+        s = _sess(excerpts=["key is sk-ABCDEF0123456789ABCD for testing"])
+        out = build_prompts_view([s], [], Path("/proj"))
+        self.assertNotIn("sk-ABCDEF0123456789ABCD", out)
+        self.assertIn("[REDACTED]", out)
+
     def test_prompt_secret_redacted(self):
         s = _sess(prompts=["用 sk-ABCDEF0123456789ABCD 调试"])
         out = build_prompts_view([s], [], Path("/proj"))

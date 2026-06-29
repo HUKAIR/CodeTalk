@@ -1,8 +1,8 @@
-"""指令回看(零-LLM):按天/会话时间线列出用户发给 AI 的原始指令 + 这会话改过的文件,
-并把它就近「软对齐」到 commit(明确标注「软对齐,可能不准」,绝不冒充因果)。
+"""指令回看(零-LLM):按天/会话时间线列出用户发给 AI 的原始指令 + AI 回应摘录 +
+改动文件 + 软对齐 commit,形成「指令 → AI 回应 → commit」三段接地。
 
-复用 sessions/cursor_sessions 已抓的 prompts(采集时已脱敏);纯本地、不触网、不调 LLM。
-对位场景:「今天我让 AI 实现了一堆功能,但忘了当初具体提了什么,想回看」。
+复用 sessions/cursor_sessions 已抓的 prompts + excerpts(采集时已脱敏);
+纯本地、不触网、不调 LLM。
 """
 from pathlib import Path
 
@@ -68,6 +68,11 @@ def build_prompts_view(sessions, commits, project_path):
         lines.append(f"\n### {span}  [{s.get('source', '?')}] {title}")
         for p in s["prompts"]:
             lines.append(f"- {redact_secrets(p)}")
+        excerpts = s.get("excerpts") or []
+        if excerpts:
+            lines.append("  **AI responded:**")
+            for ex in excerpts[:3]:
+                lines.append(f"  > {redact_secrets(ex)[:200]}")
         files = sorted({_rel(f, root) for f in (s.get("files_written") or [])})
         if files:
             shown = "、".join(files[:8])
