@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "vibetrace": {
+      "command": "python3",
+      "args": ["-m", "vibetrace", "mcp-serve", "--project", "/absolute/path/to/your/repo"]
+    }
+  }
+}
