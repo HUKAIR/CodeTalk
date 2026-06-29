@@ -133,41 +133,45 @@ function buildHoverCard(seg: BlameSegment): vscode.MarkdownString {
   return md;
 }
 
-function showCurrentLineBlame(editor: vscode.TextEditor): void {
-  const data = blameCache.get(editor.document.uri.fsPath);
-  if (!data) {
-    editor.setDecorations(decorationType, []);
-    return;
-  }
+function applyDecorations(
+  editor: vscode.TextEditor,
+  data: FileBlameData
+): void {
+  const segBySha = new Map<string, BlameSegment>();
+  for (const seg of data.segments) segBySha.set(seg.sha, seg);
 
-  const line = editor.selection.active.line;
-  const sha = data.lineMap.get(line);
-  if (!sha) {
-    editor.setDecorations(decorationType, []);
-    return;
-  }
+  const decorations: vscode.DecorationOptions[] = [];
+  let prevSha: string | null = null;
 
-  const seg = data.segments.find((s) => s.sha === sha);
-  if (!seg || !segmentHasWhy(seg)) {
-    editor.setDecorations(decorationType, []);
-    return;
-  }
+  for (let line = 0; line < editor.document.lineCount; line++) {
+    const sha = data.lineMap.get(line);
+    if (!sha) {
+      prevSha = null;
+      continue;
+    }
+    if (sha === prevSha) continue;
+    prevSha = sha;
 
-  const sha7 = sha.slice(0, 7);
-  const label = seg.decisions?.[0] || seg.why || '';
-  let text = `  ${sha7} · ${label}`;
-  if (text.length > 50) text = text.slice(0, 47) + '...';
+    const seg = segBySha.get(sha);
+    if (!seg || !segmentHasWhy(seg)) continue;
 
-  editor.setDecorations(decorationType, [{
-    range: new vscode.Range(line, Infinity, line, Infinity),
-    renderOptions: {
-      after: {
-        contentText: text,
-        color: new vscode.ThemeColor('editorInlayHint.foreground'),
-        fontStyle: 'italic',
+    const sha7 = sha.slice(0, 7);
+    const label = seg.decisions?.[0] || seg.why || '';
+    let text = ` ${sha7} · ${label}`;
+    if (text.length > 80) text = text.slice(0, 77) + '...';
+
+    decorations.push({
+      range: new vscode.Range(line, Infinity, line, Infinity),
+      renderOptions: {
+        after: {
+          contentText: text,
+          color: new vscode.ThemeColor('editorInlayHint.foreground'),
+          fontStyle: 'italic',
+        },
       },
-    },
-  }]);
+    });
+  }
+  editor.setDecorations(decorationType, decorations);
 }
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -206,15 +210,12 @@ export function activate(context: vscode.ExtensionContext): void {
         const data = await fetchBlameData(filePath, ws!.uri.fsPath);
         if (data) {
           blameCache.set(editor.document.uri.fsPath, data);
-          showCurrentLineBlame(editor);
+          applyDecorations(editor, data);
         }
       }
 
       context.subscriptions.push(
         vscode.window.onDidChangeActiveTextEditor(refresh),
-        vscode.window.onDidChangeTextEditorSelection((e) => {
-          showCurrentLineBlame(e.textEditor);
-        }),
         vscode.workspace.onDidSaveTextDocument(() => {
           const editor = vscode.window.activeTextEditor;
           if (editor) {
