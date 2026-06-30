@@ -69,6 +69,18 @@ class TestBlameSegments(unittest.TestCase):
         self.assertIn("用 urllib 不引依赖", segs[0]["decisions"])
         self.assertTrue(segs[0]["date"])               # ISO 日期非空
 
+    def test_blame_follows_file_rename(self):
+        # 文件被 git mv 后,blame 新路径仍能跨 rename 找回旧历史的决策面包屑。
+        # (codetalk 包目录改名暴露:无 --follow 时旧路径 33 条面包屑全失踪。)
+        d = self.repo.dir
+        _git(["mv", "f.py", "renamed.py"], d)
+        _git(["commit", "-q", "-m", "chore: rename f.py → renamed.py"], d)
+        segs = blame.collect_segments(self.cache, d, "renamed.py", None, None)
+        subjects = [s["subject"] for s in segs]
+        self.assertIn("c1 初版", subjects)                 # 跨 rename 拿到旧 commit
+        decs = [d2 for s in segs for d2 in s["decisions"]]
+        self.assertIn("用 urllib 不引依赖", decs)          # 旧面包屑仍可见
+
     def test_cached_narrative_decisions_merge_in(self):
         self.cache.put_narrative(
             self.repo.sha(1), "P", "m",

@@ -213,9 +213,11 @@ def line_log(project_path, file, start, end, extra=None):
 
 def file_log(project_path, file, extra=None):
     """文件级降级:命中该文件的 commit SHA(旧→新,最多 LINE_LOG_LIMIT 条)。
-    extra:时间范围 token(--since=... 或 rev range),须排在 -- pathspec 之前。"""
+    extra:时间范围 token(--since=... 或 rev range),须排在 -- pathspec 之前。
+    --follow:跨文件 rename 追历史(单文件 pathspec 才支持),否则 git mv 后旧路径
+    的决策面包屑全失踪(codetalk 包改名时暴露的真实回归)。"""
     try:
-        raw = _git(["log", "--format=%H", *(extra or []), "--", file],
+        raw = _git(["log", "--follow", "--format=%H", *(extra or []), "--", file],
                    project_path)
     except (RuntimeError, OSError, subprocess.TimeoutExpired) as exc:
         return [], f"git log 失败:{exc}"
