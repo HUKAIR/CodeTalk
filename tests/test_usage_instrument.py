@@ -10,8 +10,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
-from vibetrace import (ask, cli, commands, console, course, graph, report,
-                       tunnel)
+from vibetrace import (ask, cli, commands, commands_view, console, course,
+                       graph, report, tunnel)
 from vibetrace.config import DEFAULTS
 
 # 各命令模块通过 `from .config import load_config, CACHE_DB_PATH` 各自绑定了名字,
@@ -69,28 +69,28 @@ class TestUsageInstrumentation(unittest.TestCase):
         self.assertIn("brief", self._commands_logged())
 
     def test_graph_logs(self):
-        self._run(commands.graph_cmd,
+        self._run(commands_view.graph_cmd,
                   {"project": self.dir, "vault": None, "canvas": False})
         self.assertIn("graph", self._commands_logged())
 
     def test_ask_logs(self):
-        self._run(commands.ask_cmd,
+        self._run(commands_view.ask_cmd,
                   {"project": self.dir, "target": "a.py",
                    "question": "为什么", "vault": None,
                    "since": None, "as_json": False})
         self.assertIn("ask", self._commands_logged())
 
     def test_course_logs(self):
-        self._run(commands.course_cmd, {"project": self.dir})
+        self._run(commands_view.course_cmd, {"project": self.dir})
         self.assertIn("course", self._commands_logged())
 
     def test_tunnel_render_logs(self):
-        self._run(commands.tunnel_cmd,
+        self._run(commands_view.tunnel_cmd,
                   {"project": self.dir, "serve": False, "no_open": True})
         self.assertIn("tunnel", self._commands_logged())
 
     def test_console_render_logs(self):
-        self._run(commands.console_cmd,
+        self._run(commands_view.console_cmd,
                   {"project": self.dir, "serve": False, "no_open": True})
         self.assertIn("console", self._commands_logged())
 
@@ -99,7 +99,7 @@ class TestUsageInstrumentation(unittest.TestCase):
         self.usage_patch.stop()
         # 把 usage.log 指到一个目录上 → open(..,'a') 抛 IsADirectoryError(OSError)
         with mock.patch("vibetrace.report.USAGE_LOG_PATH", Path(self.dir)):
-            self._run(commands.graph_cmd,
+            self._run(commands_view.graph_cmd,
                       {"project": self.dir, "vault": None, "canvas": False})
         # 没有抛出即通过;再确认 graph.html 真的写出来了
         self.assertTrue(list(Path(self.vault).glob("*-graph.html")))

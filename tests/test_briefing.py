@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from vibetrace import briefing, cli, commands
+from vibetrace import briefing, cli, commands, commands_view
 
 
 def _git(args, cwd):
@@ -170,7 +170,7 @@ class TestReportCmdDispatch(unittest.TestCase):
         with mock.patch("vibetrace.briefing.serve_report",
                         return_value=None) as srv, \
              mock.patch("vibetrace.briefing.render_report") as rnd:
-            rc = commands.report_cmd(self._args(serve=True))
+            rc = commands_view.report_cmd(self._args(serve=True))
         self.assertEqual(rc, 0)
         srv.assert_called_once()
         rnd.assert_not_called()
@@ -180,7 +180,7 @@ class TestReportCmdDispatch(unittest.TestCase):
                         return_value=(Path("/x/p-report.html"), None)) as rnd, \
              mock.patch("vibetrace.briefing.serve_report") as srv, \
              contextlib.redirect_stdout(io.StringIO()):
-            rc = commands.report_cmd(self._args(serve=False))
+            rc = commands_view.report_cmd(self._args(serve=False))
         self.assertEqual(rc, 0)
         rnd.assert_called_once()
         srv.assert_not_called()

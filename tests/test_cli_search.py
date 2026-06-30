@@ -2,7 +2,7 @@
 import unittest
 from unittest import mock
 
-from vibetrace import cli, commands
+from vibetrace import cli, commands_view
 
 
 class TestCliSearch(unittest.TestCase):
@@ -13,14 +13,14 @@ class TestCliSearch(unittest.TestCase):
             got.update(p=str(project_path), q=question)
             return "结果"
 
-        with mock.patch.object(commands, "topic_search", fake_topic_search):
+        with mock.patch.object(commands_view, "topic_search", fake_topic_search):
             rc = cli.main(["search", "乐观锁", "--project", "."])
         self.assertEqual(rc, 0)
         self.assertEqual(got["q"], "乐观锁")
         self.assertTrue(got["p"].startswith("/"))   # --project 解析为绝对路径
 
     def test_search_default_project(self):
-        with mock.patch.object(commands, "topic_search",
+        with mock.patch.object(commands_view, "topic_search",
                                lambda c, p, q: "结果"):
             rc = cli.main(["search", "幂等去重"])
         self.assertEqual(rc, 0)

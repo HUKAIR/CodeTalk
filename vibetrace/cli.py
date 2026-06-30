@@ -3,6 +3,7 @@ import argparse
 import logging
 
 from . import commands
+from . import commands_view as cv
 from .adr_export import adr_export_cmd  # 命令逻辑在 adr_export.py(commands.py 守 <300)
 from .drift import drift_cmd  # 命令逻辑在 drift.py(commands.py 守 <300)
 from .config import CACHE_DB_PATH  # commands 经 cli 读取它,沿用既有测试 patch 目标
@@ -124,27 +125,27 @@ def _build_parser():
 # 子命令名 → commands.py 中的处理函数(add_subparsers required=True,必命中)。
 _DISPATCH = {
     "digest": commands.digest,
-    "tunnel": commands.tunnel_cmd,
-    "console": commands.console_cmd,
-    "report": commands.report_cmd,
     "brief": commands.brief_cmd,
     "watch": commands.watch_cmd,
     "self": commands.self_cmd,
-    "ask": commands.ask_cmd,
-    "blame": commands.blame_cmd,
-    "review": commands.review_cmd,
-    "adr-export": adr_export_cmd,
-    "drift": drift_cmd,
-    "search": commands.search_cmd,
-    "prompts": commands.prompts_cmd,
-    "graph": commands.graph_cmd,
-    "course": commands.course_cmd,
     "enrich": commands.enrich_cmd,
     "init": commands.init_cmd,
-    "install-hook": commands.install_hook_cmd,
-    "install-agent-seed": commands.install_agent_seed_cmd,
-    "mcp-serve": commands.mcp_serve_cmd,
-    "web": commands.web_cmd,
+    "tunnel": cv.tunnel_cmd,
+    "console": cv.console_cmd,
+    "report": cv.report_cmd,
+    "course": cv.course_cmd,
+    "graph": cv.graph_cmd,
+    "ask": cv.ask_cmd,
+    "blame": cv.blame_cmd,
+    "review": cv.review_cmd,
+    "search": cv.search_cmd,
+    "prompts": cv.prompts_cmd,
+    "install-hook": cv.install_hook_cmd,
+    "install-agent-seed": cv.install_agent_seed_cmd,
+    "mcp-serve": cv.mcp_serve_cmd,
+    "web": cv.web_cmd,
+    "adr-export": adr_export_cmd,
+    "drift": drift_cmd,
 }
 
 

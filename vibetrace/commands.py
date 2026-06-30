@@ -1,4 +1,5 @@
-"""vibetrace 子命令实现 — cli.py 负责解析/分发,这里负责各命令的逻辑。"""
+"""vibetrace 核心子命令——digest/brief/watch/self/enrich/init。
+视图/输出类命令在 commands_view.py;drift/adr 各自独立模块。"""
 import json
 import logging
 import sys
@@ -9,13 +10,11 @@ from . import brief, report
 from .cache import Cache
 from .config import USAGE_LOG_PATH, load_config
 from .digest import digest  # noqa: F401 — cli._DISPATCH 经 commands.digest 分发
-from .search import topic_search
 
 log = logging.getLogger("vibetrace")
 
 
 def _cache_db_path():
-    # 经 cli 解析,让既有测试的 patch.object(cli, "CACHE_DB_PATH") 仍生效。
     from . import cli
     return cli.CACHE_DB_PATH
 
@@ -25,19 +24,8 @@ def _fail(msg):
     return 2
 
 
-def _render_or_serve(args, render, serve, label):  # tunnel/console 共用:serve 起服务,否则写静态
-    if args.serve:
-        err = serve(args.project, open_browser=not args.no_open)
-        return _fail(err) if err else 0
-    path, err = render(args.project)
-    if err: return _fail(err)
-    print(f"{label}已写入:{path}")
-    return 0
-
-
 def _scan_sessions(cfg, args, pp, cache):
-    """按 config.sources/--source 扫 claude/cursor/codex 会话(增量缓存)→ session 列表;降级不崩。
-    供 prompts/enrich 共用(对齐拿 prompts 时间线 / 收割 evidence 原话锚点)。"""
+    """按 config.sources/--source 扫 claude/cursor/codex 会话(增量缓存)→ session 列表;降级不崩。"""
     from . import codex_sessions, cursor_sessions, sessions
     from .digest import _since_to_dt, _sources
     since_dt = _since_to_dt(args.since)
@@ -47,7 +35,7 @@ def _scan_sessions(cfg, args, pp, cache):
                       ("codex", codex_sessions)):
         if name not in srcs:
             continue
-        if name != "claude":          # cursor/codex 首用一次性告知(claude 无 notice)
+        if name != "claude":
             mod.maybe_notice()
         lst, err = mod.scan_sessions(pp, since_dt, cache)
         if err:
@@ -77,8 +65,7 @@ def brief_cmd(args):
     project_path = Path(args.project).resolve()
     project = project_path.name
     pkey = str(project_path)
-    cache.rekey_project(project, pkey)   # 迁移旧 basename 键数据(幂等)
-    # 与 digest 对齐:先回读 Obsidian 里勾选的答案,否则简报会反复催问已答胶囊
+    cache.rekey_project(project, pkey)
     report.read_capsule_answers(cfg["vault_path"], pkey, cache)
     content = brief.build_brief(cache, project, pkey)
     cache.close()
@@ -124,7 +111,7 @@ def init_cmd(args):
     CONFIG_PATH.write_text(
         json.dumps(DEFAULTS, ensure_ascii=False, indent=2), encoding="utf-8")
     try:
-        CONFIG_PATH.chmod(0o600)  # 隐私:配置含 key,仅本人可读
+        CONFIG_PATH.chmod(0o600)
     except OSError:
         pass
     print(f"已写入配置模板:{CONFIG_PATH}")
@@ -134,9 +121,7 @@ def init_cmd(args):
 
 
 def enrich_cmd(args):
-    """富集补全(coverage):扫会话对齐 → 零-LLM 给已叙事补 evidence 原话锚点 → LLM 补未叙事
-    (跳过已缓存),不写日报/不封胶囊。闭合 search/blame/ask 召回 + evidence 覆盖缺口
-    (digest 只富集 --since 窗口)。evidence 补全零-LLM;仅补未叙事那步需 LLM。"""
+    """富集补全(coverage):扫会话对齐 → 零-LLM 给已叙事补 evidence 原话锚点 → LLM 补未叙事。"""
     from . import align, enrich, gitlog
     from .llm import LLMClient, LLMError
     cfg = load_config()
@@ -147,9 +132,9 @@ def enrich_cmd(args):
     if err:
         return _fail(err)
     cache = Cache(_cache_db_path())
-    cache.rekey_project(pp.name, str(pp))   # 迁移旧 basename 键(幂等)
-    align.align(commits, _scan_sessions(cfg, args, pp, cache), pp)  # 对齐会话 → 收割 evidence
-    ev = enrich.backfill_evidence(commits, cache, str(pp))         # 零-LLM 给已叙事补 evidence
+    cache.rekey_project(pp.name, str(pp))
+    align.align(commits, _scan_sessions(cfg, args, pp, cache), pp)
+    ev = enrich.backfill_evidence(commits, cache, str(pp))
     missing = [c for c in commits if not cache.get_narrative(c["sha"])]
     if not missing:
         cache.close()
@@ -159,139 +144,12 @@ def enrich_cmd(args):
         llm = LLMClient(cfg)
     except LLMError as exc:
         cache.close()
-        if ev:                              # 已做零-LLM evidence 补,非白跑
+        if ev:
             print(f"补 evidence {ev} 条;未叙事 {len(missing)} 个需 LLM(已关/无 key)跳过。")
             return 0
-        return _fail(exc)                   # 全无可做且需 LLM → 退出
+        return _fail(exc)
     stats = enrich.enrich_commits(missing, llm, cache, str(pp))
     cache.close()
     print(f"补 evidence {ev} 条;补全 {len(missing)}/{len(commits)} 无叙事 commit:"
           f"LLM {stats['llm_calls']} · 机械 {stats['trivial']} · 失败 {stats['failures']}。")
-    return 0
-
-
-def course_cmd(args):
-    from .course import build_course
-    path, err = build_course(args.project, no_llm=getattr(args, "no_llm", False))
-    if err:
-        return _fail(err)
-    print(f"课程已写入:{path}")
-    return 0
-
-
-def tunnel_cmd(args):
-    from .tunnel import render_tunnel, serve_tunnel
-    return _render_or_serve(args, render_tunnel, serve_tunnel, "时光轴")
-
-
-def console_cmd(args):
-    from .console import render_console, serve_console
-    return _render_or_serve(args, render_console, serve_console, "控制台")
-
-
-def report_cmd(args):
-    from .briefing import render_report, serve_report
-    return _render_or_serve(args, render_report, serve_report, "汇报")
-
-
-def ask_cmd(args):
-    from .ask import ask
-    return ask(args.project, args.target, args.question, vault=args.vault,
-               since=args.since, as_json=args.as_json,
-               no_llm=getattr(args, "no_llm", False))
-
-
-def blame_cmd(args):
-    from .blame import blame
-    return blame(args.project, args.target,
-                 json_output=getattr(args, "as_json", False))
-
-
-def review_cmd(args):
-    """review 现场入口(零 LLM):--diff 文件 / 管道 stdin / 默认 git diff HEAD。"""
-    from .review import review
-    diff_text = None
-    if getattr(args, "diff", None):
-        try:
-            diff_text = Path(args.diff).read_text(encoding="utf-8")
-        except OSError as exc:
-            return _fail(f"读 diff 文件失败:{exc}")
-    elif not sys.stdin.isatty():                  # git diff | vibetrace review
-        diff_text = sys.stdin.read()
-    out, err = review(args.project, diff_text)
-    if err:
-        return _fail(err)
-    print(out)
-    return 0
-
-
-def search_cmd(args):
-    """主题级零-LLM 召回:装配 cache → topic_search → 打印。无 key 也能用。"""
-    pp = Path(args.project).resolve()
-    cache = Cache(_cache_db_path())
-    text = topic_search(cache, pp, args.question)
-    cache.close()
-    print(text)
-    return 0
-
-
-def prompts_cmd(args):
-    """指令回看(零 LLM):scan 会话 → 本地 commit 软对齐 → 时间线视图。无 key 也能用、不出网。"""
-    from . import align, gitlog
-    from .prompts_view import build_prompts_view
-    cfg = load_config()
-    pp = Path(args.project).resolve()
-    cache = Cache(_cache_db_path())
-    cache.rekey_project(pp.name, str(pp))   # 迁移旧 basename 键(幂等)
-    sess = _scan_sessions(cfg, args, pp, cache)
-    commits, _err = gitlog.collect_commits(
-        pp, args.since, cfg.get("diff_token_budget", 6000))  # 本地 git,不出网
-    align.align(commits or [], sess, pp)
-    cache.close()
-    print(build_prompts_view(sess, commits or [], pp))
-    return 0
-
-
-def graph_cmd(args):
-    from .graph import build_graph
-    path, err = build_graph(args.project, vault=args.vault, canvas=args.canvas)
-    if err:
-        return _fail(err)
-    print(f"决策图已写入:{path}")
-    return 0
-
-
-def install_hook_cmd(args):
-    from .hook import install_hook
-    path, err = install_hook(args.project, force=args.force)
-    if err:
-        return _fail(err)
-    print(f"钩子已装:{path}\n手写 commit 时会提示留 Vibe-Decision/Watch。")
-    return 0
-
-
-def web_cmd(args):
-    """起自托管接地对话 web app(FastAPI,需 pip install -e \".[web]\")。绑 127.0.0.1。"""
-    try:
-        from . import web
-    except ImportError:
-        return _fail('web 模式需要额外依赖:pip install -e ".[web]"')
-    web.serve(args.project, port=args.port, no_open=args.no_open, no_llm=args.no_llm)
-    return 0
-
-
-def mcp_serve_cmd(args):
-    """起 MCP server(stdio):共用 mcp_server.run 装配 cache/cfg/llm。阻塞至 EOF。"""
-    from . import mcp_server
-    mcp_server.run(args.project)
-    return 0
-
-
-def install_agent_seed_cmd(args):
-    from .hook import install_agent_seed
-    paths, err = install_agent_seed(args.project)
-    if err:
-        return _fail(err)
-    print("决策捕获种子已就绪:" + "、".join(str(p) for p in paths)
-          + "\nAI agent 提交时会按约定留 Vibe-Decision/Watch,供 vibetrace 长期分析。")
     return 0
