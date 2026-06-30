@@ -38,9 +38,9 @@ vibetrace grounds "why" in real commit history — verbatim citations you can cl
 | 可核验 | 否——听起来对但无据 | 是——点开 SHA 看原文 |
 | 数据 | 发往云端 | 本地优先；LLM 调用可关（`--no-llm` 零出网） |
 
-> **Honest boundaries / 诚实边界:** Blind test is N=5, this repo only, human-judged — not a population claim. Coverage depends on `enrich`: this repo (with full backfill) reaches 100% (199/199); a separate 605-commit repo **without** enrich starts at 0.3%, reaching ~100% after `vibetrace enrich`. Without enrich or breadcrumbs, blame shows commit subjects only — similar to `git log`. Run `grounding_hitrate.py` on your own repo to measure. vibetrace finds "what was actually said and decided", not "whether the code is correct" — source records themselves may be wrong. Full methodology: `docs/discovery/2026-06-29-护城河对照卡-真实记录vs反推.md`.
+> **Honest boundaries / 诚实边界:** Blind test is N=5, this repo only, human-judged — not a population claim. Coverage depends on `enrich`: this repo (with full backfill) reaches 100% (220/220); a separate 605-commit repo **without** enrich starts at 0.3%, reaching ~100% after `vibetrace enrich`. Without enrich or breadcrumbs, blame shows commit subjects only — similar to `git log`. Run `grounding_hitrate.py` on your own repo to measure. vibetrace finds "what was actually said and decided", not "whether the code is correct" — source records themselves may be wrong. Full methodology: `docs/discovery/2026-06-29-护城河对照卡-真实记录vs反推.md`.
 >
-> 盲测 N=5、本仓、人工判读，不是人群结论。覆盖率取决于 `enrich`：本仓（全量补全）100%（199/199）；另一本地 605-commit 仓**未 enrich** 时仅 0.3%，跑完 `vibetrace enrich` 后可达 ~100%。未 enrich 且无面包屑时，blame 只显示 commit subject——与 `git log` 接近。请在你自己的仓上跑 `grounding_hitrate.py` 度量。vibetrace 找的是「当初到底说了什么、为什么这么写」，不保证代码正确——源记录本身可能有误。完整方法见 `docs/discovery/` 下对照卡和盲测文档。
+> 盲测 N=5、本仓、人工判读，不是人群结论。覆盖率取决于 `enrich`：本仓（全量补全）100%（220/220）；另一本地 605-commit 仓**未 enrich** 时仅 0.3%，跑完 `vibetrace enrich` 后可达 ~100%。未 enrich 且无面包屑时，blame 只显示 commit subject——与 `git log` 接近。请在你自己的仓上跑 `grounding_hitrate.py` 度量。vibetrace 找的是「当初到底说了什么、为什么这么写」，不保证代码正确——源记录本身可能有误。完整方法见 `docs/discovery/` 下对照卡和盲测文档。
 
 ## 5 分钟上手 / Quick Start
 
