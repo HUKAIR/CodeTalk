@@ -7,7 +7,7 @@ import os
 import re
 from pathlib import Path
 
-from .config import redact_secrets
+from .config import redact_data, redact_secrets
 from .gitlog import parse_breadcrumbs, pr_discussion, prior_commit
 from .llm import LLMError
 from .prompts import OVERVIEW_PROMPT, OVERVIEW_SCHEMA
@@ -216,8 +216,9 @@ def enrich_commits(commits, llm, cache, project, with_pr=False, force=False):
             normalized["test_refs"] = _test_refs(project, commit)  # 本地测试接地源
             if with_pr:  # PR 讨论作 why 源(opt-in,数据出本机);默认关时省略
                 normalized["pr_refs"] = _pr_refs(commit, project)
-            narrative = json.loads(redact_secrets(
-                json.dumps(normalized, ensure_ascii=False)))
+            # 脱敏结构叶子(非 dumps 后文本):dumps 转义引号会让 key="value" 形 secret
+            # 漏过 redact_secrets(config.py:102)。redact_data 递归脱敏,in-memory narrative 也安全
+            narrative = redact_data(normalized)
             stats["llm_calls"] += 1
             commit["narrative"] = narrative
             cache.put_narrative(commit["sha"], project, llm.model, narrative)

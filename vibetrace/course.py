@@ -190,9 +190,10 @@ def _make_chapters(commits, narr_by_short, debt, cfg, cache, key, project):
         chapters = result.get("chapters") if isinstance(result, dict) else None
         if not chapters:
             return _naive_chapters(commits, narr_by_short), True, llm.stats
-        # 隐私红线:LLM 生成的章节入缓存前脱敏(避免把原文里的 secret 持久化)
-        cache.put_narrative(key, project, llm.model, json.loads(redact_secrets(
-            json.dumps({"chapters": chapters}, ensure_ascii=False))))
+        # 隐私红线:LLM 生成的章节入缓存前脱敏。redact_data 脱敏结构叶子(非 dumps 后
+        # 文本),否则 key="value" 形 secret 经引号转义漏过(config.py:102);put_narrative 再兜底
+        cache.put_narrative(key, project, llm.model,
+                            redact_data({"chapters": chapters}))
         return chapters, False, llm.stats
     except LLMError:
         return _naive_chapters(commits, narr_by_short), True, llm.stats

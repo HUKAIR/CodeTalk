@@ -5,7 +5,7 @@ import re
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-from .config import USAGE_LOG_PATH, redact_secrets
+from .config import USAGE_LOG_PATH, redact_data, redact_secrets
 
 log = logging.getLogger("vibetrace")
 
@@ -49,8 +49,11 @@ def _capsule_block(capsules, today, project_path=None):
         if project_path:
             _, subject = commit_meta(project_path, cap["sha"])
             if subject:
-                # 中和 subject 里的反引号:否则与前面 `sha7` 的反引号跨配对,把文字吞进 code span
-                subject = subject.replace("`", "ʼ")
+                # 中和 markdown 会吞文字的元字符:反引号(与前面 `sha7` 跨配对吞进 code span)、
+                # 尖括号(<Component> 被 Obsidian 当 HTML 标签隐藏 → 丢失召回文字)。
+                # 斜体/链接(* _ [](...))保留文字仅样式偏移,可接受不处理。
+                subject = (subject.replace("`", "ʼ")
+                           .replace("<", "\\<").replace(">", "\\>"))
                 ctx = f"\n\t> 📌 `{sha7}` {subject}"
         lines.append(f"<!-- vt-capsule:{cap['capsule_id']} -->")
         lines.append(f"- **{n} 天前**(`{sha7}`)你担心:"
@@ -169,6 +172,8 @@ def append_usage(record):
     try:
         record["ts"] = datetime.now(timezone.utc).isoformat()
         with open(USAGE_LOG_PATH, "a", encoding="utf-8") as fh:
-            fh.write(redact_secrets(json.dumps(record, ensure_ascii=False)) + "\n")
+            # 脱敏结构叶子(项目路径/--since 等)在 dumps 之前:dumps 转义引号会让
+            # key="value" 形 secret 漏过 redact_secrets(config.py:102);usage.log 无下游兜底
+            fh.write(json.dumps(redact_data(record), ensure_ascii=False) + "\n")
     except Exception as exc:  # noqa: BLE001 — 旁路埋点不得让主流程崩
         log.warning("usage.log 写入失败:%s", exc)

@@ -67,6 +67,23 @@ class TestSealOnlyVibeWatch(unittest.TestCase):
                                      commit, "2026-06-30", "2026-07-21")
         self.assertEqual(self.cache.all_capsules(self.pkey), [])
 
+    def test_secret_shaped_vibe_watch_still_seals(self):
+        """含 secret 形的手写 Vibe-Watch:narrative.risks 经 enrich 脱敏成 [REDACTED],
+        body 里的 watch 是原文。两侧须同口径脱敏后比,否则 exact-match 漏命中、永不封存。"""
+        from vibetrace.config import redact_secrets
+        watch_raw = 'rotate token="leakTok9988XY" before deploy'
+        commit = {
+            "sha": "def4567890abc",
+            "date": datetime(2026, 6, 30, tzinfo=timezone.utc),
+            "body": f"feat: x\n\nVibe-Watch: {watch_raw}",
+            "narrative": {"risks": [redact_secrets(watch_raw)]},  # 模拟 enrich 脱敏后的 risk
+        }
+        digest._seal_commit_capsules(self.cache, self.pkey,
+                                     commit, "2026-06-30", "2026-07-21")
+        caps = self.cache.all_capsules(self.pkey)
+        self.assertEqual(len(caps), 1)                  # 仍封存(脱敏归一后命中)
+        self.assertNotIn("leakTok9988XY", caps[0]["risk"])  # 存的是脱敏版
+
 
 class TestForgotOutcomeReadback(unittest.TestCase):
     """「忘记了」是第 4 个 outcome,回读必须能正确写回 cache(回填环不能漏选项)。"""

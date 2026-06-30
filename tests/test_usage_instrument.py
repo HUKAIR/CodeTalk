@@ -2,6 +2,7 @@
 零 API key → LLM 降级,命令仍要落埋点(容错:写失败不影响主流程)。"""
 import contextlib
 import io
+import json
 import shutil
 import subprocess
 import tempfile
@@ -103,6 +104,19 @@ class TestUsageInstrumentation(unittest.TestCase):
                       {"project": self.dir, "vault": None, "canvas": False})
         # 没有抛出即通过;再确认 graph.html 真的写出来了
         self.assertTrue(list(Path(self.vault).glob("*-graph.html")))
+
+    def test_append_usage_redacts_quote_delimited_secret(self):
+        """usage.log 无下游兜底:须在 dumps 前脱敏。项目路径/--since 含 key="value"
+        形 secret 时,若先 dumps 后 redact 会因引号转义漏过(config.py:102 的坑)。"""
+        self.usage_patch.stop()
+        log_path = Path(self.dir) / "usage.log"
+        with mock.patch("vibetrace.report.USAGE_LOG_PATH", log_path):
+            report.append_usage({"command": "ask",
+                                 "project": '/repo token="leakTok7788XY" x'})
+        written = log_path.read_text(encoding="utf-8")
+        self.assertNotIn("leakTok7788XY", written)
+        self.assertIn("[REDACTED]", written)
+        json.loads(written.strip())                     # 仍合法 JSON
 
 
 if __name__ == "__main__":
