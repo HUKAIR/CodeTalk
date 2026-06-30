@@ -13,6 +13,7 @@ from pathlib import Path
 from . import align, codex_sessions, cursor_sessions, enrich, gitlog, report, sessions
 from .cache import Cache
 from .config import VIBETRACE_DIR, load_config
+from .gitlog import parse_breadcrumbs
 from .llm import LLMClient, LLMError
 
 log = logging.getLogger("vibetrace")
@@ -94,6 +95,18 @@ def _capsule_days():
         return max(0, int(raw)), True
     except ValueError:
         return 21, False
+
+
+def _seal_commit_capsules(cache, pkey, commit, sealed, opens):
+    """只 seal 与 commit body 里 `Vibe-Watch:` 面包屑逐字一致的 risks。
+    LLM 推断的 risks 不进胶囊——对账价值低,塞进会污染北极星处理率分母(回面收件箱噪声)。
+    用户手写的 Vibe-Watch 才是真在意的预测,值得 21 天后回面验证。"""
+    _decs, watches = parse_breadcrumbs(commit.get("body") or "")
+    if not watches:
+        return
+    for idx, risk in enumerate(commit["narrative"].get("risks") or []):
+        if risk in watches:
+            cache.seal_capsule(pkey, commit["sha"], idx, risk, sealed, opens)
 
 
 def digest(args):
@@ -187,9 +200,7 @@ def digest(args):
             opens = (commit["date"].date() + timedelta(days=cap_days)).isoformat()
             if opens <= date_str and not dogfood:
                 continue  # 该天视角下已到期的不补密封,不复活成洪流(dogfood 短窗显式放行)
-            for idx, risk in enumerate(commit["narrative"].get("risks") or []):
-                cache.seal_capsule(pkey, commit["sha"], idx, risk,
-                                   sealed, opens)
+            _seal_commit_capsules(cache, pkey, commit, sealed, opens)
         # 仅对真正的「今日」削峰(留次日);历史回放当天全开,天数不失真
         cap_limit = 3 if day == date.today() else None
         capsules = cache.open_due_capsules(pkey, date_str, cap_limit)
