@@ -111,7 +111,7 @@ TOOLS = [
          "path": {"type": "string", "description": "GitHub-MCP style file path (alias for target)"},
          "startLine": {"type": "integer", "description": "Start line (with path)"},
          "endLine": {"type": "integer", "description": "End line (with path)"},
-         "format": {"type": "string", "enum": ["madr", "nygard"],
+         "format": {"type": "string", "enum": ["madr", "nygard", "cyclonedx"],
                     "description": "ADR format (default: madr)"},
          "project": {"type": "string", "description": "Project path (default: cwd)"}},
          "required": []},

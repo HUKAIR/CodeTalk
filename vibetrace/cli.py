@@ -74,7 +74,8 @@ def _build_parser():
     adr = _proj(sub.add_parser(
         "adr-export", help="把一段代码的真实决策史导出成 MADR/Nygard ADR(零 LLM,逐字引真实 commit)"))
     adr.add_argument("target", help='文件或 文件:起-止,如 vibetrace/llm.py:72-78')
-    adr.add_argument("--format", choices=["madr", "nygard"], default="madr", help="ADR 模板")
+    adr.add_argument("--format", choices=["madr", "nygard", "cyclonedx"],
+                     default="madr", help="ADR 模板(cyclonedx=AIBOM JSON)")
     adr.add_argument("--vault", help="写入 vault(默认打印)")
     sea = _proj(sub.add_parser(
         "search", help="主题级『当初为什么』召回:全仓按关键词找相关 commit(零 LLM)"))

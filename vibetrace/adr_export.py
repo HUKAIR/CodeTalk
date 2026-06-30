@@ -1,16 +1,23 @@
-"""ADR 导出(零 LLM):把一段代码的真实决策史确定性渲染成 MADR / Nygard 架构决策记录。
+"""ADR 导出(零 LLM):把一段代码的真实决策史确定性渲染成 MADR / Nygard / CycloneDX。
 
 区别于手写 ADR 生态(adr-tools / Log4brains / pyadr 全手写、无一从 git 自动挖):vibetrace 从
 真实 commit/决策**自动**导出,「来源」段附真实 commit SHA + 逐字原话(可核验,非 LLM 反推)——
 「别人要你手写 ADR,vibetrace 从真实记录自动导出且逐字接地」。复用 blame.collect_segments;
 纯字符串拼接、零 LLM、不触网、出口脱敏、绝不崩。
+
+cyclonedx 格式输出 CycloneDX 1.5 base schema 子集(bomFormat/specVersion/components),
+让决策史能接进 AIBOM 生态(CISA/G7 SBOM for AI、CycloneDX AI 扩展)。timestamp 取最新
+commit 时间保证 reproducible(同输入同输出),不假装符合 modelCard/formulation 等 AI 专门段
+——vibetrace 跟踪的是代码决策不是模型,硬塞会编造。
 """
+import hashlib
+import json
 import sys
 from pathlib import Path
 
 from .config import redact_secrets
 
-FORMATS = ("madr", "nygard")
+FORMATS = ("madr", "nygard", "cyclonedx")
 
 
 def _bullets(items):
@@ -18,8 +25,49 @@ def _bullets(items):
     return ["- " + x for x in uniq] or ["-(未记)"]
 
 
+def _to_cyclonedx(target, segments):
+    """CycloneDX 1.5 base schema 子集——每个 commit 一个 component,逐字保留决策原话。
+    serialNumber/timestamp 据 target+segments 哈希确定性生成,同输入字节级 reproducible。"""
+    latest_ts = ""
+    for s in reversed(segments):
+        if s.get("date"):
+            latest_ts = s["date"]
+            break
+    seed = (target + "|" + "|".join(s.get("sha", "") for s in segments)).encode()
+    serial = "urn:uuid:" + hashlib.sha256(seed).hexdigest()[:32]
+    components = []
+    for s in segments:
+        props = []
+        for d in (s.get("decisions") or []):
+            props.append({"name": "vibetrace:decision", "value": d})
+        for r in (s.get("rejected") or []):
+            props.append({"name": "vibetrace:rejected", "value": r})
+        for r in (s.get("risks") or []):
+            props.append({"name": "vibetrace:risk", "value": r})
+        components.append({
+            "type": "data", "bom-ref": s.get("sha", ""),
+            "name": s.get("subject", "") or target,
+            "description": s.get("why") or "",
+            "properties": props,
+        })
+    bom = {
+        "bomFormat": "CycloneDX", "specVersion": "1.5",
+        "serialNumber": serial, "version": 1,
+        "metadata": {
+            "timestamp": latest_ts,
+            "tools": [{"vendor": "vibetrace", "name": "vibetrace",
+                       "description": "zero-LLM commit decision provenance"}],
+            "component": {"type": "application", "name": target},
+        },
+        "components": components,
+    }
+    return redact_secrets(json.dumps(bom, ensure_ascii=False, indent=2))
+
+
 def to_adr(target, segments, fmt="madr"):
-    """segments(旧→新,blame.collect_segments 输出)→ 一份 markdown ADR。零 LLM、落地前脱敏。"""
+    """segments(旧→新,blame.collect_segments 输出)→ 一份 markdown ADR(或 JSON BOM)。零 LLM、落地前脱敏。"""
+    if fmt == "cyclonedx":
+        return _to_cyclonedx(target, segments)
     whys = [s["why"] for s in segments if s.get("why")]
     decisions = [d for s in segments for d in (s.get("decisions") or [])]
     rejected = [r for s in segments for r in (s.get("rejected") or [])]

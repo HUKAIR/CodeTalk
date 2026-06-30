@@ -1,4 +1,5 @@
 """ADR 导出:真实决策史 → MADR/Nygard markdown,逐字引真实 commit、出口脱敏。零 LLM。"""
+import json
 import shutil
 import subprocess
 import tempfile
@@ -62,6 +63,51 @@ class TestToAdr(unittest.TestCase):
         out = to_adr("f", seg, "madr")
         self.assertNotIn("sk-abcdefghijklmnop1234", out)
         self.assertIn("[REDACTED]", out)
+
+
+class TestCycloneDxFormat(unittest.TestCase):
+    """CycloneDX 1.5 BOM-Format 子集——把决策史接到 AIBOM 生态。"""
+
+    def test_valid_json_with_required_base_fields(self):
+        out = to_adr("f.py:1-5", _SEG, "cyclonedx")
+        bom = json.loads(out)                           # 必须是合法 JSON
+        self.assertEqual(bom["bomFormat"], "CycloneDX")
+        self.assertEqual(bom["specVersion"], "1.5")
+        self.assertIn("serialNumber", bom)
+        self.assertIn("metadata", bom)
+        self.assertIn("components", bom)
+
+    def test_each_commit_becomes_component_with_verbatim_decisions(self):
+        out = to_adr("f.py:1-5", _SEG, "cyclonedx")
+        bom = json.loads(out)
+        self.assertEqual(len(bom["components"]), 1)
+        comp = bom["components"][0]
+        self.assertEqual(comp["bom-ref"], _SEG[0]["sha"])
+        self.assertEqual(comp["name"], "用乐观锁")        # subject → name
+        self.assertEqual(comp["description"], "为了避免写超时")  # why → description
+        # decisions/risks 进 properties(逐字)
+        prop_values = [p["value"] for p in comp["properties"]]
+        self.assertIn("放弃悲观锁,改版本号 CAS", prop_values)
+        self.assertIn("高并发下重试风暴待验证", prop_values)
+
+    def test_reproducible_no_timestamp_drift(self):
+        """同一 target/segments 输出必须字节级一致(timestamp 取自最新 commit,不用 now())。"""
+        a = to_adr("f.py:1-5", _SEG, "cyclonedx")
+        b = to_adr("f.py:1-5", _SEG, "cyclonedx")
+        self.assertEqual(a, b)
+
+    def test_redaction_in_cyclonedx(self):
+        seg = [{"sha": "e" * 40, "date": "2026-06-01T08:00", "subject": "s",
+                "why": "key sk-abcdefghijklmnop1234 别泄漏",
+                "decisions": [], "risks": []}]
+        out = to_adr("f", seg, "cyclonedx")
+        self.assertNotIn("sk-abcdefghijklmnop1234", out)
+        self.assertIn("[REDACTED]", out)
+
+    def test_empty_segments_emits_valid_bom(self):
+        out = to_adr("x.py", [], "cyclonedx")
+        bom = json.loads(out)
+        self.assertEqual(bom["components"], [])         # 空但合法
 
 
 class TestExportOnRepo(unittest.TestCase):
