@@ -44,7 +44,7 @@ Vibe-Watch:    rotation collisions on retry — see plan.md §5
 If you use Claude Code, Cursor, or Copilot:
 
 ```bash
-CodeTalk install-agent-seed --project .
+codetalk install-agent-seed --project .
 ```
 
 drops the breadcrumb instruction into `CLAUDE.md`, `.cursorrules`, `.github/copilot-instructions.md` etc. The agent leaves them automatically.
@@ -70,7 +70,7 @@ Output (for a line touched by the JWT commit above):
 Now the reviewer sees the spec-bound rationale verbatim, with click-through to the commit. Or in VS Code/Cursor/Windsurf:
 
 ```bash
-cd vscode-CodeTalk && npm install && npm run build && code --install-extension vscode-codetalk-*.vsix
+cd vscode-codetalk && npm install && npm run build && code --install-extension vscode-codetalk-*.vsix
 ```
 
 CodeLens above the block shows `▸ abc1234 · 决策(2) 风险(1)`. Click to expand the decision tree inline.

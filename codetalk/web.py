@@ -5,7 +5,7 @@
 Phase 2 v1:非流式 /api/chat + 只读端点;SSE 流式、SPA 静态托管见后续 Phase。
 本模块仅在 `codetalk web` 时按需 import;CLI/MCP 不依赖它,核心仍纯 stdlib。
 
-注:沙箱无 fastapi/uvicorn,本文件未在 CI 跑通;落地需真机 `pip install -e ".[web]"`
+注:web 路由有 TestClient 覆盖;发布前仍建议真机 `pip install -e ".[web]"`
 后 smoke test(`codetalk web` → curl /api/chat 验证接地对话链路)。接地/脱敏/降级
 核心逻辑在 chat.py/retrieval.py(已 TDD),本文件只是其 HTTP 外壳。
 """
@@ -32,7 +32,7 @@ from .llm import LLMClient, LLMError
 from .report import _OUTCOMES
 from .search import topic_search
 
-app = FastAPI(title="codetalk web")
+app = FastAPI(title="CodeTalk web")
 _DEFAULT_PROJECT = "."
 _CHAT_HTML = Template((Path(__file__).parent / "web_chat.html").read_text(encoding="utf-8"))
 # 前端零外联红线:connect-src 'self' 让页面只能 fetch 同源 /api(LLM egress 仅后端发);

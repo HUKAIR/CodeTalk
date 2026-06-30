@@ -58,7 +58,7 @@ Only blocks with real decisions/why get CodeLens. Hover works on any line.
 
 ```bash
 # 1. Build
-cd vscode-CodeTalk
+cd vscode-codetalk
 npm install
 npm run build
 
@@ -119,7 +119,7 @@ Data is cached per-file in memory. Cache refreshes on file save or editor switch
 ```
 extension.ts
 ├── fetchBlameData()           — shell out to CodeTalk + git blame
-├── VibetraceCodeLensProvider  — foldable per-commit CodeLens
+├── CodetalkCodeLensProvider  — foldable per-commit CodeLens
 ├── buildHoverCard()           — HoverProvider markdown card
 ├── segmentHasWhy()            — filter: only commits with real decisions
 └── activate/deactivate        — lifecycle + event subscriptions

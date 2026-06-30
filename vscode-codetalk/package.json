@@ -1,6 +1,6 @@
 {
   "name": "vscode-codetalk",
-  "displayName": "codetalk — Decision Blame",
+  "displayName": "CodeTalk — Decision Blame",
   "description": "See why code was written this way, not just who/when. Foldable CodeLens with real commit decisions, hover cards with full context.",
   "version": "0.2.0",
   "publisher": "codetalk",

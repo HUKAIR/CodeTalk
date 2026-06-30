@@ -8,9 +8,26 @@ version = "0.1.0"
 description = "本地优先的代码决策溯源:git 历史 + Claude/Cursor/Codex 会话 → 可核验 why / 理解债 / 决策影响图"
 readme = "README.md"
 requires-python = ">=3.11"
+license = { text = "AGPL-3.0-or-later" }
+authors = [{ name = "CodeTalk" }]
+keywords = ["git", "code-provenance", "local-first", "mcp", "ai-coding"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Topic :: Software Development :: Version Control :: Git",
+]
 # M0 红线:核心零三方依赖(deepseek/openai/qwen 经 stdlib urllib);
 # 仅 anthropic provider 需 SDK,作可选 extra。
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/HUKAIR/CodeTalk"
+Repository = "https://github.com/HUKAIR/CodeTalk"
+Issues = "https://github.com/HUKAIR/CodeTalk/issues"
 
 [project.optional-dependencies]
 anthropic = ["anthropic>=0.40"]

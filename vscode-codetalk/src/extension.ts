@@ -130,7 +130,7 @@ function truncate(s: string, max: number): string {
   return s.length > max ? s.slice(0, max - 3) + '...' : s;
 }
 
-class VibetraceCodeLensProvider implements vscode.CodeLensProvider {
+class CodetalkCodeLensProvider implements vscode.CodeLensProvider {
   private _onDidChange = new vscode.EventEmitter<void>();
   readonly onDidChangeCodeLenses = this._onDidChange.event;
 
@@ -223,7 +223,7 @@ export function activate(context: vscode.ExtensionContext): void {
   execFile('git', ['rev-parse', '--git-dir'], { cwd: ws.uri.fsPath }, (err: Error | null) => {
     if (err) return;
 
-    const codeLensProvider = new VibetraceCodeLensProvider();
+    const codeLensProvider = new CodetalkCodeLensProvider();
 
     context.subscriptions.push(
       vscode.commands.registerCommand(

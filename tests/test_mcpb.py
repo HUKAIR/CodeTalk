@@ -5,6 +5,7 @@
 """
 import json
 import tempfile
+import tomllib
 import unittest
 import zipfile
 from pathlib import Path
@@ -48,6 +49,17 @@ class TestManifest(unittest.TestCase):
         manifest_names = {t["name"] for t in self._manifest().get("tools", [])}
         runtime_names = {t["name"] for t in TOOLS}
         self.assertEqual(manifest_names, runtime_names)
+
+
+class TestReleaseMetadata(unittest.TestCase):
+    def test_pyproject_has_public_release_metadata(self):
+        data = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+        project = data["project"]
+        self.assertEqual(project["name"], "codetalk")
+        self.assertEqual(project["license"]["text"], "AGPL-3.0-or-later")
+        self.assertEqual(project["scripts"]["codetalk"], "codetalk.cli:main")
+        self.assertIn("Repository", project["urls"])
+        self.assertIn("code-provenance", project["keywords"])
 
 
 class TestBuild(unittest.TestCase):

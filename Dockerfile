@@ -8,7 +8,7 @@
 #     -v "$HOME/.codetalk:/root/.codetalk" \                # cache.db / config(读写)
 #     -v "$HOME/.claude/projects:/root/.claude/projects:ro" \ # 可选:会话原话接地源
 #     codetalk
-#   打开 http://127.0.0.1:8000/   (零出网/无 key:加 -e VIBETRACE_NO_LLM=1)
+#   打开 http://127.0.0.1:8000/   (零出网/无 key:加 -e CODETALK_NO_LLM=1)
 #
 # 注:沙箱无 docker,本文件未构建验证;落地需真机 `docker build` smoke test。
 FROM python:3.11-slim
