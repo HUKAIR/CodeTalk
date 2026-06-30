@@ -27,7 +27,7 @@ vibetrace grounds "why" in real commit history — verbatim citations you can cl
 | Source | current diff | real commit + session transcript |
 | Method | LLM guesses from code | zero-LLM deterministic lookup by SHA |
 | Verifiable | no — plausible but ungrounded | yes — click SHA to see original |
-| Data | sent to cloud | never leaves your machine |
+| Data | sent to cloud | local-first; LLM calls opt-in (`--no-llm` for zero egress) |
 
 ### vibetrace 有什么不同
 
@@ -36,7 +36,7 @@ vibetrace grounds "why" in real commit history — verbatim citations you can cl
 | 来源 | 当前 diff | 真实 commit + 会话原话 |
 | 方法 | LLM 从代码猜测 | 零-LLM 确定性按 SHA 查找 |
 | 可核验 | 否——听起来对但无据 | 是——点开 SHA 看原文 |
-| 数据 | 发往云端 | 不出本机 |
+| 数据 | 发往云端 | 本地优先；LLM 调用可关（`--no-llm` 零出网） |
 
 > **Honest boundaries / 诚实边界:** Blind test is N=5, this repo only, human-judged — not a population claim. Coverage ceiling 100% (199/199 commits with narratives, `grounding_hitrate.py` to reproduce; line-level reach 100% on source files). vibetrace finds "what was actually said and decided", not "whether the code is correct" — source records themselves may be wrong. 100% is this repo's dogfood result, not a general guarantee. Full methodology: `docs/discovery/2026-06-29-护城河对照卡-真实记录vs反推.md`.
 >
