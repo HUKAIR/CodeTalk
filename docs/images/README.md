@@ -5,7 +5,7 @@
 
 | 文件名 | 内容 | 对应章节 |
 |---|---|---|
-| `mcp-desktop-install.png` | Claude Desktop → Settings → Extensions 安装 `vibetrace.mcpb`,填 project 路径,启用后 4 个工具出现 | 3·A |
+| `mcp-desktop-install.png` | Claude Desktop → Settings → Extensions 安装 `vibetrace.mcpb`,填 project 路径,启用后 7 个工具出现 | 3·A |
 | `mcp-claude-code.png` | Claude Code:`.mcp.json` 配置 + `claude mcp list` 显示 vibetrace connected | 3·B |
 | `mcp-cursor.png` | Cursor Settings → MCP:vibetrace 已连接、显示工具数 | 3·C |
 | `mcp-call-result.png` | agent 实际调用 `vibetrace_blame` / `vibetrace_ask` 的接地返回 | 4 |

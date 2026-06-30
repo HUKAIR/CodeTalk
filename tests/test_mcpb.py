@@ -41,6 +41,14 @@ class TestManifest(unittest.TestCase):
                                  "vibetrace_drift", "vibetrace_prompts",
                                  "vibetrace_adr"})
 
+    def test_manifest_tools_match_runtime_source(self):
+        # 单一真源:manifest 工具集必须 == 运行时真正 serve 的 mcp_tools.TOOLS。
+        # 防 manifest/docs 陈旧事故复发(本会话发生两次:加工具忘同步 manifest)。
+        from vibetrace.mcp_tools import TOOLS
+        manifest_names = {t["name"] for t in self._manifest().get("tools", [])}
+        runtime_names = {t["name"] for t in TOOLS}
+        self.assertEqual(manifest_names, runtime_names)
+
 
 class TestBuild(unittest.TestCase):
     def test_build_produces_valid_bundle(self):

@@ -232,6 +232,30 @@ class TestFormatDriftWarning(unittest.TestCase):
             with self.assertNoLogs("vibetrace", level="WARNING"):
                 sessions._parse_file(p)
 
+    def test_no_warn_on_non_envelope_record_without_timestamp(self):
+        # 回归(round-2 引入的虚警):ai-title / last-prompt / leafUuid 指针等非会话类型
+        # 天生无 timestamp,正常每次运行都出现——绝不能据此报"格式漂移"(狼来了会钝化信号)。
+        with TemporaryDirectory() as tmp:
+            p = Path(tmp) / "mix.jsonl"
+            p.write_text(
+                _line({"type": "ai-title", "aiTitle": "重构 sessions 解析"})
+                + _line({"type": "last-prompt", "leafUuid": "u9", "sessionId": "s1"})
+                + _line({"type": "user", "timestamp": "2026-06-30T08:00:00Z",
+                         "message": {"role": "user", "content": "x"}}),
+                encoding="utf-8")
+            with self.assertNoLogs("vibetrace", level="WARNING"):
+                sessions._parse_file(p)
+
+    def test_warns_when_type_field_absent(self):
+        # 真漂移信号:每条记录都应有 type;完全缺 type = Anthropic 改了结构。
+        with TemporaryDirectory() as tmp:
+            p = Path(tmp) / "drift.jsonl"
+            p.write_text(_line({"role": "user", "content": "无 type 字段"}),
+                         encoding="utf-8")
+            with self.assertLogs("vibetrace", level="WARNING") as cm:
+                sessions._parse_file(p)
+            self.assertTrue(any("format may have changed" in m for m in cm.output))
+
 
 if __name__ == "__main__":
     unittest.main()

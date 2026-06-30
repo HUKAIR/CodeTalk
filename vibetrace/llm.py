@@ -18,6 +18,7 @@ log = logging.getLogger("vibetrace")
 RETRYABLE_HTTP = {429, 500, 502, 503, 504}
 MAX_ATTEMPTS = 4
 MAX_OUTPUT_TOKENS = 3000
+MAX_TOKENS_CEIL = 8000      # 截断重试时 max_tokens 提升上限(抢救半截 JSON,封顶防失控)
 
 
 class LLMError(Exception):
@@ -176,26 +177,35 @@ class LLMClient:
                   + json.dumps(schema, ensure_ascii=False))
         if cache_prefix:  # 稳定前缀置于 system 尾部,让 deepseek 自动前缀缓存命中
             system += "\n\n### 项目背景(节选,据此判断改动是否违背项目约束)\n" + cache_prefix
-        body = json.dumps({
-            "model": self.model,
-            "messages": [{"role": "system", "content": system},
-                         {"role": "user", "content": user_prompt}],
-            "response_format": {"type": "json_object"},
-            "max_tokens": max_tokens,
-        }).encode("utf-8")
-        request = urllib.request.Request(
-            f"{self.base_url}/chat/completions", data=body, method="POST",
-            headers={"Content-Type": "application/json",
-                     "Authorization": f"Bearer {self.api_key}"})
+        cur_max = max_tokens                 # 截断时本调用内逐次提升(不改默认)
         last_err = None
         for attempt in range(MAX_ATTEMPTS):
             if attempt:
                 time.sleep(1.5 ** attempt)
+            body = json.dumps({                # 每次重建:截断重试用提升后的 cur_max
+                "model": self.model,
+                "messages": [{"role": "system", "content": system},
+                             {"role": "user", "content": user_prompt}],
+                "response_format": {"type": "json_object"},
+                "max_tokens": cur_max,
+            }).encode("utf-8")
+            request = urllib.request.Request(
+                f"{self.base_url}/chat/completions", data=body, method="POST",
+                headers={"Content-Type": "application/json",
+                         "Authorization": f"Bearer {self.api_key}"})
             try:
                 with urllib.request.urlopen(request, timeout=180) as resp:
                     data = json.loads(resp.read().decode("utf-8"))
-                content = data["choices"][0]["message"]["content"]
-                result = json.loads(content)   # 先解析成功再计数,失败重试不重复累加
+                choice = data["choices"][0]
+                # 截断:finish_reason==length → content 是半截 JSON,原样重试必再截,
+                # 4 次烧 4 倍 token 且静默丢一条 commit。提 max_tokens 抢救(封顶,不无限涨)。
+                if (choice.get("finish_reason") == "length"
+                        and cur_max < MAX_TOKENS_CEIL):
+                    cur_max = min(cur_max * 2, MAX_TOKENS_CEIL)
+                    last_err = f"响应被 max_tokens 截断,提到 {cur_max} 重试"
+                    log.warning("LLM 调用失败(第 %d 次):%s", attempt + 1, last_err)
+                    continue
+                result = json.loads(choice["message"]["content"])   # 解析成功再计数
                 usage = data.get("usage") or {}
                 self.stats["calls"] += 1
                 self.stats["input_tokens"] += usage.get("prompt_tokens") or 0

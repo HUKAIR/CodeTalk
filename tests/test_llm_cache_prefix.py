@@ -55,6 +55,53 @@ class TestOpenAICachePrefix(unittest.TestCase):
         self.assertNotIn("PREFIX", body["messages"][0]["content"])
 
 
+class TestOpenAITruncationSalvage(unittest.TestCase):
+    """finish_reason==length(响应被 max_tokens 截断)时,提 max_tokens 重试抢救,
+    而非原样重试 4 次烧 token 后丢一条 commit。"""
+
+    def test_length_truncation_bumps_max_tokens_and_recovers(self):
+        good = json.dumps({"what": "x", "why": "y", "decisions": [],
+                           "risks": [], "open_loops": []})
+        seq = [
+            {"choices": [{"finish_reason": "length",
+                          "message": {"content": '{"what":"x","wh'}}],  # 半截 JSON
+             "usage": {}},
+            {"choices": [{"finish_reason": "stop",
+                          "message": {"content": good}}], "usage": {}},
+        ]
+        bodies = []
+
+        def fake_urlopen(req, timeout=0):
+            bodies.append(json.loads(req.data.decode("utf-8")))
+            return _FakeResp(seq[len(bodies) - 1])
+
+        with mock.patch("urllib.request.urlopen", fake_urlopen), \
+             mock.patch("time.sleep", lambda *_: None):
+            out = LLMClient(_cfg()).narrate("Q")
+        self.assertEqual(out["what"], "x")                 # 抢救成功、返回完整结果
+        self.assertEqual(len(bodies), 2)                   # 截断重试了一次
+        self.assertGreater(bodies[1]["max_tokens"],
+                           bodies[0]["max_tokens"])        # 第二次 max_tokens 提升了
+
+    def test_truncation_capped_does_not_loop_forever(self):
+        # 持续截断:max_tokens 涨到封顶后不再原地刷,最终 4 次内抛 LLMError(不无限)
+        from vibetrace.llm import LLMError
+        trunc = {"choices": [{"finish_reason": "length",
+                              "message": {"content": "{"}}], "usage": {}}
+        calls = []
+
+        def fake_urlopen(req, timeout=0):
+            calls.append(json.loads(req.data.decode("utf-8"))["max_tokens"])
+            return _FakeResp(trunc)
+
+        with mock.patch("urllib.request.urlopen", fake_urlopen), \
+             mock.patch("time.sleep", lambda *_: None):
+            with self.assertRaises(LLMError):
+                LLMClient(_cfg()).narrate("Q")
+        self.assertLessEqual(len(calls), 4)                # 不超过 MAX_ATTEMPTS
+        self.assertLessEqual(max(calls), 8000)             # 封顶 MAX_TOKENS_CEIL
+
+
 class _FakeAnthropicResp:
     class _Usage:
         input_tokens = 1
