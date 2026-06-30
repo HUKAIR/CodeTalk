@@ -129,9 +129,11 @@ def _days_sealed(sealed_date, today):
 
 def _is_verbatim_watch(project, sha, risk):
     """该 risk 是否逐字来自 commit 的 Vibe-Watch 面包屑(确定性,零-LLM)。
-    commit_body 失败 → '' → 无 watches → 视为非逐字(LLM 预测),降级不崩。"""
+    commit_body 失败 → '' → 无 watches → 视为非逐字(LLM 预测),降级不崩。
+    两侧同口径脱敏:cache 里的 risk 经 enrich redact_data 已脱敏,watches 来自原始 body,
+    含 secret 形的手写 Watch 否则会因 [REDACTED] 不等而误判成 🤖 AI 预测(与 _seal 同口径)。"""
     _decs, watches = parse_breadcrumbs(commit_body(project, sha))
-    return risk in watches
+    return redact_secrets(risk) in {redact_secrets(w) for w in watches}
 
 
 def _watch_block(name, path, pending, opened, filled, today):

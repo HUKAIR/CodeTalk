@@ -70,6 +70,28 @@ class TestRetrieve(unittest.TestCase):
         self.assertEqual(len(evidence), 1)
         self.assertEqual(evidence[0]["session_id"], "s1")
 
+    def test_context_redacts_quote_delimited_secret_at_source(self):
+        """关键隐私守门:context 由原始面包屑拼成,须在 _retrieve 源头脱敏。
+        否则 MCP JSON(dumps 后 redact 漏 key="value")、CLI 降级 stdout、送外部 LLM
+        三个出口都泄露 commit body 里的 secret 形 Vibe-Decision。"""
+        cache = Cache(":memory:")
+        with mock.patch.object(ask, "line_log",
+                               lambda *a, **k: (["sha1aaaabbbb"], None)), \
+             mock.patch.object(gitlog, "commit_body",
+                               lambda p, s: 'Vibe-Decision: set password="hunter2leakXY" in cfg'):
+            ctx, *_ = ask._retrieve(".", "f.py", 1, 5, cache)
+        self.assertNotIn("hunter2leakXY", ctx)        # 源头已脱敏
+        self.assertIn("[REDACTED]", ctx)
+
+    def test_json_text_redacts_context_for_mcp(self):
+        """MCP/agent 出口:_json_text 须出脱敏 JSON(degraded 模式 context 入 JSON)。"""
+        import json as _json
+        out = ask._json_text("degraded", "f.py", "why", ["sha1"],
+                             context='决策:token="leakJSON88XY" rotate')
+        self.assertNotIn("leakJSON88XY", out)
+        self.assertIn("[REDACTED]", out)
+        _json.loads(out)                              # 仍合法 JSON
+
     def test_same_evidence_anchor_deduped_across_shas(self):
         # 同一会话锚点(session_id+ts)跨多命中 SHA → 只汇总一次
         cache = Cache(":memory:")

@@ -10,7 +10,7 @@ from pathlib import Path
 
 from . import grounding_render as gr
 from .cache import Cache
-from .config import CACHE_DB_PATH, load_config, redact_secrets
+from .config import CACHE_DB_PATH, load_config, redact_data, redact_secrets
 from .gitlog import line_log, file_log, merge_breadcrumbs, parse_target
 from .llm import LLMClient, LLMError
 from .prompts import ASK_SCHEMA, ASK_SYSTEM_PROMPT
@@ -73,7 +73,10 @@ def _retrieve(project_path, file, start, end, cache, since=None):
         if risks:
             parts.append("风险/待验证:" + ";".join(risks)[:EXCERPT])
         blocks.append(" / ".join(parts))
-    context = "\n".join(blocks)[:CONTEXT_BUDGET]
+    # 单点脱敏在原始拼接文本上(非 JSON/LLM 编码后):context 由 commit body 面包屑直接拼成,
+    # 未经 cache 脱敏。一处脱敏堵三个出口——MCP JSON(_json_text dumps 前)、CLI 降级 stdout、
+    # 送外部 LLM 的 prompt(_ask_prompt→narrate,唯一出网例外也须先脱敏)。
+    context = redact_secrets("\n".join(blocks)[:CONTEXT_BUDGET])
     code_state = shas[-1] if shas else ""
     return context, shas, code_state, evidence, test_refs, pr_refs
 
@@ -148,7 +151,8 @@ def _with_evidence(text, evidence, test_refs=(), pr_refs=()):
 def _json_text(mode, target, question, shas, payload=None, context=None):
     """组装 agent 可读的结构化结果(与 agent-seed 写时捕获配成读写闭环)。
     llm/cache:带 LLM payload(answer/cited_shas/unsure);degraded:无 LLM,
-    给出确定性检索结果(context 原始决策史 + shas),降级也不崩。脱敏在上游已做。"""
+    给出确定性检索结果(context 原始决策史 + shas),降级也不崩。
+    context 已在 _retrieve 脱敏;此处再 redact_data 兜底(结构叶子,dumps 前)防遗漏出口。"""
     obj = {"mode": mode, "target": target, "question": question,
            "shas": list(shas or [])}
     if payload is not None:
@@ -157,7 +161,7 @@ def _json_text(mode, target, question, shas, payload=None, context=None):
         obj["unsure"] = payload.get("unsure", "")
     if context is not None:
         obj["context"] = context
-    return json.dumps(obj, ensure_ascii=False, indent=2)
+    return json.dumps(redact_data(obj), ensure_ascii=False, indent=2)
 
 
 def _write_note(vault_path, project, target, question, payload):

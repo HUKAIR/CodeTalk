@@ -134,6 +134,21 @@ class TestBuildWatch(unittest.TestCase):
         self.assertIn("🤖 AI 预测", out)
         self.assertLess(out.index("我亲手标的"), out.index("AI 猜的风险"))  # 逐字排前
 
+    def test_secret_shaped_watch_still_tagged_verbatim(self):
+        # 含 secret 形的手写 Watch:cache 里 risk 已脱敏([REDACTED]),body 是原文。
+        # 两侧须同口径脱敏比,否则误判成 🤖 AI 预测(与 _seal 同口径,brief 此前漏修)。
+        from vibetrace.config import redact_secrets
+        raw = 'rotate api_key=ghp_abcd1234EFGH5678ijkl if leak'
+        c = Cache(":memory:")
+        p = self._tmpdir()
+        self._open_capsule(c, p, redact_secrets(raw), sha="s1", idx=0)  # 存脱敏版
+
+        with mock.patch.object(brief, "commit_body",
+                               lambda proj, sha: f"Vibe-Watch: {raw}"):
+            out = brief.build_watch(c, [p], self.today)
+        self.assertIn("🎯 你标的", out)          # 仍认成用户手写,非 🤖
+        self.assertNotIn("🤖 AI 预测", out)
+
     def test_bad_sealed_date_does_not_crash(self):
         c = Cache(":memory:")
         p = self._tmpdir()

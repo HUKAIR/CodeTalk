@@ -163,6 +163,29 @@ class TestEnrichCmd(unittest.TestCase):
         self.assertEqual(n["why"], "补全的原因")        # 走了 LLM(fake 返回值)
         self.assertNotIn("机械改动", n["why"])          # 没被 trivial stub 覆写
 
+    def test_inmemory_narrative_redacts_quote_delimited_secret(self):
+        """enrich 后的 in-memory narrative 也须脱敏(不只 cache):key="value" 形 secret
+        若只靠 dumps-后-redact 会漏;redact_data 结构脱敏让 commit['narrative'] 直读也安全。"""
+        from vibetrace import enrich
+
+        class _LeakLLM:
+            model = "fake"
+            def narrate(self, prompt, cache_prefix=""):
+                return {"what": "x", "why": "",
+                        "decisions": ['adopt password="hunter2abcXYZ" approach'],
+                        "risks": [], "open_loops": []}
+
+        from datetime import datetime, timezone
+        commit = {"sha": "f"*40, "subject": "s", "body": "", "author": "t",
+                  "files": ["src/a.py"], "stat": "", "diff_excerpt": "",
+                  "date": datetime(2026, 6, 30, tzinfo=timezone.utc)}
+        c = Cache(self.db)
+        enrich.enrich_commits([commit], _LeakLLM(), c, self.pkey)
+        c.close()
+        dec = commit["narrative"]["decisions"][0]    # 直读 in-memory dict
+        self.assertNotIn("hunter2abcXYZ", dec)
+        self.assertIn("[REDACTED]", dec)
+
     def test_no_llm_exits_without_calling(self):
         with mock.patch.object(cli, "CACHE_DB_PATH", self.db), \
              contextlib.redirect_stdout(io.StringIO()), \
