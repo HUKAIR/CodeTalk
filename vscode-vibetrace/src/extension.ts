@@ -142,15 +142,17 @@ class VibetraceCodeLensProvider implements vscode.CodeLensProvider {
     for (const seg of data.segments) segBySha.set(seg.sha, seg);
 
     const lenses: vscode.CodeLens[] = [];
-    let prevSha: string | null = null;
+    const rendered = new Set<string>();
     const lines = [...data.lineMap.entries()].sort((a, b) => a[0] - b[0]);
 
     for (const [line, sha] of lines) {
-      if (sha === prevSha) continue;
-      prevSha = sha;
+      // one card per commit file-wide: a commit touching interleaved regions
+      // would otherwise repeat its full expanded decision tree at every region
+      if (rendered.has(sha)) continue;
 
       const seg = segBySha.get(sha);
       if (!seg || !segmentHasWhy(seg)) continue;
+      rendered.add(sha);
 
       const sha7 = sha.slice(0, 7);
       const range = new vscode.Range(line, 0, line, 0);
@@ -212,7 +214,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const ws = vscode.workspace.workspaceFolders?.[0];
   if (!ws) return;
 
-  execFile('git', ['rev-parse', '--git-dir'], { cwd: ws.uri.fsPath }, (err) => {
+  execFile('git', ['rev-parse', '--git-dir'], { cwd: ws.uri.fsPath }, (err: Error | null) => {
     if (err) return;
 
     const codeLensProvider = new VibetraceCodeLensProvider();

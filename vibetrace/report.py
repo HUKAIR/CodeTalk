@@ -49,6 +49,8 @@ def _capsule_block(capsules, today, project_path=None):
         if project_path:
             _, subject = commit_meta(project_path, cap["sha"])
             if subject:
+                # 中和 subject 里的反引号:否则与前面 `sha7` 的反引号跨配对,把文字吞进 code span
+                subject = subject.replace("`", "ʼ")
                 ctx = f"\n\t> 📌 `{sha7}` {subject}"
         lines.append(f"<!-- vt-capsule:{cap['capsule_id']} -->")
         lines.append(f"- **{n} 天前**(`{sha7}`)你担心:"

@@ -145,6 +145,24 @@ class TestEnrichCmd(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertEqual(fake.calls, 0)             # 全有 → 一次都不调
 
+    def test_reenrich_renarrates_trivial_commit_not_stub(self):
+        """--reenrich 跳过 _is_trivial 门:lockfile commit 也走 LLM 重叙事,
+        不被覆写成 stub(否则 trivial commit 上的用户手写好叙事会被 stub 吃掉)。"""
+        lock = Path(self.d) / "poetry.lock"
+        lock.write_text("[[package]]\nname='x'\n"); _git(["add", "."], self.d)
+        _git(["commit", "-q", "-m", "chore: bump lock"], self.d)
+        sha_lock = _sha(self.d)
+        c = Cache(self.db)                            # 该 trivial commit 上已有好叙事
+        c.put_narrative(sha_lock, self.pkey, "m",
+                        {"why": "手写:锁定 x 版本因 CVE", "decisions": []})
+        c.close()
+        rc, fake = self._run("--reenrich")
+        self.assertEqual(rc, 0)
+        c = Cache(self.db)
+        n = c.get_narrative(sha_lock); c.close()
+        self.assertEqual(n["why"], "补全的原因")        # 走了 LLM(fake 返回值)
+        self.assertNotIn("机械改动", n["why"])          # 没被 trivial stub 覆写
+
     def test_no_llm_exits_without_calling(self):
         with mock.patch.object(cli, "CACHE_DB_PATH", self.db), \
              contextlib.redirect_stdout(io.StringIO()), \

@@ -104,6 +104,34 @@ class TestCycloneDxFormat(unittest.TestCase):
         self.assertNotIn("sk-abcdefghijklmnop1234", out)
         self.assertIn("[REDACTED]", out)
 
+    def test_redaction_quote_delimited_secret(self):
+        # 回归守门:JSON 路径须在 dumps 前脱敏。key="value" 形式 secret 经 dumps
+        # 引号转义后,若先 dumps 后 redact 会漏过(cache.py:88 记录的坑)。
+        seg = [{"sha": "d" * 40, "date": "2026-06-01T08:00", "subject": "s",
+                "why": "", "decisions": ['set password="hunter2abcXYZ" here'],
+                "rejected": [], "risks": []}]
+        out = to_adr("f", seg, "cyclonedx")
+        self.assertNotIn("hunter2abcXYZ", out)
+        self.assertIn("[REDACTED]", out)
+        json.loads(out)                                 # 仍合法 JSON
+
+    def test_serialnumber_is_valid_uuid(self):
+        import uuid
+        bom = json.loads(to_adr("f.py:1-5", _SEG, "cyclonedx"))
+        sn = bom["serialNumber"]
+        self.assertTrue(sn.startswith("urn:uuid:"))
+        uuid.UUID(sn[len("urn:uuid:"):])                # 非法 UUID 会抛 → 守门 hyphen 修复
+
+    def test_tools_use_non_deprecated_components_form(self):
+        # legacy tools[] 不允许 description 字段(schema additionalProperties:false);
+        # 用 1.5 的 {components:[...]} 形态既带 description 又过官方 schema 校验。
+        bom = json.loads(to_adr("f.py:1-5", _SEG, "cyclonedx"))
+        tools = bom["metadata"]["tools"]
+        self.assertIsInstance(tools, dict)              # 非 legacy 数组
+        self.assertIn("components", tools)
+        self.assertEqual(tools["components"][0]["description"],
+                         "zero-LLM commit decision provenance")
+
     def test_empty_segments_emits_valid_bom(self):
         out = to_adr("x.py", [], "cyclonedx")
         bom = json.loads(out)

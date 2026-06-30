@@ -11,7 +11,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from vibetrace.cache import Cache                               # noqa: E402
-from vibetrace.config import CACHE_DB_PATH, load_config, redact_data  # noqa: E402
+from vibetrace.config import (CACHE_DB_PATH, load_config,  # noqa: E402
+                              redact_data, redact_secrets)
 from vibetrace.gitlog import (collect_commit_files, commit_diff,  # noqa: E402
                               parse_breadcrumbs, parse_rejected)
 from vibetrace.llm import LLMClient, LLMError                    # noqa: E402
@@ -104,9 +105,11 @@ def main(project=".", n=DEFAULT_N):
         b_text = (guess or "(no LLM)") if coin else "\n".join(f"- {r}" for r in real)
         reveals.append("A = real record" if coin else "B = real record")
 
-        print(f"## Commit {i}: [{sha7}] {date} {c.get('subject', '')}\n")
-        print(f"**Source A:**\n{a_text}\n")
-        print(f"**Source B:**\n{b_text}\n")
+        # 输出设计为可公开分享(HN/Reddit)→ subject/real-record/guess 全脱敏后再打印
+        subject = redact_secrets(c.get("subject", ""))
+        print(f"## Commit {i}: [{sha7}] {date} {subject}\n")
+        print(f"**Source A:**\n{redact_secrets(a_text)}\n")
+        print(f"**Source B:**\n{redact_secrets(b_text)}\n")
         print(f"→ Which do you trust more, A or B?\n")
         print("---\n")
 

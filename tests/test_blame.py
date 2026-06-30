@@ -200,6 +200,29 @@ class TestBlameRun(unittest.TestCase):
         self.assertNotIn("sk-ABCDEF0123456789ABCD", out)
         self.assertIn("[REDACTED]", out)
 
+    def test_json_redacts_quote_delimited_secret(self):
+        # 回归守门:JSON 路径必须在 dumps 前脱敏。dumps 转义引号 → 若先 dumps 后
+        # redact,key="value" 形式 secret 会因 =\" 漏过定界模式(config.py:102 记录的坑)。
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        _git(["init", "-q"], d)
+        _git(["config", "user.email", "t@t"], d)
+        _git(["config", "user.name", "t"], d)
+        (Path(d) / "h.py").write_text("x\n")
+        _git(["add", "h.py"], d)
+        _git(["commit", "-q", "-m",
+              'init\n\nVibe-Decision: set password="hunter2abcXYZ" in config'], d)
+        buf = io.StringIO()
+        with mock.patch.object(blame, "Cache", lambda _p: Cache(":memory:")), \
+             redirect_stdout(buf):
+            code = blame.blame(d, "h.py", json_output=True)
+        self.assertEqual(code, 0)
+        out = buf.getvalue()
+        self.assertNotIn("hunter2abcXYZ", out)             # 原始 secret 不得出现
+        self.assertIn("[REDACTED]", out)
+        import json as _json
+        _json.loads(out)                                   # 仍是合法 JSON
+
     def test_no_history_returns_error_code(self):
         code, out = self._run("nope.py")
         self.assertEqual(code, 2)

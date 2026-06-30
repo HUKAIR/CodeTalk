@@ -32,12 +32,14 @@
     }
   },
   "devDependencies": {
+    "@types/node": "^18.19.0",
     "@types/vscode": "^1.85.0",
     "esbuild": "^0.25.0",
     "typescript": "^5.4.0"
   },
   "scripts": {
     "build": "node esbuild.mjs",
+    "typecheck": "tsc --noEmit",
     "watch": "node esbuild.mjs --watch",
     "package": "npx @vscode/vsce package --no-dependencies"
   }

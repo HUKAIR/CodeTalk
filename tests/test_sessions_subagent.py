@@ -206,5 +206,32 @@ class TestSubagentTolerance(unittest.TestCase):
             self.assertFalse(summaries[0].get("is_subagent"))
 
 
+class TestFormatDriftWarning(unittest.TestCase):
+    """格式漂移检测:JSONL 记录缺 type/timestamp 关键键时 warn-once,让 Anthropic
+    改格式可见而非静默降级。warn-once 标志是模块全局,setUp 须重置。"""
+
+    def setUp(self):
+        sessions._format_warned = False
+        self.addCleanup(lambda: setattr(sessions, "_format_warned", False))
+
+    def test_warns_on_missing_expected_keys(self):
+        with TemporaryDirectory() as tmp:
+            p = Path(tmp) / "sess.jsonl"
+            # 缺 timestamp(只有 type)→ 应触发格式漂移告警
+            p.write_text(_line({"type": "user", "foo": "bar"}), encoding="utf-8")
+            with self.assertLogs("vibetrace", level="WARNING") as cm:
+                sessions._parse_file(p)
+            self.assertTrue(any("format may have changed" in m for m in cm.output))
+
+    def test_no_warn_on_well_formed_record(self):
+        with TemporaryDirectory() as tmp:
+            p = Path(tmp) / "ok.jsonl"
+            p.write_text(_line({"type": "user", "timestamp":
+                                "2026-06-30T08:00:00Z", "uuid": "u1"}),
+                         encoding="utf-8")
+            with self.assertNoLogs("vibetrace", level="WARNING"):
+                sessions._parse_file(p)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -15,8 +15,20 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from vibetrace.cache import Cache                       # noqa: E402
+import subprocess                                       # noqa: E402
 from vibetrace.config import CACHE_DB_PATH              # noqa: E402
 from vibetrace.gitlog import commit_body, parse_breadcrumbs  # noqa: E402
+
+
+def _reachable(project, sha):
+    """commit 在该仓是否可达。commit_body 失败时只返回 ''(不抛),故须显式探测——
+    否则不可达 commit 的 body='' → 无 watches → 误判为 LLM 预测被删(丢用户手写 Watch)。"""
+    try:
+        r = subprocess.run(["git", "-C", project, "cat-file", "-e", f"{sha}^{{commit}}"],
+                           capture_output=True, timeout=10)
+        return r.returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
 
 
 def main(confirm=False):
@@ -27,12 +39,10 @@ def main(confirm=False):
     keep = 0
     errors = 0
     for cap_id, project, sha, risk in rows:
-        try:
-            body = commit_body(project, sha)
-        except Exception:
+        if not _reachable(project, sha):
             errors += 1
-            continue       # commit 不可达 → 保守保留,不删
-        _decs, watches = parse_breadcrumbs(body)
+            continue       # commit 不可达 → 保守保留,绝不删(可能是用户手写 Watch)
+        _decs, watches = parse_breadcrumbs(commit_body(project, sha))
         if risk in watches:
             keep += 1
         else:

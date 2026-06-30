@@ -12,7 +12,7 @@ from pathlib import Path
 
 from . import align, codex_sessions, cursor_sessions, enrich, gitlog, report, sessions
 from .cache import Cache
-from .config import VIBETRACE_DIR, load_config
+from .config import VIBETRACE_DIR, load_config, redact_secrets
 from .gitlog import parse_breadcrumbs
 from .llm import LLMClient, LLMError
 
@@ -104,8 +104,12 @@ def _seal_commit_capsules(cache, pkey, commit, sealed, opens):
     _decs, watches = parse_breadcrumbs(commit.get("body") or "")
     if not watches:
         return
+    # narrative.risks 经 enrich 的 redact_secrets 往返(put_narrative 落库再脱敏),含 secret
+    # 形 Watch 会读成 [REDACTED];watches 来自原始 body(未脱敏)。两侧同口径脱敏后再比,
+    # 否则含密钥的手写 Watch exact-match 漏命中、永不封存。
+    watches_norm = {redact_secrets(w) for w in watches}
     for idx, risk in enumerate(commit["narrative"].get("risks") or []):
-        if risk in watches:
+        if redact_secrets(risk) in watches_norm:
             cache.seal_capsule(pkey, commit["sha"], idx, risk, sealed, opens)
 
 

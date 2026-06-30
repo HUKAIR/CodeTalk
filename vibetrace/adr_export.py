@@ -15,7 +15,7 @@ import json
 import sys
 from pathlib import Path
 
-from .config import redact_secrets
+from .config import redact_data, redact_secrets
 
 FORMATS = ("madr", "nygard", "cyclonedx")
 
@@ -56,13 +56,18 @@ def _to_cyclonedx(target, segments):
         "serialNumber": serial, "version": 1,
         "metadata": {
             "timestamp": latest_ts,
-            "tools": [{"vendor": "vibetrace", "name": "vibetrace",
-                       "description": "zero-LLM commit decision provenance"}],
+            # 1.5 非废弃 tools 形态:{components:[...]};legacy tool[] 不允许 description
+            # 字段(additionalProperties:false),用 component 形态既携带 description 又过官方 schema
+            "tools": {"components": [
+                {"type": "application", "name": "vibetrace",
+                 "description": "zero-LLM commit decision provenance"}]},
             "component": {"type": "application", "name": target},
         },
         "components": components,
     }
-    return redact_secrets(json.dumps(bom, ensure_ascii=False, indent=2))
+    # 脱敏在 json.dumps 之前(对原始字符串叶子,见 redact_data 注释):dumps 转义引号会
+    # 让 key="value" 形式 secret 漏过 redact_secrets;故 redact 结构而非序列化后文本
+    return json.dumps(redact_data(bom), ensure_ascii=False, indent=2)
 
 
 def to_adr(target, segments, fmt="madr"):

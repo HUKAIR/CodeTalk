@@ -10,7 +10,7 @@ from pathlib import Path
 
 from . import grounding_render as gr
 from .cache import Cache
-from .config import CACHE_DB_PATH, redact_secrets
+from .config import CACHE_DB_PATH, redact_data, redact_secrets
 from .gitlog import commit_meta, file_log, line_log, merge_breadcrumbs, parse_target
 
 _parse_target = parse_target          # 与 ask 同口径,搬到 gitlog 共享
@@ -140,7 +140,9 @@ def blame(project_path, target, json_output=False):
         print(f"错误:{file} 没有可用的提交历史,无从溯源。", file=sys.stderr)
         return 2
     if json_output:
-        print(redact_secrets(json.dumps(segments, ensure_ascii=False)), end="")
+        # 脱敏在 json.dumps 之前(对原始字符串叶子):dumps 会把 " 转义,
+        # 若先 dumps 后 redact,key="value" 形式 secret 会因引号转义漏网(见 redact_data 注释)
+        print(json.dumps(redact_data(segments), ensure_ascii=False), end="")
     else:
         print(redact_secrets(_format(file, start, end, segments)), end="")
     return 0
