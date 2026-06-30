@@ -117,11 +117,11 @@ def api_chat(req: ChatReq):
                           now=datetime.datetime.now().astimezone().isoformat())
     finally:
         cache.close()
-    out["answer"] = redact_secrets(out["answer"])   # 出口兜底脱敏
-    for cit in out.get("citations", []):            # 引用证据 + 结构化来源出口同样脱敏
-        cit["evidence"] = redact_secrets(cit.get("evidence", ""))
-        cit["sources"] = redact_data(cit.get("sources") or [])
-    return JSONResponse(out)
+    # 整体脱敏响应(递归所有字符串叶子):一次覆盖 answer + citations(evidence/sources/
+    # verbatim)+ highlights。取代逐字段脱敏——后者易漏:新增字段静默绕过(verbatim/
+    # highlights 曾因此把原始面包屑 secret 泄露到浏览器)。verbatim 源自 merge_breadcrumbs
+    # 并入未脱敏的 raw git 面包屑,必须在出口收口。
+    return JSONResponse(redact_data(out))
 
 
 @app.post("/api/chat/stream")
@@ -139,9 +139,8 @@ def api_chat_stream(req: ChatReq):
                 if ev.get("type") == "token":
                     ev["text"] = redact_secrets(ev["text"])
                 elif ev.get("type") == "done":
-                    for cit in ev.get("citations", []):
-                        cit["evidence"] = redact_secrets(cit.get("evidence", ""))
-                        cit["sources"] = redact_data(cit.get("sources") or [])
+                    ev = redact_data(ev)   # 整体脱敏 done 事件:覆盖 citations(含 verbatim)+
+                                           # highlights,防字段枚举遗漏(曾泄露到浏览器)
                 yield "data: " + json.dumps(ev, ensure_ascii=False) + "\n\n"
         finally:
             cache.close()

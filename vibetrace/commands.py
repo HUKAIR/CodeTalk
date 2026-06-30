@@ -80,6 +80,8 @@ def brief_cmd(args):
 def watch_cmd(args):
     """跨项目 watch 收件箱:列出所有项目里已到期未回填的胶囊(零 LLM,不出网)。"""
     cfg = load_config()
+    if args.vault:                       # 与 brief_cmd 一致:--vault 重定向写入目标
+        cfg["vault_path"] = args.vault
     cache = Cache(_cache_db_path())
     today = datetime.now(timezone.utc).astimezone().date()
     content = brief.build_watch(cache, cache.distinct_projects(), today)
