@@ -4,6 +4,8 @@
   "description": "See why code was written this way, not just who/when. Foldable CodeLens with real commit decisions, hover cards with full context.",
   "version": "0.2.0",
   "publisher": "vibetrace",
+  "license": "AGPL-3.0-or-later",
+  "repository": { "type": "git", "url": "https://github.com/HUKAIR/CodeTalk" },
   "engines": { "vscode": "^1.85.0" },
   "categories": ["Other"],
   "activationEvents": ["onStartupFinished"],
