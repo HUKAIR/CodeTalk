@@ -43,7 +43,7 @@ class TestGitlogExtra(unittest.TestCase):
         with mock.patch.object(gitlog, "_git", fake_git):
             gitlog.file_log(".", "f.py")
         self.assertEqual(seen["args"],
-                         ["log", "--format=%H", "--", "f.py"])
+                         ["log", "--follow", "--format=%H", "--", "f.py"])  # 跨 rename 追史
 
 
 if __name__ == "__main__":
