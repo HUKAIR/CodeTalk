@@ -76,39 +76,41 @@ async function fetchBlameData(
 
 function buildHoverCard(seg: BlameSegment): vscode.MarkdownString {
   const md = new vscode.MarkdownString();
-  md.isTrusted = true;
+  md.isTrusted = { enabledCommands: ['workbench.action.terminal.sendSequence'] };
   const sha7 = seg.sha.slice(0, 7);
-  const date = (seg.date || '').slice(0, 10);
+  const date = escapeMarkdown((seg.date || '').slice(0, 10));
 
-  md.appendMarkdown(`**[${sha7}]** ${date} · ${seg.subject}\n\n`);
-  if (seg.why) md.appendMarkdown(`**Why:** ${seg.why}\n\n`);
+  md.appendMarkdown(`**[${sha7}]** ${date} · ${escapeMarkdown(seg.subject)}\n\n`);
+  if (seg.why) md.appendMarkdown(`**Why:** ${escapeMarkdown(seg.why)}\n\n`);
   if (seg.decisions?.length) {
     md.appendMarkdown('**Decisions:**\n');
-    for (const d of seg.decisions) md.appendMarkdown(`- ${d}\n`);
+    for (const d of seg.decisions) md.appendMarkdown(`- ${escapeMarkdown(d)}\n`);
     md.appendMarkdown('\n');
   }
   if (seg.rejected?.length) {
     md.appendMarkdown('**Rejected:**\n');
-    for (const r of seg.rejected) md.appendMarkdown(`- ${r}\n`);
+    for (const r of seg.rejected) md.appendMarkdown(`- ${escapeMarkdown(r)}\n`);
     md.appendMarkdown('\n');
   }
   if (seg.risks?.length) {
     md.appendMarkdown('**Risks:**\n');
-    for (const r of seg.risks) md.appendMarkdown(`- ${r}\n`);
+    for (const r of seg.risks) md.appendMarkdown(`- ${escapeMarkdown(r)}\n`);
     md.appendMarkdown('\n');
   }
   if (seg.test_refs?.length) {
     md.appendMarkdown('**Tests:**\n');
     for (const t of seg.test_refs) {
       const names = t.names?.join(', ') || '(no explicit tests)';
-      md.appendMarkdown(`- \`${t.path}\` — ${names}\n`);
+      md.appendMarkdown(`- ${escapeMarkdown(t.path)} — ${escapeMarkdown(names)}\n`);
     }
     md.appendMarkdown('\n');
   }
   if (seg.pr_refs?.length) {
     md.appendMarkdown('**PR context:**\n');
     for (const p of seg.pr_refs)
-      md.appendMarkdown(`- #${p.number} ${p.title} — ${p.snippet}\n`);
+      md.appendMarkdown(
+        `- #${p.number} ${escapeMarkdown(p.title)} — ${escapeMarkdown(p.snippet)}\n`
+      );
     md.appendMarkdown('\n');
   }
   md.appendMarkdown('---\n\n');
@@ -118,6 +120,10 @@ function buildHoverCard(seg: BlameSegment): vscode.MarkdownString {
       ' · vibetrace blame'
   );
   return md;
+}
+
+function escapeMarkdown(s: string | undefined): string {
+  return (s ?? '').replace(/([\\`*_{}\[\]()#+\-.!|>])/g, '\\$1');
 }
 
 function truncate(s: string, max: number): string {

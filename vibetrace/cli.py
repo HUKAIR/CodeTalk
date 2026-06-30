@@ -15,7 +15,7 @@ def _proj(p):  # 折叠各子命令重复的 --project
 
 def _build_parser():
     parser = argparse.ArgumentParser(
-        prog="vibetrace", description="个人 AI 编码认知层:git+会话 → 变更叙事日报")
+        prog="vibetrace", description="本地优先的代码决策溯源:git+会话 → 可核验 why")
     sub = parser.add_subparsers(dest="command", required=True)
     dig = _proj(sub.add_parser("digest", help="生成开发日报"))
     dig.add_argument("--since", default="1 day ago", help='如 "3 days ago"')

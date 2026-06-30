@@ -7,11 +7,15 @@ from fastapi.testclient import TestClient
 from vibetrace import web
 
 
+def _client():
+    return TestClient(web.app, base_url="http://127.0.0.1")
+
+
 class TestWebIndex(unittest.TestCase):
     def test_index_renders_tree_data(self):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            r = TestClient(web.app).get("/")
+            r = _client().get("/")
         self.assertEqual(r.status_code, 200)
         self.assertIn("var TREE", r.text)                # $tree_data 已替换注入
         self.assertNotIn("$tree_data", r.text)           # 占位已消费
@@ -26,7 +30,7 @@ class TestWebIndex(unittest.TestCase):
         with mock.patch.object(web.filetree, "tree_payload", return_value=payload):
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                r = TestClient(web.app).get("/")
+                r = _client().get("/")
         self.assertEqual(r.status_code, 200)
         self.assertIn("[REDACTED]", r.text)
         self.assertNotIn("sk-abcdef0123456789ABCDEF", r.text)

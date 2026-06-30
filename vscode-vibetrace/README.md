@@ -64,11 +64,11 @@ npm run build
 
 # 2. Package
 npx @vscode/vsce package --no-dependencies
-# -> vscode-vibetrace-0.1.0.vsix
+# -> vscode-vibetrace-0.2.0.vsix
 
 # 3. Install (pick your editor)
-cursor --install-extension vscode-vibetrace-0.1.0.vsix
-# or: code --install-extension vscode-vibetrace-0.1.0.vsix
+cursor --install-extension vscode-vibetrace-0.2.0.vsix
+# or: code --install-extension vscode-vibetrace-0.2.0.vsix
 # or: Windsurf -> Extensions -> Install from VSIX -> select file
 
 # 4. Reload
@@ -78,10 +78,10 @@ cursor --install-extension vscode-vibetrace-0.1.0.vsix
 If `cursor` / `code` command is not found, use the full path:
 ```bash
 # macOS Cursor:
-/Applications/Cursor.app/Contents/Resources/app/bin/cursor --install-extension vscode-vibetrace-0.1.0.vsix
+/Applications/Cursor.app/Contents/Resources/app/bin/cursor --install-extension vscode-vibetrace-0.2.0.vsix
 
 # macOS VS Code:
-"/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" --install-extension vscode-vibetrace-0.1.0.vsix
+"/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" --install-extension vscode-vibetrace-0.2.0.vsix
 ```
 
 Or install from the command palette: Cmd+Shift+P -> "Extensions: Install from VSIX..."
@@ -90,7 +90,7 @@ Or install from the command palette: Cmd+Shift+P -> "Extensions: Install from VS
 
 | Setting | Type | Default | Purpose |
 |---|---|---|---|
-| `vibetrace.enabled` | boolean | `true` | Master toggle. Turning off immediately clears annotations. |
+| `vibetrace.enabled` | boolean | `true` | Master toggle. Turning off immediately clears CodeLens entries. |
 | `vibetrace.pythonPath` | string | `"python3"` | Python interpreter with vibetrace installed. Use absolute path if the default doesn't find vibetrace. |
 
 Settings live in VS Code/Cursor settings (Cmd+,). No other config needed.
@@ -100,7 +100,7 @@ Settings live in VS Code/Cursor settings (Cmd+,). No other config needed.
 1. You open a file
 2. Extension runs `vibetrace blame <file> --json --project <workspace>` (zero-LLM, local-only)
 3. Extension runs `git blame --porcelain <file>` to map each line to its SHA
-4. Lines whose commit has decision data get an inline annotation
+4. Commits with decision data get a foldable CodeLens entry
 5. Hovering shows the full decision card (why / decisions / rejected / risks / tests / PR context)
 
 Data is cached per-file in memory. Cache refreshes on file save or editor switch.
@@ -109,7 +109,7 @@ Data is cached per-file in memory. Cache refreshes on file save or editor switch
 
 | Problem | Likely cause | Fix |
 |---|---|---|
-| No annotations appear | vibetrace not installed, or no enriched data | Run `vibetrace enrich --project .` then reopen the file |
+| No CodeLens entries appear | vibetrace not installed, or no enriched data | Run `vibetrace enrich --project .` then reopen the file |
 | "python3: command not found" in background | Default python3 not in VS Code's PATH | Set `vibetrace.pythonPath` to absolute path (e.g. `/opt/homebrew/bin/python3`) |
 | Annotations don't update after commit | File cache stale | Save the file (Cmd+S) to trigger refresh |
 | Annotations on wrong lines | File modified since last commit | Save + commit first, then reopen |
@@ -117,20 +117,20 @@ Data is cached per-file in memory. Cache refreshes on file save or editor switch
 ## Architecture
 
 ```
-extension.ts (249 lines)
-├── fetchBlameData()     — shell out to vibetrace + git blame
-├── applyDecorations()   — DecorationProvider (inline line-end text)
-├── buildHoverCard()     — HoverProvider (markdown card)
-├── segmentHasWhy()      — filter: only lines with real decisions
-└── activate/deactivate  — lifecycle + event subscriptions
+extension.ts
+├── fetchBlameData()           — shell out to vibetrace + git blame
+├── VibetraceCodeLensProvider  — foldable per-commit CodeLens
+├── buildHoverCard()           — HoverProvider markdown card
+├── segmentHasWhy()            — filter: only commits with real decisions
+└── activate/deactivate        — lifecycle + event subscriptions
 ```
 
-Single file, esbuild bundle (~8KB), no WebView, no React, no panel.
+Single TypeScript file, esbuild bundle, no WebView, no React, no panel.
 
-## Limitations (v0.1)
+## Limitations (v0.2)
 
-- No CodeLens, no gutter icons, no side panel
+- No gutter icons, no side panel
 - No Marketplace publishing (manual .vsix install)
 - `git blame` maps lines to the **last** commit that touched them — older decisions on unchanged lines won't appear
-- vibetrace returns at most 12 recent commits per file (LINE_LOG_LIMIT) — very long-lived files may have gaps
+- vibetrace returns at most 50 recent line/file-history commits (LINE_LOG_LIMIT) — very long-lived files may have gaps
 - Multi-root workspaces use only the first folder

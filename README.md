@@ -105,9 +105,9 @@ python3 -m scripts.build_mcpb     # 产出 vibetrace.mcpb
 
 ## IDE Extension (VS Code / Cursor / Windsurf)
 
-Inline decision annotations — hover any line to see **why** it was written that way, with real commit citations. Like GitLens but for decisions, not just authorship.
+Foldable decision CodeLens + hover cards — see **why** a line was written that way, with real commit citations. Like GitLens but for decisions, not just authorship.
 
-**IDE 扩展**——行内决策批注：hover 任意行即看「当初为什么这么写」，带真实 commit 引用。类 GitLens 但补 why。
+**IDE 扩展**——可折叠 CodeLens + hover 决策卡：点开一条提交看 why / decision / rejected / risk，hover 任意行看完整上下文。类 GitLens 但补 why。
 
 ```bash
 cd vscode-vibetrace
@@ -118,12 +118,12 @@ npx @vscode/vsce package --no-dependencies          # 打包 .vsix
 安装（三选一）：
 
 ```bash
-cursor --install-extension vscode-vibetrace-0.1.0.vsix   # Cursor
-code --install-extension vscode-vibetrace-0.1.0.vsix      # VS Code
+cursor --install-extension vscode-vibetrace-0.2.0.vsix   # Cursor
+code --install-extension vscode-vibetrace-0.2.0.vsix      # VS Code
 # Windsurf: Extensions → Install from VSIX → 选文件
 ```
 
-装完 Cmd+Shift+P → **Reload Window**，打开有 vibetrace 缓存的项目即可看到行末灰色批注。
+装完 Cmd+Shift+P → **Reload Window**，打开有 vibetrace 缓存的项目即可看到可展开的决策 CodeLens；hover 行可看完整卡片。
 
 | 设置 | 默认 | 说明 |
 |---|---|---|
@@ -148,7 +148,8 @@ vibetrace web --project /path/to/repo --no-llm     # 零出网:降级为零-LLM 
 - **接地、可核验**:答案锚定真实 commit / 决策 / 会话原话,每条结论旁的引用可点开核验——这是
   和「套壳聊天」的分界线;**模型脱离真实材料不作答**(材料空 → 不调模型,只确定性罗列)。
 - **隐私红线**:默认只绑 `127.0.0.1`、绝不 phone home(除 LLM 调用)、出网前 + 落库前脱敏、
-  前端零外联(CSP `connect-src 'self'`;静态产物经 `scripts/check_static_no_external.py` 守)。
+  前端零外联(CSP `connect-src 'self'`;静态产物经 `scripts/check_static_no_external.py` 守);
+  后端拒绝非 loopback Host 与跨 Origin 请求,防其它网页借 localhost 触发本地检索/LLM 调用。
 - **给客户自托管**:单镜像 Docker(见 `Dockerfile`:`docker build -t vibetrace .` → `docker run`)。
 - 前端首版为零-build 单文件 vanilla-JS;React/Vite 仅在 chat UX(流式已有,后续如需消息管理)再上。
 
@@ -244,19 +245,20 @@ Vibe-Watch:    先这么扛,并发安全待验证
 
 ## 已知限制(M0)
 
-- 只解析主会话转写(`<sessionId>.jsonl`);subagent / workflow 子转写中的文件改动对齐不可见。
+- 会话源不是完整审计日志:Claude 主会话与 `*/subagents/**/agent-*.jsonl` 会纳入,但
+  journal/meta 等旁路文件不采;Cursor / Codex 本地会话源为 opt-in 且依赖非官方本地格式。
 - 会话-commit 对齐是软关联(±30 分钟时间窗 + 文件交集),目标准确率 80%,带 high/low 置信度
   标注,**不保证全对**。
 - commit 被 amend / rebase 后 SHA 变化即视为新 commit;旧 SHA 缓存成为死数据。
 - `graph` 文件级边在极小项目(如本仓 7 文件)偏密,靠稀疏节点压制;行级精度作非目标延后。
-- 会话 JSONL 是 Claude Code 非官方内部格式(实测规格见 `docs/claude-jsonl-schema.md`);
-  版本升级可能破坏解析,解析器对未知字段忽略、缺字段降级,最坏退化为纯 git 模式。
+- Claude Code / Cursor / Codex 的本地会话格式都非官方稳定 API;版本升级可能破坏解析,
+  解析器对未知字段忽略、缺字段降级,最坏退化为纯 git 模式。
 
 ## 架构
 
 ```
 cli → gitlog(commit/diff/行历史/面包屑) ─┐
-      sessions(JSONL 容错)              ─┼→ align(软关联) → enrich(LLM,SHA 缓存) → report → vault
+      sessions(Claude/Cursor/Codex 容错) ─┼→ align(软关联) → enrich(LLM,SHA 缓存) → report → vault
       cache(SQLite 单一真相源)          ─┘
 零-LLM 工具:brief / debt / graph 直接读 cache + git,不经 enrich/llm。
 LLM 统一封装:llm.py(多 provider / 重试 / token 日志 / prompt caching / 反幻觉+文风纪律)。
@@ -264,6 +266,7 @@ LLM 统一封装:llm.py(多 provider / 重试 / token 日志 / prompt caching / 
 
 ## 设计哲学(M0)
 
-仅标准库 + anthropic SDK(可选);**禁** LangGraph / 向量库 / Web 框架。单模块 <300 行;
-解析外部数据一律容错、失败降级绝不崩溃。行为准则见 `CLAUDE.md`(Karpathy 编码纪律:想清再写 /
-简单优先 / 外科手术式改动 / 目标驱动)。设计与实现计划见 `docs/superpowers/`。
+核心 CLI/MCP 面保持标准库 + anthropic SDK(可选);**禁** LangGraph / 向量库 / 重前端链路。
+`vibetrace web` 是可选 web extra,仅该面允许 FastAPI / uvicorn,且惰性 import、不污染核心依赖。
+单模块 <300 行;解析外部数据一律容错、失败降级绝不崩溃。行为准则见 `CLAUDE.md`(Karpathy
+编码纪律:想清再写 / 简单优先 / 外科手术式改动 / 目标驱动)。设计与实现计划见 `docs/superpowers/`。

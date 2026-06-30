@@ -13,6 +13,10 @@ _SECRET = 'password="hunter2secretvalue"'
 _RAW = "hunter2secretvalue"
 
 
+def _client():
+    return TestClient(web.app, base_url="http://127.0.0.1")
+
+
 def _planted_out():
     """模拟 chat.answer 返回:verbatim + highlights 携带原始(未脱敏)面包屑 secret。"""
     return {
@@ -35,7 +39,7 @@ class TestWebChatEgressRedaction(unittest.TestCase):
              mock.patch.object(web, "Cache", lambda *_a, **_k: mock.MagicMock()), \
              warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            return TestClient(web.app).post("/api/chat", json={"question": "why"})
+            return _client().post("/api/chat", json={"question": "why"})
 
     def test_chat_response_fully_redacted(self):
         r = self._post()

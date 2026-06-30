@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "vibetrace"
 version = "0.1.0"
-description = "本地优先的 AI 编码认知层:git 历史 + Claude Code 会话 → 变更叙事 / 理解债 / 决策影响图,输出到 Obsidian"
+description = "本地优先的代码决策溯源:git 历史 + Claude/Cursor/Codex 会话 → 可核验 why / 理解债 / 决策影响图"
 readme = "README.md"
 requires-python = ">=3.11"
 # M0 红线:核心零三方依赖(deepseek/openai/qwen 经 stdlib urllib);

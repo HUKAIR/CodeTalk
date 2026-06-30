@@ -16,11 +16,11 @@ import webbrowser
 from pathlib import Path
 from string import Template
 from typing import Optional
+from urllib.parse import urlsplit
 
 import uvicorn
-from fastapi import FastAPI
-from fastapi.responses import (HTMLResponse, JSONResponse, Response,
-                               StreamingResponse)
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 from .webserve import inline_json
@@ -39,10 +39,25 @@ _CHAT_HTML = Template((Path(__file__).parent / "web_chat.html").read_text(encodi
 # inline 脚本/样式沿用既有单文件 HTML 范式,故 script/style 放 'unsafe-inline'。
 _CSP = ("default-src 'self'; connect-src 'self'; img-src 'self' data:; "
         "script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'")
+_LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
 
 @app.middleware("http")
-async def _csp_header(request, call_next):
+async def _local_request_guard(request: Request, call_next):
+    """Local web app guard: CSP protects our page, but not cross-site POSTs to
+    127.0.0.1. Reject DNS-rebind Host headers and browser requests whose Origin
+    is not the same loopback origin. CLI/curl with no Origin remains allowed."""
+    host = request.url.hostname
+    if host not in _LOOPBACK_HOSTS:
+        return JSONResponse({"error": "bad host"}, status_code=403)
+    origin = request.headers.get("origin")
+    if origin:
+        try:
+            op = urlsplit(origin)
+        except ValueError:
+            return JSONResponse({"error": "bad origin"}, status_code=403)
+        if op.hostname not in _LOOPBACK_HOSTS or op.netloc != request.url.netloc:
+            return JSONResponse({"error": "bad origin"}, status_code=403)
     resp = await call_next(request)
     resp.headers["Content-Security-Policy"] = _CSP
     return resp
@@ -63,8 +78,9 @@ def console_view(project: Optional[str] = None):
     if err:
         return HTMLResponse(
             "<body style='background:#0d0d0f;color:#e8e8ea;font-family:sans-serif;"
-            f"padding:24px'>控制台暂不可用:{err}</body>", status_code=400)
-    return HTMLResponse(html)
+            f"padding:24px'>控制台暂不可用:{redact_secrets(str(err))}</body>",
+            status_code=400)
+    return HTMLResponse(redact_secrets(html))
 
 
 @app.get("/tunnel")
@@ -74,8 +90,9 @@ def tunnel_view(project: Optional[str] = None):
     if err:
         return HTMLResponse(
             "<body style='background:#0d0d0f;color:#e8e8ea;font-family:sans-serif;"
-            f"padding:24px'>时光轴暂不可用:{err}</body>", status_code=400)
-    return HTMLResponse(html)
+            f"padding:24px'>时光轴暂不可用:{redact_secrets(str(err))}</body>",
+            status_code=400)
+    return HTMLResponse(redact_secrets(html))
 
 
 def _llm():
@@ -152,7 +169,7 @@ def api_chat_stream(req: ChatReq):
 def api_search(q: str, project: Optional[str] = None):
     cache = Cache(CACHE_DB_PATH)
     try:
-        return {"text": topic_search(cache, _project(project), q)}
+        return redact_data({"text": topic_search(cache, _project(project), q)})
     finally:
         cache.close()
 
@@ -165,15 +182,18 @@ def api_graph(project: Optional[str] = None):
     finally:
         cache.close()
     if err:
-        return JSONResponse({"error": err}, status_code=400)
-    return Response(content=js, media_type="application/json")
+        return JSONResponse(redact_data({"error": err}), status_code=400)
+    try:
+        return JSONResponse(redact_data(json.loads(js)))
+    except (ValueError, TypeError):
+        return JSONResponse({"error": "graph unavailable"}, status_code=500)
 
 
 @app.get("/api/projects")
 def api_projects():
     cache = Cache(CACHE_DB_PATH)
     try:
-        return {"projects": cache.distinct_projects()}
+        return redact_data({"projects": cache.distinct_projects()})
     finally:
         cache.close()
 

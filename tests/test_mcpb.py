@@ -21,6 +21,8 @@ class TestManifest(unittest.TestCase):
         self.assertEqual(m["manifest_version"], "0.3")
         for k in ("name", "version", "description"):
             self.assertTrue(m.get(k))
+        self.assertEqual(m["license"], "AGPL-3.0-or-later")
+        self.assertIn("代码决策溯源", m["description"])
         self.assertTrue(m["author"]["name"])
         srv = m["server"]
         self.assertEqual(srv["type"], "python")

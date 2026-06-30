@@ -21,7 +21,7 @@
         "vibetrace.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Enable inline decision annotations"
+          "description": "Enable foldable decision CodeLens entries and hover cards"
         },
         "vibetrace.pythonPath": {
           "type": "string",

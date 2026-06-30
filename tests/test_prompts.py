@@ -36,6 +36,9 @@ class TestNarrativeStyle(unittest.TestCase):
             self.assertIn("照原样", p)
             self.assertIn("准确高于文风", p)
 
+    def test_session_sources_are_current(self):
+        self.assertIn("Claude/Cursor/Codex", SYSTEM_PROMPT)
+
 
 class TestInferenceFieldsEmpty(unittest.TestCase):
     def test_empty_array_not_filler_instruction(self):
