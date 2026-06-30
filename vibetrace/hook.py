@@ -41,6 +41,8 @@ def install_hook(project_path, force=False):
 
 SEED_MARKER = "<!-- vibetrace-agent-seed -->"
 SEED_TARGETS = ("CLAUDE.md", "AGENTS.md")
+CURSOR_RULES_TARGETS = (".cursorrules", ".cursor/rules/vibetrace.mdc")
+COPILOT_TARGET = ".github/copilot-instructions.md"
 
 
 def _agent_seed():
@@ -51,27 +53,39 @@ def _agent_seed():
         return ""
 
 
+def _append_seed(base, name, seed):
+    """幂等追加 seed 到 base/name。已植入则跳过。→ (path, error_or_None)。"""
+    f = base / name
+    try:
+        f.parent.mkdir(parents=True, exist_ok=True)
+        existing = f.read_text(encoding="utf-8") if f.exists() else ""
+    except (OSError, UnicodeError) as exc:
+        return None, f"读取 {name} 失败:{exc}"
+    if SEED_MARKER in existing:
+        return f, None
+    sep = "" if not existing else ("\n" if existing.endswith("\n") else "\n\n")
+    try:
+        with open(f, "a", encoding="utf-8") as fh:
+            fh.write(sep + seed + "\n")
+    except OSError as exc:
+        return None, f"写入 {name} 失败:{exc}"
+    return f, None
+
+
 def install_agent_seed(project_path):
-    """把决策捕获约定幂等植入 CLAUDE.md + AGENTS.md(覆盖 Claude 与其他 agent),
+    """把决策捕获约定幂等植入多 agent 配置文件,
     让 AI agent 提交时留推导面包屑。→ (installed_paths, error_or_None)。
+    覆盖:Claude Code(CLAUDE.md/AGENTS.md)+ Cursor(.cursorrules)+ Copilot(.github/copilot-instructions.md)。
     只追加、绝不覆盖已有内容;无则建;容错不崩。"""
     seed = _agent_seed().strip()
     if not seed:
         return None, "agent_seed.md 缺失或不可读(包数据损坏)"
     base = Path(project_path)
     written = []
-    for name in SEED_TARGETS:
-        f = base / name
-        try:
-            existing = f.read_text(encoding="utf-8") if f.exists() else ""
-        except (OSError, UnicodeError) as exc:
-            return None, f"读取 {name} 失败:{exc}"
-        if SEED_MARKER not in existing:  # 幂等:已植入则跳过追加
-            sep = "" if not existing else ("\n" if existing.endswith("\n") else "\n\n")
-            try:
-                with open(f, "a", encoding="utf-8") as fh:
-                    fh.write(sep + seed + "\n")
-            except OSError as exc:
-                return None, f"写入 {name} 失败:{exc}"
+    targets = list(SEED_TARGETS) + list(CURSOR_RULES_TARGETS) + [COPILOT_TARGET]
+    for name in targets:
+        f, err = _append_seed(base, name, seed)
+        if err:
+            return None, err
         written.append(f)
     return written, None

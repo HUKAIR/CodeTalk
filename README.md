@@ -42,10 +42,33 @@ vibetrace grounds "why" in real commit history — verbatim citations you can cl
 >
 > 盲测 N=5、本仓、人工判读，不是人群结论。覆盖率取决于 `enrich`：本仓（全量补全）100%（199/199）；另一本地 605-commit 仓**未 enrich** 时仅 0.3%，跑完 `vibetrace enrich` 后可达 ~100%。未 enrich 且无面包屑时，blame 只显示 commit subject——与 `git log` 接近。请在你自己的仓上跑 `grounding_hitrate.py` 度量。vibetrace 找的是「当初到底说了什么、为什么这么写」，不保证代码正确——源记录本身可能有误。完整方法见 `docs/discovery/` 下对照卡和盲测文档。
 
+## 5 分钟上手 / Quick Start
+
+```bash
+# 1. Install
+git clone https://github.com/HUKAIR/CodeTalk && cd CodeTalk
+pip install -e .
+
+# 2. Enrich your repo (builds decision narratives from git history — needs LLM key)
+vibetrace init                              # write config, fill your API key
+vibetrace enrich --project /path/to/repo    # backfill narratives (zero-LLM evidence auto-included)
+
+# 3. See decisions
+vibetrace blame /path/to/repo/somefile.py   # who decided what, with real citations
+vibetrace ask /path/to/repo/somefile.py:20-30 "why was this written this way?"
+```
+
+Without `enrich`, blame shows commit subjects only (~0% coverage). After enrich, coverage reaches ~100%. No LLM key? Use `--no-llm` — blame/search/graph still work with breadcrumbs and git data.
+
+```bash
+# 不用 enrich 也可以 / Zero-LLM path (no key needed)
+vibetrace install-agent-seed --project .    # AI agents auto-leave decision breadcrumbs
+vibetrace blame somefile.py                 # shows Vibe-Decision breadcrumbs from commits
+```
+
 ## 安装
 
 ```bash
-git clone https://github.com/HUKAIR/CodeTalk && cd CodeTalk
 pip install -e .                 # 核心:纯标准库,零三方依赖
 pip install -e ".[anthropic]"    # 可选:仅 anthropic provider 需要
 ```

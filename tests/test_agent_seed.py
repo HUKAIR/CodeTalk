@@ -14,12 +14,14 @@ class TestInstallAgentSeed(unittest.TestCase):
         self.d = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.d, ignore_errors=True)
 
-    def test_seeds_both_claude_and_agents_md(self):
+    def test_seeds_all_agent_targets(self):
         paths, err = install_agent_seed(self.d)
         self.assertIsNone(err)
-        self.assertEqual({p.name for p in paths}, {"CLAUDE.md", "AGENTS.md"})
-        for name in ("CLAUDE.md", "AGENTS.md"):
-            text = (Path(self.d) / name).read_text(encoding="utf-8")
+        expected = {"CLAUDE.md", "AGENTS.md", ".cursorrules",
+                    "vibetrace.mdc", "copilot-instructions.md"}
+        self.assertEqual({p.name for p in paths}, expected)
+        for p in paths:
+            text = p.read_text(encoding="utf-8")
             self.assertIn("vibetrace-agent-seed", text)
             self.assertIn("Vibe-Decision:", text)
             self.assertIn("Vibe-Watch:", text)
@@ -35,10 +37,10 @@ class TestInstallAgentSeed(unittest.TestCase):
 
     def test_idempotent_no_duplicate(self):
         install_agent_seed(self.d)
-        _, err = install_agent_seed(self.d)               # 第二次
+        paths, err = install_agent_seed(self.d)            # 第二次
         self.assertIsNone(err)
-        for name in ("CLAUDE.md", "AGENTS.md"):
-            text = (Path(self.d) / name).read_text(encoding="utf-8")
+        for p in paths:
+            text = p.read_text(encoding="utf-8")
             self.assertEqual(text.count("vibetrace-agent-seed"), 1)
 
 
@@ -49,9 +51,10 @@ class TestAgentSeedCLI(unittest.TestCase):
         with contextlib.redirect_stdout(io.StringIO()):
             rc = cli.main(["install-agent-seed", "--project", d])
         self.assertEqual(rc, 0)
-        for name in ("CLAUDE.md", "AGENTS.md"):
-            text = (Path(d) / name).read_text(encoding="utf-8")
-            self.assertIn("vibetrace-agent-seed", text)
+        text = (Path(d) / "CLAUDE.md").read_text(encoding="utf-8")
+        self.assertIn("vibetrace-agent-seed", text)
+        self.assertTrue((Path(d) / ".cursorrules").exists())
+        self.assertTrue((Path(d) / ".github" / "copilot-instructions.md").exists())
 
 
 if __name__ == "__main__":
