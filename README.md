@@ -42,29 +42,33 @@ vibetrace grounds "why" in real commit history — verbatim citations you can cl
 >
 > 盲测 N=5、本仓、人工判读，不是人群结论。覆盖率取决于 `enrich`：本仓（全量补全）100%（220/220）；另一本地 605-commit 仓**未 enrich** 时仅 0.3%，跑完 `vibetrace enrich` 后可达 ~100%。未 enrich 且无面包屑时，blame 只显示 commit subject——与 `git log` 接近。请在你自己的仓上跑 `grounding_hitrate.py` 度量。vibetrace 找的是「当初到底说了什么、为什么这么写」，不保证代码正确——源记录本身可能有误。完整方法见 `docs/discovery/` 下对照卡和盲测文档。
 
-## 5 分钟上手 / Quick Start
+## 30 秒看效果 / See it work in 30 seconds
 
 ```bash
-# 1. Install
-git clone https://github.com/HUKAIR/CodeTalk && cd CodeTalk
-pip install -e .
+git clone https://github.com/HUKAIR/CodeTalk && cd CodeTalk && pip install -e .
 
-# 2. Enrich your repo (builds decision narratives from git history — needs LLM key)
+# This repo dogfoods itself — every commit carries decision breadcrumbs.
+# No API key, no config, no enrich. Real decisions straight from git history:
+vibetrace blame vibetrace/cache.py
+```
+
+You'll see, for each commit that touched the file: the **why**, the **decisions made**, the **alternatives rejected** — verbatim from the commit record, zero LLM. That's the whole pitch in one command.
+
+## 用到你自己的仓 / On your own repo
+
+```bash
+# Step 1 — breadcrumbs already in your history? blame works immediately, zero key:
+vibetrace blame /path/to/yourfile.py
+
+# Step 2 — for full narratives on a repo without breadcrumbs (needs an LLM key):
 vibetrace init                              # write config, fill your API key
-vibetrace enrich --project /path/to/repo    # backfill narratives (zero-LLM evidence auto-included)
+vibetrace enrich --project /path/to/repo    # backfill decision narratives from git+sessions
 
-# 3. See decisions
-vibetrace blame /path/to/repo/somefile.py   # who decided what, with real citations
-vibetrace ask /path/to/repo/somefile.py:20-30 "why was this written this way?"
+# Step 3 — make future commits self-document (zero extra effort, no key):
+vibetrace install-agent-seed --project .    # your AI agent leaves Vibe-Decision breadcrumbs
 ```
 
-Without `enrich`, blame shows commit subjects only (~0% coverage). After enrich, coverage reaches ~100%. No LLM key? Use `--no-llm` — blame/search/graph still work with breadcrumbs and git data.
-
-```bash
-# 不用 enrich 也可以 / Zero-LLM path (no key needed)
-vibetrace install-agent-seed --project .    # AI agents auto-leave decision breadcrumbs
-vibetrace blame somefile.py                 # shows Vibe-Decision breadcrumbs from commits
-```
+**Honest cold-start:** a repo with no breadcrumbs and no `enrich` shows commit subjects only — like `git log`. The value comes from breadcrumbs (free, in git) or `enrich` (needs a key). This repo has both, which is why the 30-second demo above is rich. Yours starts empty and fills as you use it.
 
 ## 安装
 

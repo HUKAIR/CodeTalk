@@ -22,6 +22,19 @@ class TestRetrieve(unittest.TestCase):
         self.assertIn("并发待验证", ctx)       # 面包屑 watch
         self.assertEqual(state, "sha1aaaabbbb")
 
+    def test_block_falls_back_to_commit_subject_when_no_narrative(self):
+        # 冷启动:无叙事无面包屑的 commit 不该只剩光秃 [sha](陌生人看了像坏掉/git log),
+        # 至少附 commit subject(对齐 blame),让首跑有可读内容。
+        cache = Cache(":memory:")
+        with mock.patch.object(ask, "line_log",
+                               lambda *a, **k: (["sha9zzz0000"], None)), \
+             mock.patch.object(gitlog, "commit_body", lambda p, s: ""), \
+             mock.patch.object(ask, "commit_meta",
+                               lambda p, s: ("2026-06-30", "feat: add the widget loader")):
+            ctx, *_ = ask._retrieve(".", "f.py", 1, 5, cache)
+        self.assertIn("feat: add the widget loader", ctx)   # subject 兜底
+        self.assertNotEqual(ctx.strip(), "[sha9zzz]")        # 不再光秃
+
     def test_line_log_failure_falls_back_to_file_log(self):
         cache = Cache(":memory:")
         called = {}

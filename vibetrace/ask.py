@@ -11,7 +11,8 @@ from pathlib import Path
 from . import grounding_render as gr
 from .cache import Cache
 from .config import CACHE_DB_PATH, load_config, redact_data, redact_secrets
-from .gitlog import line_log, file_log, merge_breadcrumbs, parse_target
+from .gitlog import (line_log, file_log, merge_breadcrumbs, parse_target,
+                     commit_meta)
 from .llm import LLMClient, LLMError
 from .prompts import ASK_SCHEMA, ASK_SYSTEM_PROMPT
 
@@ -63,7 +64,9 @@ def _retrieve(project_path, file, start, end, cache, since=None):
             if pr.get("number") not in _seen_pr:
                 _seen_pr.add(pr.get("number"))
                 pr_refs.append(pr)
-        parts = [f"[{sha[:7]}]"]
+        # subject 兜底:无叙事无面包屑时也不只剩光秃 [sha](对齐 blame,冷启动可读)
+        _date, subject = commit_meta(project_path, sha)
+        parts = [f"[{sha[:7]}]" + (f" {subject}" if subject else "")]
         if narrative.get("why"):
             parts.append("意图:" + narrative["why"][:EXCERPT])
         if decs:
