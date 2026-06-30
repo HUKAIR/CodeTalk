@@ -1,6 +1,6 @@
 import argparse, unittest
 from unittest import mock
-from vibetrace import digest
+from codetalk import digest
 
 class TestSourcesResolve(unittest.TestCase):
     def test_default_claude_only(self):
@@ -30,8 +30,8 @@ class TestDigestMergesCursor(unittest.TestCase):
         def fake_scan(project_path, since_dt, cache=None):
             called["yes"] = True
             return [{"session_id": "cur1"}], None
-        with mock.patch("vibetrace.cursor_sessions.scan_sessions", fake_scan), \
-             mock.patch("vibetrace.cursor_sessions.maybe_notice", lambda: None):
+        with mock.patch("codetalk.cursor_sessions.scan_sessions", fake_scan), \
+             mock.patch("codetalk.cursor_sessions.maybe_notice", lambda: None):
             args = argparse.Namespace(source="cursor")
             self.assertEqual(digest._sources({"sources": ["claude"]}, args), ["cursor"])
             # _sources 决定启用;合并逻辑的端到端在 Task 0 smoke / 手动 dogfood 验证

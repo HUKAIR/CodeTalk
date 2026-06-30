@@ -8,8 +8,8 @@ from datetime import date
 from pathlib import Path
 from unittest import mock
 
-from vibetrace import brief, cli, config, report
-from vibetrace.cache import Cache
+from codetalk import brief, cli, config, report
+from codetalk.cache import Cache
 
 
 def _git(args, cwd):
@@ -110,7 +110,7 @@ class TestBuildOverview(unittest.TestCase):
             return [{"file": "x.py", "debt": peaks[path]}]
 
         with mock.patch.object(brief, "TOP_DEBT_PROJECTS", 2), \
-             mock.patch("vibetrace.debt.debt_board", side_effect=fake_board):
+             mock.patch("codetalk.debt.debt_board", side_effect=fake_board):
             out = brief.build_overview(c, [a, b, cc], self.today)
         self.assertIn(Path(a).name, out)
         self.assertIn(Path(b).name, out)
@@ -126,7 +126,7 @@ class TestBuildOverview(unittest.TestCase):
         def fake_board(path, cache, today, top=None):
             return [{"file": "x.py", "debt": peaks[path]}]
 
-        with mock.patch("vibetrace.debt.debt_board", side_effect=fake_board):
+        with mock.patch("codetalk.debt.debt_board", side_effect=fake_board):
             out = brief.build_overview(c, [hi, lo], self.today)
         self.assertLess(out.index(Path(lo).name), out.index(Path(hi).name))
 

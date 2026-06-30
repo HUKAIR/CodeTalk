@@ -3,8 +3,8 @@
 按 project 过滤;MATCH 路径与 LIKE 回退都要过滤。"""
 import unittest
 
-from vibetrace import search
-from vibetrace.cache import Cache
+from codetalk import search
+from codetalk.cache import Cache
 
 
 def _nar(decisions):

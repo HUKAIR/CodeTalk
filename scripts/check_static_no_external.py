@@ -1,5 +1,5 @@
 """扫描 web 静态产物有无外链(http(s),排除 127.0.0.1/localhost)——守『不走 CDN / 不
-phone home』红线。vibetrace web 页面必须全内联、只 fetch 同源 /api。CI/发布前对
+phone home』红线。codetalk web 页面必须全内联、只 fetch 同源 /api。CI/发布前对
 web_chat.html(及未来 SPA dist)跑:`python3 -m scripts.check_static_no_external <file...>`。
 """
 import re

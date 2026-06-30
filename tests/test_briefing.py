@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from vibetrace import briefing, cli, commands, commands_view
+from codetalk import briefing, cli, commands, commands_view
 
 
 def _git(args, cwd):
@@ -153,7 +153,7 @@ class TestRenderReport(unittest.TestCase):
         _repo_with_commits(d)
         vault = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, vault, ignore_errors=True)
-        with mock.patch("vibetrace.briefing.load_config",
+        with mock.patch("codetalk.briefing.load_config",
                         return_value={"vault_path": vault}):
             path, err = briefing.render_report(d)
         self.assertIsNone(err)
@@ -167,18 +167,18 @@ class TestReportCmdDispatch(unittest.TestCase):
         return mock.Mock(project=".", serve=serve, no_open=no_open)
 
     def test_serve_goes_to_serve_report(self):
-        with mock.patch("vibetrace.briefing.serve_report",
+        with mock.patch("codetalk.briefing.serve_report",
                         return_value=None) as srv, \
-             mock.patch("vibetrace.briefing.render_report") as rnd:
+             mock.patch("codetalk.briefing.render_report") as rnd:
             rc = commands_view.report_cmd(self._args(serve=True))
         self.assertEqual(rc, 0)
         srv.assert_called_once()
         rnd.assert_not_called()
 
     def test_default_goes_to_render_report(self):
-        with mock.patch("vibetrace.briefing.render_report",
+        with mock.patch("codetalk.briefing.render_report",
                         return_value=(Path("/x/p-report.html"), None)) as rnd, \
-             mock.patch("vibetrace.briefing.serve_report") as srv, \
+             mock.patch("codetalk.briefing.serve_report") as srv, \
              contextlib.redirect_stdout(io.StringIO()):
             rc = commands_view.report_cmd(self._args(serve=False))
         self.assertEqual(rc, 0)
@@ -188,7 +188,7 @@ class TestReportCmdDispatch(unittest.TestCase):
 
 class TestReportCLIParse(unittest.TestCase):
     def test_cli_report_dispatches(self):
-        with mock.patch("vibetrace.briefing.render_report",
+        with mock.patch("codetalk.briefing.render_report",
                         return_value=(Path("/x/p-report.html"), None)) as rnd, \
              contextlib.redirect_stdout(io.StringIO()):
             rc = cli.main(["report", "--project", "."])
@@ -196,7 +196,7 @@ class TestReportCLIParse(unittest.TestCase):
         rnd.assert_called_once()
 
     def test_cli_report_serve_flag(self):
-        with mock.patch("vibetrace.briefing.serve_report",
+        with mock.patch("codetalk.briefing.serve_report",
                         return_value=None) as srv:
             rc = cli.main(["report", "--serve", "--no-open"])
         self.assertEqual(rc, 0)
@@ -235,7 +235,7 @@ class TestServeBuilder(unittest.TestCase):
         d = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, d, ignore_errors=True)
         _repo_with_commits(d)
-        with mock.patch("vibetrace.webserve.serve_html",
+        with mock.patch("codetalk.webserve.serve_html",
                         return_value=None) as srv:
             briefing.serve_report(d, open_browser=False)
         srv.assert_called_once()

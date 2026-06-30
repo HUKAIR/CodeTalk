@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from vibetrace import cli, config
+from codetalk import cli, config
 
 
 def _run(argv):

@@ -6,19 +6,20 @@ __pycache__/
 *.mcpb
 dist/
 *.egg-info/
-# vibetrace 本地产物防护网:正常写在 repo 外的 ~/(cache/usage/vault);此处防误配
+# codetalk 本地产物防护网:正常写在 repo 外的 ~/(cache/usage/vault);此处防误配
 # (如 --vault . / 在仓内跑样本)时产物意外入库泄露。样本仓数据一律只进隔离临时目录。
 .vibetrace/
-vibetrace-reports/
+.codetalk/
+codetalk-reports/
 *-graph.html
 *-graph.canvas
-# docs 下的渲染产物(如问卷汇报导出);源码模板在 vibetrace/ 不受影响
+# docs 下的渲染产物(如问卷汇报导出);源码模板在 codetalk/ 不受影响
 docs/**/*.html
-/tmp_vibetrace/
+/tmp_codetalk/
 # 本地 IDE / MCP 配置(可能含密钥或本地上下文)——永不入库
 .cursor/
 .idea/
 .mcp.json
 # VS Code extension build artifacts
-vscode-vibetrace/node_modules/
+vscode-codetalk/node_modules/
 *.vsix

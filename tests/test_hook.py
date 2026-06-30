@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from vibetrace.hook import install_hook
+from codetalk.hook import install_hook
 
 
 def _git(args, cwd):

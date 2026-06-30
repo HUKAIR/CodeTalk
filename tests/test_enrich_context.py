@@ -5,8 +5,8 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
-from vibetrace import enrich
-from vibetrace.cache import Cache
+from codetalk import enrich
+from codetalk.cache import Cache
 
 
 def _git(args, cwd):

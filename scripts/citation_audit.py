@@ -1,4 +1,4 @@
-"""逐字引用保真自检(dev-only,零 LLM):vibetrace 展示的「引用」是否逐字真实存在于真实来源。
+"""逐字引用保真自检(dev-only,零 LLM):codetalk 展示的「引用」是否逐字真实存在于真实来源。
 
 护城河钉「零-LLM 确定性逐字接地」——本脚本出可复算数 substantiate 它,**非**幻觉检测器。
 两类引用(均确定性、零 LLM、纯本地):
@@ -13,10 +13,10 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from vibetrace import sessions                                      # noqa: E402
-from vibetrace.cache import Cache                                   # noqa: E402
-from vibetrace.config import CACHE_DB_PATH, redact_secrets          # noqa: E402
-from vibetrace.gitlog import collect_commit_files, parse_breadcrumbs  # noqa: E402
+from codetalk import sessions                                      # noqa: E402
+from codetalk.cache import Cache                                   # noqa: E402
+from codetalk.config import CACHE_DB_PATH, redact_secrets          # noqa: E402
+from codetalk.gitlog import collect_commit_files, parse_breadcrumbs  # noqa: E402
 
 
 def audit_breadcrumbs(items):

@@ -3,7 +3,7 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "vibetrace"
+name = "codetalk"
 version = "0.1.0"
 description = "本地优先的代码决策溯源:git 历史 + Claude/Cursor/Codex 会话 → 可核验 why / 理解债 / 决策影响图"
 readme = "README.md"
@@ -14,14 +14,14 @@ dependencies = []
 
 [project.optional-dependencies]
 anthropic = ["anthropic>=0.40"]
-# web-app 面(M0 分面修订 2026-06-24):仅 `vibetrace web` 需要,不污染核心 stdlib。
+# web-app 面(M0 分面修订 2026-06-24):仅 `codetalk web` 需要,不污染核心 stdlib。
 web = ["fastapi>=0.110", "uvicorn>=0.29"]
 
 [project.scripts]
-vibetrace = "vibetrace.cli:main"
+codetalk = "codetalk.cli:main"
 
 [tool.setuptools]
-packages = ["vibetrace"]
+packages = ["codetalk"]
 
 [tool.setuptools.package-data]
-vibetrace = ["*.html", "*.md"]
+codetalk = ["*.html", "*.md"]

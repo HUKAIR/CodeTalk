@@ -1,7 +1,7 @@
 import unittest
 from unittest import mock
 
-from vibetrace import gitlog
+from codetalk import gitlog
 
 
 class TestGitlogExtra(unittest.TestCase):

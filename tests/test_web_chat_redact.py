@@ -6,7 +6,7 @@ from unittest import mock
 
 from fastapi.testclient import TestClient
 
-from vibetrace import web
+from codetalk import web
 
 # redact_secrets 实测能命中的 secret 形(短/随机串不命中,会得假阴性)
 _SECRET = 'password="hunter2secretvalue"'

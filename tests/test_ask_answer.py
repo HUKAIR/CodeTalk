@@ -1,8 +1,8 @@
 import unittest
 from unittest import mock
 
-from vibetrace import ask
-from vibetrace.cache import Cache
+from codetalk import ask
+from codetalk.cache import Cache
 
 
 class _FakeLLM:

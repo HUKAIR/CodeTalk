@@ -1,6 +1,6 @@
-# vibetrace × Spec-Driven Development
+# CodeTalk × Spec-Driven Development
 
-How vibetrace plugs into the [GitHub Spec Kit](https://github.com/github/spec-kit) workflow (or any spec-driven pipeline: AWS Kiro, OpenSpec, BMAD, Tessl, Google Antigravity).
+How CodeTalk plugs into the [GitHub Spec Kit](https://github.com/github/spec-kit) workflow (or any spec-driven pipeline: AWS Kiro, OpenSpec, BMAD, Tessl, Google Antigravity).
 
 ## The gap Spec Kit doesn't close
 
@@ -12,9 +12,9 @@ Spec Kit and its siblings turn specs into code. They produce the **forward** dir
 
 The forward arrow exists. The backward arrow is missing. AI inference (Cursor/Copilot reading the diff) confabulates it: 5/5 misses real decisions in our blind test.
 
-## How vibetrace fits
+## How CodeTalk fits
 
-vibetrace adds two grounding edges to the spec ↔ code loop:
+CodeTalk adds two grounding edges to the spec ↔ code loop:
 
 ```
 spec.md ─┐                              ┌─ blame: which spec did this line ground in?
@@ -44,7 +44,7 @@ Vibe-Watch:    rotation collisions on retry — see plan.md §5
 If you use Claude Code, Cursor, or Copilot:
 
 ```bash
-vibetrace install-agent-seed --project .
+CodeTalk install-agent-seed --project .
 ```
 
 drops the breadcrumb instruction into `CLAUDE.md`, `.cursorrules`, `.github/copilot-instructions.md` etc. The agent leaves them automatically.
@@ -54,7 +54,7 @@ drops the breadcrumb instruction into `CLAUDE.md`, `.cursorrules`, `.github/copi
 During code review, instead of `git blame` (who/when) reach for:
 
 ```bash
-vibetrace blame src/auth/refresh.ts:42-58
+codetalk blame src/auth/refresh.ts:42-58
 ```
 
 Output (for a line touched by the JWT commit above):
@@ -70,7 +70,7 @@ Output (for a line touched by the JWT commit above):
 Now the reviewer sees the spec-bound rationale verbatim, with click-through to the commit. Or in VS Code/Cursor/Windsurf:
 
 ```bash
-cd vscode-vibetrace && npm install && npm run build && code --install-extension vscode-vibetrace-*.vsix
+cd vscode-CodeTalk && npm install && npm run build && code --install-extension vscode-codetalk-*.vsix
 ```
 
 CodeLens above the block shows `▸ abc1234 · 决策(2) 风险(1)`. Click to expand the decision tree inline.
@@ -81,25 +81,25 @@ When a spec round closes:
 
 ```bash
 # Generate a Madr ADR from the real decisions made under §3.2
-vibetrace adr-export src/auth/refresh.ts --format madr > docs/adr/0042-refresh-rotation.md
+codetalk adr-export src/auth/refresh.ts --format madr > docs/adr/0042-refresh-rotation.md
 
 # Or emit a CycloneDX 1.5 BOM for AIBOM ecosystem ingestion
-vibetrace adr-export src/auth/refresh.ts --format cyclonedx > auth-refresh.bom.json
+codetalk adr-export src/auth/refresh.ts --format cyclonedx > auth-refresh.bom.json
 ```
 
 The ADR cites every commit verbatim. The BOM plugs into AIBOM tooling (CISA/G7 SBOM for AI, CycloneDX, SPDX 3.0).
 
 ### 4. Agent phase — give your AI tools spec-grounded memory via MCP
 
-If your AI agent (Claude Code, Cursor, Codex) talks to vibetrace over MCP, it can ground its own answers in real spec decisions instead of re-inferring from the diff:
+If your AI agent (Claude Code, Cursor, Codex) talks to CodeTalk over MCP, it can ground its own answers in real spec decisions instead of re-inferring from the diff:
 
 ```json
 // .mcp.json
 {
   "mcpServers": {
-    "vibetrace": {
+    "CodeTalk": {
       "command": "python3",
-      "args": ["-m", "vibetrace", "mcp-serve", "--project", "/abs/path/to/repo"]
+      "args": ["-m", "CodeTalk", "mcp-serve", "--project", "/abs/path/to/repo"]
     }
   }
 }
@@ -111,21 +111,21 @@ When the agent asks "why did we pick JWT rotation here?" before suggesting a ref
 
 ## Why this matters for spec-driven teams
 
-Spec Kit makes spec → code clear. vibetrace makes code → spec verifiable. Combined, the spec ↔ code loop is fully two-way grounded — no AI inference in either direction, no confabulation 3 months later.
+Spec Kit makes spec → code clear. CodeTalk makes code → spec verifiable. Combined, the spec ↔ code loop is fully two-way grounded — no AI inference in either direction, no confabulation 3 months later.
 
-If your team is already in the Spec Kit / Kiro / OpenSpec / BMAD / Antigravity universe and the question "why does this code do X?" still requires asking the original author from memory — vibetrace fills that exact gap.
+If your team is already in the Spec Kit / Kiro / OpenSpec / BMAD / Antigravity universe and the question "why does this code do X?" still requires asking the original author from memory — CodeTalk fills that exact gap.
 
 ## Honest boundaries
 
-- vibetrace doesn't generate specs. It only captures decisions made under existing specs.
-- The spec ↔ commit link is a breadcrumb convention (`Vibe-Decision`), not enforced by tooling. If the agent skips it, vibetrace falls back to LLM enrichment of the commit message (which can still hallucinate — that's why we don't claim it as the deterministic path).
-- The CycloneDX export covers base schema only — not `modelCard` / `formulation` / AI-specific sections, because vibetrace tracks code decisions, not model artifacts. Don't claim AIBOM conformance you don't have.
-- Coverage depends on `vibetrace enrich` having run. On a fresh repo with no breadcrumbs and no enrich, blame ≈ `git log`. See [README honest boundaries](../README.md).
+- CodeTalk doesn't generate specs. It only captures decisions made under existing specs.
+- The spec ↔ commit link is a breadcrumb convention (`Vibe-Decision`), not enforced by tooling. If the agent skips it, CodeTalk falls back to LLM enrichment of the commit message (which can still hallucinate — that's why we don't claim it as the deterministic path).
+- The CycloneDX export covers base schema only — not `modelCard` / `formulation` / AI-specific sections, because CodeTalk tracks code decisions, not model artifacts. Don't claim AIBOM conformance you don't have.
+- Coverage depends on `codetalk enrich` having run. On a fresh repo with no breadcrumbs and no enrich, blame ≈ `git log`. See [README honest boundaries](../README.md).
 
 ## Related reading
 
-- [README](../README.md) — what vibetrace is
+- [README](../README.md) — what CodeTalk is
 - [MCP install guide](mcp-install.md) — agent integration
-- [VS Code extension](../vscode-vibetrace/README.md) — foldable CodeLens + hover decision cards
-- [RepoWise comparison](repowise-vs-vibetrace.md) — adjacent tool, different design
+- [VS Code extension](../vscode-codetalk/README.md) — foldable CodeLens + hover decision cards
+- [RepoWise comparison](repowise-vs-codetalk.md) — adjacent tool, different design
 - [Spec Kit](https://github.com/github/spec-kit) — the spec-driven workflow this complements

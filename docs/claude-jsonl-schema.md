@@ -187,7 +187,7 @@ The structured, machine-readable result. Shapes by originating tool:
 
 ---
 
-## 3. Minimal field set for the vibetrace parser
+## 3. Minimal field set for the codetalk parser
 
 **File discovery:** recurse `<projects>/<slug>/*.jsonl` plus `<sessionId>/subagents/**/agent-*.jsonl`; skip `journal.jsonl` and `*.meta.json`.
 

@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from vibetrace.gitlog import (collect_commit_files, collect_commits,
+from codetalk.gitlog import (collect_commit_files, collect_commits,
                               commit_body, file_log, line_log)
 
 

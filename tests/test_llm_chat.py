@@ -5,8 +5,8 @@ import json
 import unittest
 from unittest import mock
 
-from vibetrace.config import DEFAULTS
-from vibetrace.llm import LLMClient
+from codetalk.config import DEFAULTS
+from codetalk.llm import LLMClient
 
 
 class _Resp:
@@ -38,7 +38,7 @@ class TestLlmChat(unittest.TestCase):
             return _Resp({"choices": [{"message": {"content": "接地综合答"}}],
                           "usage": {"prompt_tokens": 10, "completion_tokens": 5}})
 
-        with mock.patch("vibetrace.llm.urllib.request.urlopen", fake_urlopen):
+        with mock.patch("codetalk.llm.urllib.request.urlopen", fake_urlopen):
             out = llm.chat([{"role": "system", "content": "S"},
                             {"role": "user", "content": "为什么用流式"}])
         self.assertEqual(out, "接地综合答")
@@ -63,7 +63,7 @@ class TestLlmChat(unittest.TestCase):
             def __iter__(self):
                 return iter(sse)
 
-        with mock.patch("vibetrace.llm.urllib.request.urlopen",
+        with mock.patch("codetalk.llm.urllib.request.urlopen",
                         lambda *a, **k: _Stream()):
             out = list(llm.chat_stream([{"role": "user", "content": "为什么"}]))
         self.assertEqual("".join(out), "接地答案")     # SSE delta 拼成完整文本

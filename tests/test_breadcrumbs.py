@@ -1,6 +1,6 @@
 import unittest
 
-from vibetrace.gitlog import parse_breadcrumbs, parse_rejected
+from codetalk.gitlog import parse_breadcrumbs, parse_rejected
 
 
 class TestParseBreadcrumbs(unittest.TestCase):

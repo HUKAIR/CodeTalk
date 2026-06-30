@@ -1,6 +1,6 @@
 import unittest
 
-from vibetrace.cache import Cache
+from codetalk.cache import Cache
 
 
 class TestRecentOpenLoopsFilter(unittest.TestCase):

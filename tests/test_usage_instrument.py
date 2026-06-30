@@ -11,9 +11,9 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
-from vibetrace import (ask, cli, commands, commands_view, console, course,
+from codetalk import (ask, cli, commands, commands_view, console, course,
                        graph, report, tunnel)
-from vibetrace.config import DEFAULTS
+from codetalk.config import DEFAULTS
 
 # 各命令模块通过 `from .config import load_config, CACHE_DB_PATH` 各自绑定了名字,
 # 在 config 上打补丁够不到它们,故按模块逐个改绑(指向临时 vault / cache)。
@@ -99,7 +99,7 @@ class TestUsageInstrumentation(unittest.TestCase):
         """容错红线:埋点写盘失败(usage.log 路径不可写)不得拖垮主流程。"""
         self.usage_patch.stop()
         # 把 usage.log 指到一个目录上 → open(..,'a') 抛 IsADirectoryError(OSError)
-        with mock.patch("vibetrace.report.USAGE_LOG_PATH", Path(self.dir)):
+        with mock.patch("codetalk.report.USAGE_LOG_PATH", Path(self.dir)):
             self._run(commands_view.graph_cmd,
                       {"project": self.dir, "vault": None, "canvas": False})
         # 没有抛出即通过;再确认 graph.html 真的写出来了
@@ -110,7 +110,7 @@ class TestUsageInstrumentation(unittest.TestCase):
         形 secret 时,若先 dumps 后 redact 会因引号转义漏过(config.py:102 的坑)。"""
         self.usage_patch.stop()
         log_path = Path(self.dir) / "usage.log"
-        with mock.patch("vibetrace.report.USAGE_LOG_PATH", log_path):
+        with mock.patch("codetalk.report.USAGE_LOG_PATH", log_path):
             report.append_usage({"command": "ask",
                                  "project": '/repo token="leakTok7788XY" x'})
         written = log_path.read_text(encoding="utf-8")

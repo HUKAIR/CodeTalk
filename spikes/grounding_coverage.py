@@ -1,4 +1,4 @@
-"""dogfood:量化 vibetrace 对「找回当初 why」的**可核验接地覆盖率**(零 LLM、真实仓、可复跑)。
+"""dogfood:量化 codetalk 对「找回当初 why」的**可核验接地覆盖率**(零 LLM、真实仓、可复跑)。
 
 对最近一段 commit,统计有多少能拿到**你自己的一手材料**佐证「当初为什么」——
 会话原话(经 align)/ 相关测试 / PR 讨论 / Vibe-Decision 面包屑——而非只能信 LLM 重述;
@@ -15,9 +15,9 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from vibetrace import align, cursor_sessions, enrich, gitlog, sessions  # noqa: E402
-from vibetrace.cache import Cache                                       # noqa: E402
-from vibetrace.config import CACHE_DB_PATH                              # noqa: E402
+from codetalk import align, cursor_sessions, enrich, gitlog, sessions  # noqa: E402
+from codetalk.cache import Cache                                       # noqa: E402
+from codetalk.config import CACHE_DB_PATH                              # noqa: E402
 
 
 def main():

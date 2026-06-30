@@ -1,7 +1,7 @@
 import json, tempfile, unittest
 import unittest.mock
 from pathlib import Path
-from vibetrace import config as cfgmod
+from codetalk import config as cfgmod
 
 
 class TestProvidersShapeGuard(unittest.TestCase):

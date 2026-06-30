@@ -1,7 +1,7 @@
 import unittest
 from unittest import mock
 
-from vibetrace import ask, gitlog
+from codetalk import ask, gitlog
 
 
 class TestSinceArgs(unittest.TestCase):
@@ -65,7 +65,7 @@ class TestCacheKeyIncludesSince(unittest.TestCase):
             return {"answer": f"答案{self.calls}", "cited_shas": [], "unsure": ""}
 
     def test_different_since_does_not_hit_each_other(self):
-        from vibetrace.cache import Cache
+        from codetalk.cache import Cache
         cache, llm = Cache(":memory:"), self._FakeLLM()
         # _retrieve 与 since 无关地返回同样 ctx/code_state,隔离出缓存键的 since 维度
         with mock.patch.object(
@@ -78,7 +78,7 @@ class TestCacheKeyIncludesSince(unittest.TestCase):
         self.assertEqual(llm.calls, 2)        # 不同 since → 两次都调 LLM,未互相命中
 
     def test_same_since_hits_cache(self):
-        from vibetrace.cache import Cache
+        from codetalk.cache import Cache
         cache, llm = Cache(":memory:"), self._FakeLLM()
         with mock.patch.object(
                 ask, "_retrieve",

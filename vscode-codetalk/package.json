@@ -1,0 +1,46 @@
+{
+  "name": "vscode-codetalk",
+  "displayName": "codetalk — Decision Blame",
+  "description": "See why code was written this way, not just who/when. Foldable CodeLens with real commit decisions, hover cards with full context.",
+  "version": "0.2.0",
+  "publisher": "codetalk",
+  "license": "AGPL-3.0-or-later",
+  "repository": { "type": "git", "url": "https://github.com/HUKAIR/CodeTalk" },
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      { "command": "codetalk.expandAll", "title": "codetalk: Expand All Decisions" },
+      { "command": "codetalk.collapseAll", "title": "codetalk: Collapse All Decisions" }
+    ],
+    "configuration": {
+      "title": "codetalk",
+      "properties": {
+        "codetalk.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable foldable decision CodeLens entries and hover cards"
+        },
+        "codetalk.pythonPath": {
+          "type": "string",
+          "default": "python3",
+          "description": "Path to Python interpreter with codetalk installed"
+        }
+      }
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.0",
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.4.0"
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "typecheck": "tsc --noEmit",
+    "watch": "node esbuild.mjs --watch",
+    "package": "npx @vscode/vsce package --no-dependencies"
+  }
+}

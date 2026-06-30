@@ -1,8 +1,8 @@
 import unittest
 from datetime import datetime, timezone
 
-from vibetrace import enrich
-from vibetrace.cache import Cache
+from codetalk import enrich
+from codetalk.cache import Cache
 
 
 class _FakeLLM:
@@ -17,7 +17,7 @@ class _FailLLM:
     model = "fake"
 
     def narrate(self, prompt, *args, **kwargs):
-        from vibetrace.llm import LLMError
+        from codetalk.llm import LLMError
         raise LLMError("boom")
 
 

@@ -1,7 +1,7 @@
 import unittest
 from unittest import mock
 
-from vibetrace import cli, commands, mcp_server
+from codetalk import cli, commands, mcp_server
 
 
 class TestCliMcpServe(unittest.TestCase):

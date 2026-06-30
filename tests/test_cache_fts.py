@@ -9,7 +9,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from vibetrace.cache import Cache
+from codetalk.cache import Cache
 
 
 class TestFtsProbe(unittest.TestCase):
@@ -113,7 +113,7 @@ class TestRedactionInherited(unittest.TestCase):
 
 class TestFtsWriteFaultTolerant(unittest.TestCase):
     def test_fts_write_failure_does_not_break_main_write(self):
-        from vibetrace import cache as cache_mod
+        from codetalk import cache as cache_mod
         c = Cache(":memory:")
         # 让 FTS body 拼接崩,主表写仍须成功(派生索引绝不拖垮主写)
         with mock.patch.object(cache_mod, "fts_body",
@@ -123,7 +123,7 @@ class TestFtsWriteFaultTolerant(unittest.TestCase):
 
     def test_reput_body_failure_keeps_existing_fts_row(self):
         # 已索引 SHA 再 put 时 body 构建失败,不得丢掉原 FTS 行(body 先建 + 回滚保护)
-        from vibetrace import cache as cache_mod
+        from codetalk import cache as cache_mod
         c = Cache(":memory:")
         c.put_narrative("s_keep", "P", "m", {"why": "用乐观锁避免超时"})
         self.assertIn("s_keep", c.search_narratives("乐观锁"))   # 原本可召回

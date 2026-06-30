@@ -1,7 +1,7 @@
 import unittest
 from unittest import mock
 
-from vibetrace import ask, cli
+from codetalk import ask, cli
 
 
 class TestCliAskSinceJson(unittest.TestCase):

@@ -6,8 +6,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from unittest import mock
 
-from vibetrace import codex_sessions
-from vibetrace.cache import Cache
+from codetalk import codex_sessions
+from codetalk.cache import Cache
 
 
 def _rollout(path, cwd, sid, lines):

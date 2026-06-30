@@ -1,5 +1,5 @@
 """Track A v1:Obsidian 自动反链——为每个带决策的 commit 产出一张决策笔记
-(vault/vibetrace/<slug>/<sha7>.md),链回当天日报 [[{date}-{project}]]。Obsidian 自动在
+(vault/codetalk/<slug>/<sha7>.md),链回当天日报 [[{date}-{project}]]。Obsidian 自动在
 日报侧生成反链。机器自动产出、非用户手写;零 LLM、落盘前脱敏、容错降级。"""
 import shutil
 import tempfile
@@ -7,7 +7,7 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
-from vibetrace import obsidian
+from codetalk import obsidian
 
 
 def _commit(sha, day, decisions, subject="s"):
@@ -24,7 +24,7 @@ class TestEmitDecisionNotes(unittest.TestCase):
         return obsidian.emit_decision_notes(commits, project, self.vault, pkey)
 
     def _subdir(self, pkey="/abs/Proj"):
-        return Path(self.vault) / "vibetrace" / obsidian._slug("Proj", pkey)
+        return Path(self.vault) / "codetalk" / obsidian._slug("Proj", pkey)
 
     def test_emits_note_per_decision_commit_with_backlink(self):
         n = self._emit([_commit("a" * 40, 1, ["用 urllib 不引第三方"]),

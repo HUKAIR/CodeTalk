@@ -1,6 +1,6 @@
 import unittest
 
-from vibetrace.ask import _parse_target
+from codetalk.ask import _parse_target
 
 
 class TestParseTarget(unittest.TestCase):

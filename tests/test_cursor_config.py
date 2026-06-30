@@ -1,6 +1,6 @@
 # tests/test_cursor_config.py
 import unittest
-from vibetrace.config import load_config, DEFAULTS
+from codetalk.config import load_config, DEFAULTS
 
 class TestSourcesDefault(unittest.TestCase):
     def test_default_sources_is_claude_only(self):

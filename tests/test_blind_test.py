@@ -79,9 +79,9 @@ class TestCodeOnlyDiff(unittest.TestCase):
     def test_strips_doc_section_keeps_code(self):
         from scripts.blind_test import _code_only_diff
         diff = ("diff --git a/CLAUDE.md b/CLAUDE.md\n@@ -1 +1 @@\n-x\n+理由散文在此\n"
-                "diff --git a/vibetrace/x.py b/vibetrace/x.py\n@@ -1 +1 @@\n-a\n+b\n")
+                "diff --git a/codetalk/x.py b/codetalk/x.py\n@@ -1 +1 @@\n-a\n+b\n")
         out = _code_only_diff(diff)
-        self.assertIn("vibetrace/x.py", out)
+        self.assertIn("codetalk/x.py", out)
         self.assertNotIn("理由散文在此", out)        # doc 段被剔除
         self.assertNotIn("CLAUDE.md", out)
 
@@ -98,8 +98,8 @@ class TestCodeOnlyDiff(unittest.TestCase):
         from scripts.blind_test import _is_doc
         self.assertTrue(_is_doc("README.md"))
         self.assertTrue(_is_doc("docs/anything.py"))   # docs/ 区一律视为文档
-        self.assertFalse(_is_doc("vibetrace/x.py"))
-        self.assertFalse(_is_doc("vibetrace/console.html"))
+        self.assertFalse(_is_doc("codetalk/x.py"))
+        self.assertFalse(_is_doc("codetalk/console.html"))
 
 
 class TestRedactionBeforeEgress(unittest.TestCase):

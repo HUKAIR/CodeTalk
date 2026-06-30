@@ -7,9 +7,9 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from vibetrace import adr_export
-from vibetrace.adr_export import to_adr
-from vibetrace.cache import Cache
+from codetalk import adr_export
+from codetalk.adr_export import to_adr
+from codetalk.cache import Cache
 
 
 def _git(a, c):
@@ -148,7 +148,7 @@ class TestExportOnRepo(unittest.TestCase):
         (Path(d) / "a.py").write_text("x = 1\n"); _git(["add", "."], d)
         _git(["commit", "-q", "-m", "feat: 初版\n\nVibe-Decision: 选三行布局便于演示"], d)
         db = str(Path(d) / "cache.db")
-        with mock.patch("vibetrace.config.CACHE_DB_PATH", db):
+        with mock.patch("codetalk.config.CACHE_DB_PATH", db):
             out, err = adr_export.export(d, "a.py", fmt="madr")
         self.assertIsNone(err)
         self.assertIn("选三行布局便于演示", out)              # 逐字引真实 Vibe-Decision

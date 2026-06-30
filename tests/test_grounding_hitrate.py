@@ -2,7 +2,7 @@
 import unittest
 
 from scripts.grounding_hitrate import measure
-from vibetrace.cache import Cache
+from codetalk.cache import Cache
 
 
 class TestGroundingHitrate(unittest.TestCase):

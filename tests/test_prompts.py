@@ -1,7 +1,7 @@
 import unittest
 
-from vibetrace import course
-from vibetrace.prompts import ASK_SYSTEM_PROMPT, SYSTEM_PROMPT
+from codetalk import course
+from codetalk.prompts import ASK_SYSTEM_PROMPT, SYSTEM_PROMPT
 
 
 class TestAskGrounding(unittest.TestCase):

@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from vibetrace import cursor_sessions, sessions
+from codetalk import cursor_sessions, sessions
 
 
 def _line(obj):

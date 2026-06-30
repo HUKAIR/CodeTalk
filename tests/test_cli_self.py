@@ -3,7 +3,7 @@ import io
 import unittest
 from unittest import mock
 
-from vibetrace import cli, self_report
+from codetalk import cli, self_report
 
 
 class TestCliSelf(unittest.TestCase):

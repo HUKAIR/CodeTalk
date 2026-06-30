@@ -1,7 +1,7 @@
 """MCP Bundle(.mcpb)打包:manifest schema 合规 + 构建产物是含纯 stdlib server 源的合法 zip。
 
 .mcpb = zip(manifest.json + server/<纯 stdlib 源>)。一键装覆盖所有 MCP 客户端;
-靠用户已装 python3 运行、不打包解释器(vibetrace 零三方依赖,见 pyproject dependencies=[])。
+靠用户已装 python3 运行、不打包解释器(codetalk 零三方依赖,见 pyproject dependencies=[])。
 """
 import json
 import tempfile
@@ -36,15 +36,15 @@ class TestManifest(unittest.TestCase):
 
     def test_lists_seven_tools(self):
         names = {t["name"] for t in self._manifest().get("tools", [])}
-        self.assertEqual(names, {"vibetrace_ask", "vibetrace_blame",
-                                 "vibetrace_graph", "vibetrace_search",
-                                 "vibetrace_drift", "vibetrace_prompts",
-                                 "vibetrace_adr"})
+        self.assertEqual(names, {"codetalk_ask", "codetalk_blame",
+                                 "codetalk_graph", "codetalk_search",
+                                 "codetalk_drift", "codetalk_prompts",
+                                 "codetalk_adr"})
 
     def test_manifest_tools_match_runtime_source(self):
         # 单一真源:manifest 工具集必须 == 运行时真正 serve 的 mcp_tools.TOOLS。
         # 防 manifest/docs 陈旧事故复发(本会话发生两次:加工具忘同步 manifest)。
-        from vibetrace.mcp_tools import TOOLS
+        from codetalk.mcp_tools import TOOLS
         manifest_names = {t["name"] for t in self._manifest().get("tools", [])}
         runtime_names = {t["name"] for t in TOOLS}
         self.assertEqual(manifest_names, runtime_names)
@@ -54,14 +54,14 @@ class TestBuild(unittest.TestCase):
     def test_build_produces_valid_bundle(self):
         from scripts.build_mcpb import build
         with tempfile.TemporaryDirectory() as d:
-            out = build(Path(d) / "vibetrace.mcpb")
+            out = build(Path(d) / "codetalk.mcpb")
             self.assertTrue(out.exists())
             with zipfile.ZipFile(out) as z:
                 names = z.namelist()
                 self.assertIn("manifest.json", names)
-                self.assertIn("server/vibetrace/mcp_server.py", names)
-                self.assertIn("server/vibetrace/__main__.py", names)
-                self.assertIn("server/vibetrace/__init__.py", names)
+                self.assertIn("server/codetalk/mcp_server.py", names)
+                self.assertIn("server/codetalk/__main__.py", names)
+                self.assertIn("server/codetalk/__init__.py", names)
                 # 纯净:不带缓存/字节码/测试
                 self.assertFalse(any("__pycache__" in n or n.endswith(".pyc")
                                      or n.startswith("server/tests") for n in names))

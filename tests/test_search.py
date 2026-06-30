@@ -4,8 +4,8 @@
 """
 import unittest
 
-from vibetrace.cache import Cache
-from vibetrace.search import topic_search
+from codetalk.cache import Cache
+from codetalk.search import topic_search
 
 
 class TestTopicSearch(unittest.TestCase):
@@ -46,7 +46,7 @@ class TestTopicSearch(unittest.TestCase):
 
     def test_does_not_call_llm(self):
         # search 模块不应 import 或调用任何 LLM——以无网络/无 key 也能跑为证
-        import vibetrace.search as s
+        import codetalk.search as s
         src = open(s.__file__, encoding="utf-8").read()
         self.assertNotIn("LLMClient", src)
         self.assertNotIn("llm.narrate", src)

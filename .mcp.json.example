@@ -1,8 +1,8 @@
 {
   "mcpServers": {
-    "vibetrace": {
+    "codetalk": {
       "command": "python3",
-      "args": ["-m", "vibetrace", "mcp-serve", "--project", "/absolute/path/to/your/repo"]
+      "args": ["-m", "codetalk", "mcp-serve", "--project", "/absolute/path/to/your/repo"]
     }
   }
 }

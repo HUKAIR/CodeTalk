@@ -1,6 +1,6 @@
 import unittest
 
-from vibetrace.sessions import head_tail
+from codetalk.sessions import head_tail
 
 
 class TestHeadTail(unittest.TestCase):

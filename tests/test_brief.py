@@ -4,8 +4,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from vibetrace import brief
-from vibetrace.cache import Cache
+from codetalk import brief
+from codetalk.cache import Cache
 
 
 def _git(args, cwd):

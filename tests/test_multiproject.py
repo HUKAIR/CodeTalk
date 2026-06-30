@@ -1,7 +1,7 @@
 import unittest
 
-from vibetrace import brief
-from vibetrace.cache import Cache
+from codetalk import brief
+from codetalk.cache import Cache
 
 
 class TestRekeyProject(unittest.TestCase):

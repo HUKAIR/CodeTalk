@@ -11,12 +11,12 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from vibetrace import mcp_server, mcp_tools
-from vibetrace.cache import Cache
+from codetalk import mcp_server, mcp_tools
+from codetalk.cache import Cache
 
 
 def _cfg():
-    from vibetrace.config import DEFAULTS
+    from codetalk.config import DEFAULTS
     import copy
     return copy.deepcopy(DEFAULTS)
 
@@ -31,7 +31,7 @@ class TestInitialize(unittest.TestCase):
         self.assertEqual(r["protocolVersion"], "2025-06-18")  # 回显客户端版本
         self.assertIn("tools", r["capabilities"])
         self.assertEqual(r["capabilities"]["tools"]["listChanged"], False)
-        self.assertEqual(r["serverInfo"]["name"], "vibetrace")
+        self.assertEqual(r["serverInfo"]["name"], "codetalk")
 
     def test_initialize_defaults_protocol_when_missing(self):
         req = {"jsonrpc": "2.0", "id": 2, "method": "initialize", "params": {}}
@@ -69,10 +69,10 @@ class TestToolsList(unittest.TestCase):
         resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
         tools = resp["result"]["tools"]
         names = {t["name"] for t in tools}
-        self.assertEqual(names, {"vibetrace_ask", "vibetrace_blame",
-                                 "vibetrace_graph", "vibetrace_search",
-                                 "vibetrace_drift", "vibetrace_prompts",
-                                 "vibetrace_adr"})
+        self.assertEqual(names, {"codetalk_ask", "codetalk_blame",
+                                 "codetalk_graph", "codetalk_search",
+                                 "codetalk_drift", "codetalk_prompts",
+                                 "codetalk_adr"})
         for t in tools:
             self.assertIn("inputSchema", t)
             self.assertEqual(t["inputSchema"]["type"], "object")
@@ -83,7 +83,7 @@ class TestToolsList(unittest.TestCase):
         req = {"jsonrpc": "2.0", "id": 41, "method": "tools/list"}
         resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
         search = next(t for t in resp["result"]["tools"]
-                      if t["name"] == "vibetrace_search")
+                      if t["name"] == "codetalk_search")
         self.assertEqual(search["inputSchema"]["required"], ["question"])
         self.assertIn("question", search["inputSchema"]["properties"])
         self.assertIn("project", search["inputSchema"]["properties"])
@@ -94,7 +94,7 @@ class TestToolsCallSearch(unittest.TestCase):
         with mock.patch.object(mcp_tools, "topic_search",
                                lambda *a, **k: "# 主题召回\n[abc1234]\n  意图:用乐观锁"):
             req = {"jsonrpc": "2.0", "id": 42, "method": "tools/call",
-                   "params": {"name": "vibetrace_search",
+                   "params": {"name": "codetalk_search",
                               "arguments": {"question": "乐观锁"}}}
             resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
         self.assertFalse(resp["result"]["isError"])
@@ -102,7 +102,7 @@ class TestToolsCallSearch(unittest.TestCase):
 
     def test_search_missing_question_is_error(self):
         req = {"jsonrpc": "2.0", "id": 43, "method": "tools/call",
-               "params": {"name": "vibetrace_search", "arguments": {}}}
+               "params": {"name": "codetalk_search", "arguments": {}}}
         resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
         self.assertTrue(resp["result"]["isError"])
         self.assertIn("question", resp["result"]["content"][0]["text"])
@@ -112,7 +112,7 @@ class TestToolsCallSearch(unittest.TestCase):
                 mcp_tools, "topic_search",
                 lambda *a, **k: "[abc1234]\n  意图:key sk-abcdefghijklmnop1234"):
             req = {"jsonrpc": "2.0", "id": 44, "method": "tools/call",
-                   "params": {"name": "vibetrace_search",
+                   "params": {"name": "codetalk_search",
                               "arguments": {"question": "key"}}}
             resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
         text = resp["result"]["content"][0]["text"]
@@ -126,7 +126,7 @@ class TestToolsCallAsk(unittest.TestCase):
                                lambda *a, **k: ('{"mode":"llm","answer":"x"}',
                                                 None)):
             req = {"jsonrpc": "2.0", "id": 5, "method": "tools/call",
-                   "params": {"name": "vibetrace_ask",
+                   "params": {"name": "codetalk_ask",
                               "arguments": {"target": "f.py:1-2",
                                             "question": "为什么"}}}
             resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
@@ -142,7 +142,7 @@ class TestToolsCallAsk(unittest.TestCase):
                                ('{"mode":"degraded"}', None) if llm is None
                                else ('{"mode":"llm"}', None)):
             req = {"jsonrpc": "2.0", "id": 6, "method": "tools/call",
-                   "params": {"name": "vibetrace_ask",
+                   "params": {"name": "codetalk_ask",
                               "arguments": {"target": "f.py", "question": "Q"}}}
             resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
         self.assertFalse(resp["result"]["isError"])
@@ -151,7 +151,7 @@ class TestToolsCallAsk(unittest.TestCase):
 
     def test_ask_missing_required_arg_is_error(self):
         req = {"jsonrpc": "2.0", "id": 7, "method": "tools/call",
-               "params": {"name": "vibetrace_ask",
+               "params": {"name": "codetalk_ask",
                           "arguments": {"target": "f.py"}}}  # 缺 question
         resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
         self.assertTrue(resp["result"]["isError"])
@@ -161,7 +161,7 @@ class TestToolsCallAsk(unittest.TestCase):
         with mock.patch.object(mcp_tools, "answer_question",
                                lambda *a, **k: (None, "没有提交历史")):
             req = {"jsonrpc": "2.0", "id": 8, "method": "tools/call",
-                   "params": {"name": "vibetrace_ask",
+                   "params": {"name": "codetalk_ask",
                               "arguments": {"target": "x.py", "question": "Q"}}}
             resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
         self.assertTrue(resp["result"]["isError"])
@@ -172,7 +172,7 @@ class TestToolsCallAsk(unittest.TestCase):
             raise RuntimeError("内部炸了")
         with mock.patch.object(mcp_tools, "answer_question", _boom):
             req = {"jsonrpc": "2.0", "id": 10, "method": "tools/call",
-                   "params": {"name": "vibetrace_ask",
+                   "params": {"name": "codetalk_ask",
                               "arguments": {"target": "x.py", "question": "Q"}}}
             resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
         self.assertTrue(resp["result"]["isError"])
@@ -185,7 +185,7 @@ class TestToolsCallAsk(unittest.TestCase):
                 "git failed: https://x:ghp_ABCDEFGHIJKLMNOP1234@github.com")
         with mock.patch.object(mcp_tools, "answer_question", _boom):
             req = {"jsonrpc": "2.0", "id": 18, "method": "tools/call",
-                   "params": {"name": "vibetrace_ask",
+                   "params": {"name": "codetalk_ask",
                               "arguments": {"target": "x.py", "question": "Q"}}}
             resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
         self.assertTrue(resp["result"]["isError"])
@@ -197,14 +197,14 @@ class TestToolsCallAsk(unittest.TestCase):
 class TestToolsCallValidation(unittest.TestCase):
     def test_unknown_tool_is_error(self):
         req = {"jsonrpc": "2.0", "id": 11, "method": "tools/call",
-               "params": {"name": "vibetrace_nope", "arguments": {}}}
+               "params": {"name": "codetalk_nope", "arguments": {}}}
         resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
         self.assertTrue(resp["result"]["isError"])
         self.assertIn("Unknown tool", resp["result"]["content"][0]["text"])
 
     def test_arguments_not_dict_is_error(self):
         req = {"jsonrpc": "2.0", "id": 12, "method": "tools/call",
-               "params": {"name": "vibetrace_graph", "arguments": "oops"}}
+               "params": {"name": "codetalk_graph", "arguments": "oops"}}
         resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
         self.assertTrue(resp["result"]["isError"])
 
@@ -217,7 +217,7 @@ class TestToolsCallBlameRedaction(unittest.TestCase):
         with mock.patch.object(mcp_tools, "collect_segments",
                                lambda *a, **k: seg):
             req = {"jsonrpc": "2.0", "id": 13, "method": "tools/call",
-                   "params": {"name": "vibetrace_blame",
+                   "params": {"name": "codetalk_blame",
                               "arguments": {"target": "f.py:1-2"}}}
             resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
         self.assertFalse(resp["result"]["isError"])
@@ -240,7 +240,7 @@ class TestParamAlias(unittest.TestCase):
             cap["t"] = (file, start, end); return self._SEG
         with mock.patch.object(mcp_tools, "collect_segments", fake):
             req = {"jsonrpc": "2.0", "id": 1, "method": "tools/call",
-                   "params": {"name": "vibetrace_blame",
+                   "params": {"name": "codetalk_blame",
                               "arguments": {"path": "f.py", "startLine": 3,
                                             "endLine": 7, "owner": "o", "repo": "r"}}}
             resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
@@ -254,7 +254,7 @@ class TestParamAlias(unittest.TestCase):
             cap["t"] = (file, start, end); return self._SEG
         with mock.patch.object(mcp_tools, "collect_segments", fake):
             req = {"jsonrpc": "2.0", "id": 2, "method": "tools/call",
-                   "params": {"name": "vibetrace_blame",
+                   "params": {"name": "codetalk_blame",
                               "arguments": {"path": "f.py"}}}
             resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
         self.assertFalse(resp["result"]["isError"])
@@ -262,7 +262,7 @@ class TestParamAlias(unittest.TestCase):
 
     def test_blame_neither_target_nor_path_is_error(self):
         req = {"jsonrpc": "2.0", "id": 3, "method": "tools/call",
-               "params": {"name": "vibetrace_blame", "arguments": {"owner": "o"}}}
+               "params": {"name": "codetalk_blame", "arguments": {"owner": "o"}}}
         resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
         self.assertTrue(resp["result"]["isError"])
         self.assertIn("target", resp["result"]["content"][0]["text"])
@@ -274,7 +274,7 @@ class TestParamAlias(unittest.TestCase):
             cap["target"] = target; return ('{"mode":"degraded"}', None)
         with mock.patch.object(mcp_tools, "answer_question", fake):
             req = {"jsonrpc": "2.0", "id": 4, "method": "tools/call",
-                   "params": {"name": "vibetrace_ask",
+                   "params": {"name": "codetalk_ask",
                               "arguments": {"path": "f.py", "startLine": 1,
                                             "endLine": 2, "question": "为什么"}}}
             resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
@@ -287,7 +287,7 @@ class TestToolsCallGraph(unittest.TestCase):
         with mock.patch.object(mcp_tools, "build_graph_json",
                                lambda *a, **k: ('{"nodes":[],"edges":[]}', None)):
             req = {"jsonrpc": "2.0", "id": 14, "method": "tools/call",
-                   "params": {"name": "vibetrace_graph", "arguments": {}}}
+                   "params": {"name": "codetalk_graph", "arguments": {}}}
             resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
         self.assertFalse(resp["result"]["isError"])
         self.assertEqual(json.loads(resp["result"]["content"][0]["text"]),
@@ -298,7 +298,7 @@ class TestToolsCallGraph(unittest.TestCase):
         with mock.patch.object(mcp_tools, "build_graph_json",
                                lambda *a, **k: ('{"nodes":[],"edges":[]}', None)):
             req = {"jsonrpc": "2.0", "id": 15, "method": "tools/call",
-                   "params": {"name": "vibetrace_graph"}}  # 不带 arguments 键
+                   "params": {"name": "codetalk_graph"}}  # 不带 arguments 键
             resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
         self.assertFalse(resp["result"]["isError"])
         self.assertEqual(json.loads(resp["result"]["content"][0]["text"]),
@@ -350,7 +350,7 @@ class TestServeLoop(unittest.TestCase):
         with mock.patch.object(mcp_tools, "answer_question",
                                lambda *a, **k: ('{"mode":"degraded"}', None)):
             call = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
-                               "params": {"name": "vibetrace_ask",
+                               "params": {"name": "codetalk_ask",
                                           "arguments": {"target": "f.py",
                                                         "question": "Q"}}})
             out, err = self._run([call])
@@ -378,7 +378,7 @@ class TestServeRealPath(unittest.TestCase):
             init = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize",
                                "params": {}})
             call = json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/call",
-                               "params": {"name": "vibetrace_blame",
+                               "params": {"name": "codetalk_blame",
                                           "arguments": {"target": "a.py",
                                                         "project": str(repo)}}})
             stdin = io.StringIO("\n".join([init, call]) + "\n")
@@ -397,7 +397,7 @@ class TestToolsCallDrift(unittest.TestCase):
         with mock.patch.object(mcp_tools, "drift_json",
                                lambda *a, **k: '{"flagged":[],"session_count":0}'):
             req = {"jsonrpc": "2.0", "id": 50, "method": "tools/call",
-                   "params": {"name": "vibetrace_drift", "arguments": {}}}
+                   "params": {"name": "codetalk_drift", "arguments": {}}}
             resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
         self.assertFalse(resp["result"]["isError"])
         data = json.loads(resp["result"]["content"][0]["text"])
@@ -410,7 +410,7 @@ class TestToolsCallDrift(unittest.TestCase):
             return '{"flagged":[]}'
         with mock.patch.object(mcp_tools, "drift_json", fake):
             req = {"jsonrpc": "2.0", "id": 51, "method": "tools/call",
-                   "params": {"name": "vibetrace_drift",
+                   "params": {"name": "codetalk_drift",
                               "arguments": {"since": "1 day ago"}}}
             resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
         self.assertFalse(resp["result"]["isError"])
@@ -419,16 +419,16 @@ class TestToolsCallDrift(unittest.TestCase):
 
 class TestToolsCallPrompts(unittest.TestCase):
     def test_prompts_returns_markdown_not_error(self):
-        with mock.patch("vibetrace.sessions.scan_sessions",
+        with mock.patch("codetalk.sessions.scan_sessions",
                         lambda *a, **k: ([], None)), \
-             mock.patch("vibetrace.gitlog.collect_commit_files",
+             mock.patch("codetalk.gitlog.collect_commit_files",
                         lambda *a, **k: ([], None)), \
-             mock.patch("vibetrace.align.align",
+             mock.patch("codetalk.align.align",
                         lambda *a, **k: None), \
              mock.patch.object(mcp_tools, "build_prompts_view",
                                lambda *a, **k: "# Prompts\nno prompts"):
             req = {"jsonrpc": "2.0", "id": 52, "method": "tools/call",
-                   "params": {"name": "vibetrace_prompts",
+                   "params": {"name": "codetalk_prompts",
                               "arguments": {}}}
             resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
         self.assertFalse(resp["result"]["isError"])
@@ -440,7 +440,7 @@ class TestToolsCallAdr(unittest.TestCase):
         with mock.patch.object(mcp_tools, "adr_export",
                                lambda *a, **k: ("# ADR\ndecision", None)):
             req = {"jsonrpc": "2.0", "id": 53, "method": "tools/call",
-                   "params": {"name": "vibetrace_adr",
+                   "params": {"name": "codetalk_adr",
                               "arguments": {"target": "f.py:1-10"}}}
             resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
         self.assertFalse(resp["result"]["isError"])
@@ -448,7 +448,7 @@ class TestToolsCallAdr(unittest.TestCase):
 
     def test_adr_missing_target_is_error(self):
         req = {"jsonrpc": "2.0", "id": 54, "method": "tools/call",
-               "params": {"name": "vibetrace_adr", "arguments": {}}}
+               "params": {"name": "codetalk_adr", "arguments": {}}}
         resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
         self.assertTrue(resp["result"]["isError"])
         self.assertIn("target", resp["result"]["content"][0]["text"].lower())
@@ -457,7 +457,7 @@ class TestToolsCallAdr(unittest.TestCase):
         with mock.patch.object(mcp_tools, "adr_export",
                                lambda *a, **k: (None, "No commit history")):
             req = {"jsonrpc": "2.0", "id": 55, "method": "tools/call",
-                   "params": {"name": "vibetrace_adr",
+                   "params": {"name": "codetalk_adr",
                               "arguments": {"target": "x.py"}}}
             resp = mcp_server._handle(req, Cache(":memory:"), _cfg(), None)
         self.assertTrue(resp["result"]["isError"])

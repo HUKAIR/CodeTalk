@@ -1,6 +1,6 @@
 import unittest
 
-from vibetrace.config import redact_secrets
+from codetalk.config import redact_secrets
 
 
 class TestRedactSecrets(unittest.TestCase):

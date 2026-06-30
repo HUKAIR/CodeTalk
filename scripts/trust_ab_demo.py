@@ -1,4 +1,4 @@
-"""A/B 信任对照 demo:同一 commit,vibetrace 引真实记录 vs LLM 从 diff 反推,用户自己判哪个更可信。
+"""A/B 信任对照 demo:同一 commit,codetalk 引真实记录 vs LLM 从 diff 反推,用户自己判哪个更可信。
 
 比 blind_test.py 更聚焦:不做泄漏标/脱敏分析,只做最直观的并排呈现——
 适合发 HN/Reddit 或分享给外部受访者跑。无 key 降级为只列真实记录。
@@ -10,18 +10,18 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from vibetrace.cache import Cache                               # noqa: E402
-from vibetrace.config import (CACHE_DB_PATH, load_config,  # noqa: E402
+from codetalk.cache import Cache                               # noqa: E402
+from codetalk.config import (CACHE_DB_PATH, load_config,  # noqa: E402
                               redact_data, redact_secrets)
-from vibetrace.gitlog import (collect_commit_files, commit_diff,  # noqa: E402
+from codetalk.gitlog import (collect_commit_files, commit_diff,  # noqa: E402
                               parse_breadcrumbs, parse_rejected)
-from vibetrace.llm import LLMClient, LLMError                    # noqa: E402
+from codetalk.llm import LLMClient, LLMError                    # noqa: E402
 
 DEFAULT_N = 5
 
 
 def _real_record(cache, sha, body):
-    """vibetrace 的真实记录:叙事 + 面包屑 + 否决备选。"""
+    """codetalk 的真实记录:叙事 + 面包屑 + 否决备选。"""
     parts = []
     narrative = cache.get_narrative(sha) or {}
     if narrative.get("why"):
@@ -68,7 +68,7 @@ def main(project=".", n=DEFAULT_N):
     has_record = [c for c in commits
                   if _real_record(cache, c["sha"], c.get("body", ""))]
     if not has_record:
-        print("No commits with vibetrace records found. Run `vibetrace enrich` first.",
+        print("No commits with codetalk records found. Run `codetalk enrich` first.",
               file=sys.stderr)
         cache.close()
         return 1
@@ -116,7 +116,7 @@ def main(project=".", n=DEFAULT_N):
     print("## Reveal\n")
     for i, r in enumerate(reveals, 1):
         print(f"- Commit {i}: {r}")
-    print(f"\nReal records = vibetrace (zero-LLM, verbatim SHA citations)")
+    print(f"\nReal records = codetalk (zero-LLM, verbatim SHA citations)")
     print(f"Other = LLM inference from diff alone (no commit message given)")
 
     cache.close()

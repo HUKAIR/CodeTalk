@@ -8,8 +8,8 @@ from datetime import date
 from pathlib import Path
 from unittest import mock
 
-from vibetrace import brief, cli, config, report
-from vibetrace.cache import Cache
+from codetalk import brief, cli, config, report
+from codetalk.cache import Cache
 
 
 def _git(args, cwd):
@@ -137,7 +137,7 @@ class TestBuildWatch(unittest.TestCase):
     def test_secret_shaped_watch_still_tagged_verbatim(self):
         # 含 secret 形的手写 Watch:cache 里 risk 已脱敏([REDACTED]),body 是原文。
         # 两侧须同口径脱敏比,否则误判成 🤖 AI 预测(与 _seal 同口径,brief 此前漏修)。
-        from vibetrace.config import redact_secrets
+        from codetalk.config import redact_secrets
         raw = 'rotate api_key=ghp_abcd1234EFGH5678ijkl if leak'
         c = Cache(":memory:")
         p = self._tmpdir()

@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from vibetrace import retrieval  # noqa: E402
+from codetalk import retrieval  # noqa: E402
 
 
 class TestCitationVerbatim(unittest.TestCase):

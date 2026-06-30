@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from vibetrace import course
+from codetalk import course
 
 
 def _git(args, cwd):

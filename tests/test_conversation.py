@@ -2,8 +2,8 @@
 使 topic_search/search_narratives 能召回「你在 X 讨论过」。"""
 import unittest
 
-from vibetrace import conversation
-from vibetrace.cache import Cache
+from codetalk import conversation
+from codetalk.cache import Cache
 
 
 class TestConversation(unittest.TestCase):

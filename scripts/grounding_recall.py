@@ -1,4 +1,4 @@
-"""接地召回自证(零 LLM):度量「指着一行真实代码问『当初为什么』,vibetrace 的
+"""接地召回自证(零 LLM):度量「指着一行真实代码问『当初为什么』,codetalk 的
 零-LLM blame 实际能否 surface 一个 authored why」。是 grounding_hitrate(commit 级覆盖
 **上限**)缺的一块——行级、按用户真问的粒度、走**真实** blame 引擎(blame.collect_segments)。
 
@@ -9,7 +9,7 @@
 
 **诚实边界**:度量「能 surface 一个 authored why」**非**「surface 正确的 why」(后者需语义
 判定/模型,违零-LLM);抽样(seed 可复现);line_log top-12 窗口;why = narrative why/
-decisions/Vibe-Decision 面包屑/否决备选(Vibe-Rejected)/evidence 任一;scope 默认 vibetrace/*.py 源码非空行(非 docs/
+decisions/Vibe-Decision 面包屑/否决备选(Vibe-Rejected)/evidence 任一;scope 默认 codetalk/*.py 源码非空行(非 docs/
 tests)。随 commit 漂移,以复跑当下输出为准。纯本地、不调 LLM、不触网。
 
 用法:python3 scripts/grounding_recall.py [project_path] [sample_n] [seed]
@@ -20,10 +20,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 # 真实 blame 引擎 + 单一 why 定义(与 review 溯源精度标注同源,杜绝两处 why 口径漂移)
-from vibetrace.blame import collect_segments, segment_has_why  # noqa: E402
-from vibetrace.cache import Cache                          # noqa: E402
-from vibetrace.config import CACHE_DB_PATH                 # noqa: E402
-from vibetrace.gitlog import collect_commit_files, tracked_files  # noqa: E402
+from codetalk.blame import collect_segments, segment_has_why  # noqa: E402
+from codetalk.cache import Cache                          # noqa: E402
+from codetalk.config import CACHE_DB_PATH                 # noqa: E402
+from codetalk.gitlog import collect_commit_files, tracked_files  # noqa: E402
 
 DEFAULT_N = 200
 DEFAULT_SEED = 1729
@@ -74,7 +74,7 @@ def measure(cache, project_root, samples):
 
 def _commit_coverage(cache, commits):
     """commit 级覆盖上限(对照 grounding_hitrate 口径,给行级召回一个参照系)。"""
-    from vibetrace.gitlog import parse_breadcrumbs
+    from codetalk.gitlog import parse_breadcrumbs
     grounded = 0
     for c in commits:
         n = cache.get_narrative(c["sha"]) or {}
@@ -90,9 +90,9 @@ def main(project=".", sample_n=DEFAULT_N, seed=DEFAULT_SEED):
     pp = Path(project).resolve()
     tracked = tracked_files(pp) or set()
     sources = sorted(f for f in tracked
-                     if f.startswith("vibetrace/") and f.endswith(".py"))
+                     if f.startswith("codetalk/") and f.endswith(".py"))
     if not sources:
-        print("未找到 vibetrace/*.py 源码(非 vibetrace 仓?)", file=sys.stderr)
+        print("未找到 codetalk/*.py 源码(非 codetalk 仓?)", file=sys.stderr)
         return 1
     file_lines = {f: _meaningful_lines(pp / f) for f in sources}
     file_lines = {f: lns for f, lns in file_lines.items() if lns}
@@ -106,7 +106,7 @@ def main(project=".", sample_n=DEFAULT_N, seed=DEFAULT_SEED):
     cache.close()
 
     print(f"# 接地召回自证 · {pp.name}(零 LLM,行级)\n")
-    print(f"scope:                vibetrace/*.py · {len(file_lines)} 文件 · "
+    print(f"scope:                codetalk/*.py · {len(file_lines)} 文件 · "
           f"{total_lines} 非空行")
     print(f"抽样(seed={seed}):    {m['sampled']} 行")
     print(f"无行历史(降级未中):  {m['no_history']}")
@@ -124,7 +124,7 @@ def main(project=".", sample_n=DEFAULT_N, seed=DEFAULT_SEED):
     print("\n诚实边界(关键):此数是**可达率/上限**——「blame 能够到一个 authored why」,"
           "**不等于**「够到的就是这一行**正确**的 why」(后者需语义判定/模型,违零-LLM,见 R6)。"
           "本仓饱和(99%+)源于其严格 dogfood 面包屑纪律,**不外推**别的仓。"
-          "抽样可复现;line_log top-12 窗口;scope=vibetrace/*.py 非空行。以复跑为准。")
+          "抽样可复现;line_log top-12 窗口;scope=codetalk/*.py 非空行。以复跑为准。")
     return 0
 
 

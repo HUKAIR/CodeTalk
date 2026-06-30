@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from vibetrace.gitlog import (collect_commit_files, collect_commits,
+from codetalk.gitlog import (collect_commit_files, collect_commits,
                               tracked_files)
 
 
@@ -105,7 +105,7 @@ class TestBriefGraphUseBatchBody(unittest.TestCase):
     def test_brief_coverage_single_batch_git_call(self):
         # 迁移后:覆盖率只跑一次批量 git log,不再为每个 commit 额外 git show
         self._second_commit()
-        from vibetrace import brief, gitlog
+        from codetalk import brief, gitlog
         calls = []
         real_git = gitlog._git
 
@@ -121,9 +121,9 @@ class TestBriefGraphUseBatchBody(unittest.TestCase):
     def test_graph_assemble_no_git_subprocess(self):
         # 迁移后:_assemble 用批量 commits 的 body,完全不再起 git 子进程
         self._second_commit()
-        from vibetrace import gitlog, graph
-        from vibetrace.cache import Cache
-        from vibetrace.gitlog import collect_commit_files
+        from codetalk import gitlog, graph
+        from codetalk.cache import Cache
+        from codetalk.gitlog import collect_commit_files
         commits, _ = collect_commit_files(self.d)
         cache = Cache(":memory:")
         with mock.patch.object(gitlog, "_git",

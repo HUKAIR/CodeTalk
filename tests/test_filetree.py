@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from vibetrace import filetree
+from codetalk import filetree
 
 
 class TestLabel(unittest.TestCase):

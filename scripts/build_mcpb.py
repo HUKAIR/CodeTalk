@@ -1,7 +1,7 @@
-"""构建 vibetrace.mcpb(MCP Bundle):zip(manifest.json + server/<纯 stdlib 源>)。
+"""构建 codetalk.mcpb(MCP Bundle):zip(manifest.json + server/<纯 stdlib 源>)。
 
-vibetrace 零三方依赖(pyproject dependencies=[]),故无需打包解释器/编译依赖——
-manifest 声明 `python3 -m vibetrace mcp-serve`,靠用户已装的 python3 运行,PYTHONPATH
+codetalk 零三方依赖(pyproject dependencies=[]),故无需打包解释器/编译依赖——
+manifest 声明 `python3 -m codetalk mcp-serve`,靠用户已装的 python3 运行,PYTHONPATH
 指向 bundle 内 server/。一次构建,Claude Code / Cursor / Codex 等所有 MCP 客户端一键装。
 纯 stdlib(zipfile/json),自身也不引依赖。
 """
@@ -20,7 +20,7 @@ def build(out_path, root=ROOT):
     root = Path(root)
     manifest = root / "manifest.json"
     json.loads(manifest.read_text(encoding="utf-8"))   # fail loud on bad manifest
-    pkg = root / "vibetrace"
+    pkg = root / "codetalk"
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(out_path, "w", zipfile.ZIP_DEFLATED) as z:
@@ -30,10 +30,10 @@ def build(out_path, root=ROOT):
                 continue
             if any(part in _SKIP_DIRS for part in p.relative_to(root).parts):
                 continue
-            z.write(p, str(Path("server") / p.relative_to(root)))  # server/vibetrace/...
+            z.write(p, str(Path("server") / p.relative_to(root)))  # server/codetalk/...
     return out_path
 
 
 if __name__ == "__main__":
-    out = build(ROOT / "vibetrace.mcpb")
+    out = build(ROOT / "codetalk.mcpb")
     print(f"built {out} ({out.stat().st_size} bytes)")

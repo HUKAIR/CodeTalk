@@ -4,7 +4,7 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from vibetrace import self_report
+from codetalk import self_report
 
 
 def _line(command, days_ago=0, **extra):

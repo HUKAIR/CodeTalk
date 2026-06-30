@@ -1,7 +1,7 @@
 import unittest
 from datetime import datetime, timezone
 
-from vibetrace import report
+from codetalk import report
 
 _STATS = {"commits": 1, "sessions": 0, "cache_hits": 0, "llm_calls": 1,
           "tokens_in": 0, "tokens_out": 0, "model": "m", "elapsed_s": 0.1}

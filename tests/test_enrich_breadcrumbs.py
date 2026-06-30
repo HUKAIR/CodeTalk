@@ -1,8 +1,8 @@
 import unittest
 from datetime import datetime, timezone
 
-from vibetrace import enrich
-from vibetrace.cache import Cache
+from codetalk import enrich
+from codetalk.cache import Cache
 
 
 class _FakeLLM:

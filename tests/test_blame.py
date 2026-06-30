@@ -10,8 +10,8 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
 
-from vibetrace import blame
-from vibetrace.cache import Cache
+from codetalk import blame
+from codetalk.cache import Cache
 
 
 def _git(args, cwd):

@@ -2,8 +2,8 @@ import json
 import unittest
 from unittest import mock
 
-from vibetrace.llm import LLMClient
-from vibetrace.prompts import ASK_SCHEMA, ASK_SYSTEM_PROMPT
+from codetalk.llm import LLMClient
+from codetalk.prompts import ASK_SCHEMA, ASK_SYSTEM_PROMPT
 
 
 def _cfg():

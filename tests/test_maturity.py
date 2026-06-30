@@ -6,9 +6,9 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from vibetrace import course
-from vibetrace.cache import Cache
-from vibetrace.llm import LLMError
+from codetalk import course
+from codetalk.cache import Cache
+from codetalk.llm import LLMError
 
 
 def _git(a, c):

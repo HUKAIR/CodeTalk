@@ -1,4 +1,4 @@
-"""M0 red line: every vibetrace/*.py module must stay under 300 lines.
+"""M0 red line: every codetalk/*.py module must stay under 300 lines.
 
 A single test that walks the package and fails on any violation —
 catches cap breaches before they merge, not after."""
@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 
 CAP = 300
-PKG = Path(__file__).resolve().parent.parent / "vibetrace"
+PKG = Path(__file__).resolve().parent.parent / "codetalk"
 
 
 class TestModuleCap(unittest.TestCase):

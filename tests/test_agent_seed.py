@@ -5,8 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from vibetrace import cli
-from vibetrace.hook import install_agent_seed
+from codetalk import cli
+from codetalk.hook import install_agent_seed
 
 
 class TestInstallAgentSeed(unittest.TestCase):
@@ -18,11 +18,11 @@ class TestInstallAgentSeed(unittest.TestCase):
         paths, err = install_agent_seed(self.d)
         self.assertIsNone(err)
         expected = {"CLAUDE.md", "AGENTS.md", ".cursorrules",
-                    "vibetrace.mdc", "copilot-instructions.md"}
+                    "codetalk.mdc", "copilot-instructions.md"}
         self.assertEqual({p.name for p in paths}, expected)
         for p in paths:
             text = p.read_text(encoding="utf-8")
-            self.assertIn("vibetrace-agent-seed", text)
+            self.assertIn("codetalk-agent-seed", text)
             self.assertIn("Vibe-Decision:", text)
             self.assertIn("Vibe-Watch:", text)
 
@@ -33,7 +33,7 @@ class TestInstallAgentSeed(unittest.TestCase):
         self.assertIsNone(err)
         text = claude.read_text(encoding="utf-8")
         self.assertIn("# 既有项目说明", text)            # 原内容保留
-        self.assertIn("vibetrace-agent-seed", text)      # 追加了种子
+        self.assertIn("codetalk-agent-seed", text)      # 追加了种子
 
     def test_idempotent_no_duplicate(self):
         install_agent_seed(self.d)
@@ -41,7 +41,7 @@ class TestInstallAgentSeed(unittest.TestCase):
         self.assertIsNone(err)
         for p in paths:
             text = p.read_text(encoding="utf-8")
-            self.assertEqual(text.count("vibetrace-agent-seed"), 1)
+            self.assertEqual(text.count("codetalk-agent-seed"), 1)
 
 
 class TestAgentSeedCLI(unittest.TestCase):
@@ -52,7 +52,7 @@ class TestAgentSeedCLI(unittest.TestCase):
             rc = cli.main(["install-agent-seed", "--project", d])
         self.assertEqual(rc, 0)
         text = (Path(d) / "CLAUDE.md").read_text(encoding="utf-8")
-        self.assertIn("vibetrace-agent-seed", text)
+        self.assertIn("codetalk-agent-seed", text)
         self.assertTrue((Path(d) / ".cursorrules").exists())
         self.assertTrue((Path(d) / ".github" / "copilot-instructions.md").exists())
 

@@ -1,8 +1,8 @@
-"""cli search 子命令 dispatch 测试:vibetrace search <question> [--project] → topic_search。"""
+"""cli search 子命令 dispatch 测试:codetalk search <question> [--project] → topic_search。"""
 import unittest
 from unittest import mock
 
-from vibetrace import cli, commands_view
+from codetalk import cli, commands_view
 
 
 class TestCliSearch(unittest.TestCase):

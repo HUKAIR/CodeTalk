@@ -10,8 +10,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from unittest import mock
 
-from vibetrace import align
-from vibetrace.prompts_view import build_prompts_view
+from codetalk import align
+from codetalk.prompts_view import build_prompts_view
 
 
 def _git(args, cwd):
@@ -42,9 +42,9 @@ class TestPromptsView(unittest.TestCase):
         self.assertIn("没有抓到指令", out)
 
     def test_files_relativized_no_absolute_leak(self):
-        s = _sess(files_written={"/proj/vibetrace/cli.py", "/home/secret/外部.py"})
+        s = _sess(files_written={"/proj/codetalk/cli.py", "/home/secret/外部.py"})
         out = build_prompts_view([s], [], Path("/proj"))
-        self.assertIn("vibetrace/cli.py", out)          # 仓内 → 相对路径
+        self.assertIn("codetalk/cli.py", out)          # 仓内 → 相对路径
         self.assertNotIn("/home/secret/外部.py", out)   # 仓外 → 不泄露绝对路径
         self.assertIn("外部.py", out)                   # 仓外 → 只留文件名
 
@@ -94,7 +94,7 @@ class TestPromptsCmd(unittest.TestCase):
         (Path(d) / "a.py").write_text("x\n")
         _git(["add", "."], d)
         _git(["commit", "-q", "-m", "init"], d)
-        from vibetrace import cli
+        from codetalk import cli
         buf = io.StringIO()
         with mock.patch.object(cli, "CACHE_DB_PATH", str(Path(d) / "cache.db")), \
              redirect_stdout(buf):

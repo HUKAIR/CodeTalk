@@ -8,9 +8,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 class TestAnswerHighlight(unittest.TestCase):
     def setUp(self):
-        # 直接读文件,避开 import vibetrace.web(fastapi 依赖)
+        # 直接读文件,避开 import codetalk.web(fastapi 依赖)
         self.html = (Path(__file__).resolve().parent.parent
-                     / "vibetrace" / "web_chat.html").read_text(encoding="utf-8")
+                     / "codetalk" / "web_chat.html").read_text(encoding="utf-8")
 
     def test_highlight_render_present(self):
         self.assertIn("function setBody", self.html)        # 单一 innerHTML sink

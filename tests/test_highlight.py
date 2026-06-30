@@ -1,7 +1,7 @@
 import sys, unittest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from vibetrace.highlight import segments, MIN_SPAN
+from codetalk.highlight import segments, MIN_SPAN
 
 
 def _cit(i, vb):

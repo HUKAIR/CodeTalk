@@ -3,7 +3,7 @@ import io
 import unittest
 from unittest import mock
 
-from vibetrace import cli, graph
+from codetalk import cli, graph
 
 
 class TestCliGraph(unittest.TestCase):

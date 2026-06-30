@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from vibetrace.drift import drift_rows  # noqa: E402
+from codetalk.drift import drift_rows  # noqa: E402
 
 _DT = datetime(2026, 6, 27, 12, 0, 0)
 

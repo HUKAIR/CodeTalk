@@ -2,7 +2,7 @@ import json
 import unittest
 from unittest import mock
 
-from vibetrace.llm import LLMClient
+from codetalk.llm import LLMClient
 
 
 def _cfg(provider="deepseek"):
@@ -85,7 +85,7 @@ class TestOpenAITruncationSalvage(unittest.TestCase):
 
     def test_truncation_capped_does_not_loop_forever(self):
         # 持续截断:max_tokens 涨到封顶后不再原地刷,最终 4 次内抛 LLMError(不无限)
-        from vibetrace.llm import LLMError
+        from codetalk.llm import LLMError
         trunc = {"choices": [{"finish_reason": "length",
                               "message": {"content": "{"}}], "usage": {}}
         calls = []

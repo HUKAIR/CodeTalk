@@ -2,8 +2,8 @@ import json
 import unittest
 from unittest import mock
 
-from vibetrace import ask
-from vibetrace.cache import Cache
+from codetalk import ask
+from codetalk.cache import Cache
 
 
 class _FakeLLM:
@@ -68,7 +68,7 @@ class TestAskJson(unittest.TestCase):
             model = "m"
 
             def narrate(self, *a, **k):
-                from vibetrace.llm import LLMError
+                from codetalk.llm import LLMError
                 raise LLMError("boom")
 
         with _patch_retrieve():

@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent.parent
-EXT = ROOT / "vscode-vibetrace" / "src" / "extension.ts"
+EXT = ROOT / "vscode-codetalk" / "src" / "extension.ts"
 
 
 class TestVscodeHoverSecurity(unittest.TestCase):

@@ -1,8 +1,8 @@
 import unittest
 from unittest import mock
 
-from vibetrace import ask, gitlog
-from vibetrace.cache import Cache
+from codetalk import ask, gitlog
+from codetalk.cache import Cache
 
 
 class TestRetrieve(unittest.TestCase):

@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from vibetrace import graph
+from codetalk import graph
 
 
 def _git(args, cwd):

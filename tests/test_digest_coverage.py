@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from vibetrace.digest import coverage_nudge  # noqa: E402
+from codetalk.digest import coverage_nudge  # noqa: E402
 
 
 class TestCoverageNudge(unittest.TestCase):
@@ -20,7 +20,7 @@ class TestCoverageNudge(unittest.TestCase):
         self.assertIn("78/85", msg)
         self.assertIn("91.8%", msg)
         self.assertIn("7 个", msg)
-        self.assertIn("vibetrace enrich", msg)
+        self.assertIn("codetalk enrich", msg)
 
     def test_labeled_narrative_coverage_not_grounding(self):
         # 必须叫「叙事覆盖」(enrich 补的是叙事),不得用「接地覆盖」——后者是

@@ -1,4 +1,4 @@
-"""#1 dogfood 开关:VIBETRACE_CAPSULE_DAYS 覆盖 21 天到期窗口,显式设值即 dogfood
+"""#1 dogfood 开关:CODETALK_CAPSULE_DAYS 覆盖 21 天到期窗口,显式设值即 dogfood
 (绕过 seal-guard,当天就能密封并开胶囊取首个回面数据点)。"""
 import os
 import tempfile
@@ -7,9 +7,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from unittest import mock
 
-from vibetrace import digest
-from vibetrace.cache import Cache
-from vibetrace.report import _OUTCOMES, read_capsule_answers
+from codetalk import digest
+from codetalk.cache import Cache
+from codetalk.report import _OUTCOMES, read_capsule_answers
 
 
 class TestCapsuleDays(unittest.TestCase):
@@ -18,19 +18,19 @@ class TestCapsuleDays(unittest.TestCase):
             self.assertEqual(digest._capsule_days(), (21, False))
 
     def test_env_override_marks_dogfood(self):
-        with mock.patch.dict(os.environ, {"VIBETRACE_CAPSULE_DAYS": "0"}):
+        with mock.patch.dict(os.environ, {"CODETALK_CAPSULE_DAYS": "0"}):
             self.assertEqual(digest._capsule_days(), (0, True))     # 0 天 + dogfood
 
     def test_small_window_dogfood(self):
-        with mock.patch.dict(os.environ, {"VIBETRACE_CAPSULE_DAYS": "1"}):
+        with mock.patch.dict(os.environ, {"CODETALK_CAPSULE_DAYS": "1"}):
             self.assertEqual(digest._capsule_days(), (1, True))
 
     def test_bad_value_falls_back_to_default(self):
-        with mock.patch.dict(os.environ, {"VIBETRACE_CAPSULE_DAYS": "xyz"}):
+        with mock.patch.dict(os.environ, {"CODETALK_CAPSULE_DAYS": "xyz"}):
             self.assertEqual(digest._capsule_days(), (21, False))   # 坏值不崩,回默认
 
     def test_negative_clamped_to_zero(self):
-        with mock.patch.dict(os.environ, {"VIBETRACE_CAPSULE_DAYS": "-5"}):
+        with mock.patch.dict(os.environ, {"CODETALK_CAPSULE_DAYS": "-5"}):
             self.assertEqual(digest._capsule_days(), (0, True))
 
 
@@ -70,7 +70,7 @@ class TestSealOnlyVibeWatch(unittest.TestCase):
     def test_secret_shaped_vibe_watch_still_seals(self):
         """含 secret 形的手写 Vibe-Watch:narrative.risks 经 enrich 脱敏成 [REDACTED],
         body 里的 watch 是原文。两侧须同口径脱敏后比,否则 exact-match 漏命中、永不封存。"""
-        from vibetrace.config import redact_secrets
+        from codetalk.config import redact_secrets
         watch_raw = 'rotate token="leakTok9988XY" before deploy'
         commit = {
             "sha": "def4567890abc",

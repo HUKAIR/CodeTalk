@@ -1,7 +1,7 @@
 import tempfile, unittest
 import unittest.mock
 from pathlib import Path
-from vibetrace import report
+from codetalk import report
 
 
 class TestUsageLogRedacted(unittest.TestCase):

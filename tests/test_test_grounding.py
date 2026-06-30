@@ -6,15 +6,15 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
-from vibetrace import ask, blame, enrich
-from vibetrace.cache import Cache
+from codetalk import ask, blame, enrich
+from codetalk.cache import Cache
 
 
 def _proj_with_test():
     d = tempfile.mkdtemp()
-    (Path(d) / "vibetrace").mkdir()
+    (Path(d) / "codetalk").mkdir()
     (Path(d) / "tests").mkdir()
-    (Path(d) / "vibetrace" / "mod.py").write_text("x = 1\n", encoding="utf-8")
+    (Path(d) / "codetalk" / "mod.py").write_text("x = 1\n", encoding="utf-8")
     (Path(d) / "tests" / "test_mod.py").write_text(
         "def test_alpha():\n    assert True\n\ndef test_beta():\n    assert True\n",
         encoding="utf-8")
@@ -25,7 +25,7 @@ class TestTestRefsHelper(unittest.TestCase):
     def test_maps_source_to_test(self):
         d = _proj_with_test()
         self.addCleanup(shutil.rmtree, d, ignore_errors=True)
-        refs = enrich._test_refs(d, {"files": ["vibetrace/mod.py"]})
+        refs = enrich._test_refs(d, {"files": ["codetalk/mod.py"]})
         self.assertEqual(refs, [{"path": "tests/test_mod.py",
                                  "names": ["test_alpha", "test_beta"]}])
 
@@ -39,7 +39,7 @@ class TestTestRefsHelper(unittest.TestCase):
     def test_none_when_no_matching_test(self):
         d = _proj_with_test()
         self.addCleanup(shutil.rmtree, d, ignore_errors=True)
-        self.assertEqual(enrich._test_refs(d, {"files": ["vibetrace/other.py"]}), [])
+        self.assertEqual(enrich._test_refs(d, {"files": ["codetalk/other.py"]}), [])
 
     def test_empty_files(self):
         self.assertEqual(enrich._test_refs("/nonexistent", {}), [])
@@ -96,7 +96,7 @@ class TestEndToEndDogfood(unittest.TestCase):
         self.addCleanup(shutil.rmtree, d, ignore_errors=True)
         commit = {"sha": "a" * 40, "subject": "feat: mod", "body": "",
                   "author": "t", "date": datetime(2026, 6, 21, tzinfo=timezone.utc),
-                  "stat": "", "diff_excerpt": "", "files": ["vibetrace/mod.py"],
+                  "stat": "", "diff_excerpt": "", "files": ["codetalk/mod.py"],
                   "matches": []}
         cache = Cache(":memory:")
         enrich.enrich_commits([commit], _FakeLLM(), cache, d)

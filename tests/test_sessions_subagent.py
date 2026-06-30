@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from vibetrace import sessions
+from codetalk import sessions
 
 
 def _line(obj):
@@ -219,7 +219,7 @@ class TestFormatDriftWarning(unittest.TestCase):
             p = Path(tmp) / "sess.jsonl"
             # 缺 timestamp(只有 type)→ 应触发格式漂移告警
             p.write_text(_line({"type": "user", "foo": "bar"}), encoding="utf-8")
-            with self.assertLogs("vibetrace", level="WARNING") as cm:
+            with self.assertLogs("codetalk", level="WARNING") as cm:
                 sessions._parse_file(p)
             self.assertTrue(any("format may have changed" in m for m in cm.output))
 
@@ -229,7 +229,7 @@ class TestFormatDriftWarning(unittest.TestCase):
             p.write_text(_line({"type": "user", "timestamp":
                                 "2026-06-30T08:00:00Z", "uuid": "u1"}),
                          encoding="utf-8")
-            with self.assertNoLogs("vibetrace", level="WARNING"):
+            with self.assertNoLogs("codetalk", level="WARNING"):
                 sessions._parse_file(p)
 
     def test_no_warn_on_non_envelope_record_without_timestamp(self):
@@ -243,7 +243,7 @@ class TestFormatDriftWarning(unittest.TestCase):
                 + _line({"type": "user", "timestamp": "2026-06-30T08:00:00Z",
                          "message": {"role": "user", "content": "x"}}),
                 encoding="utf-8")
-            with self.assertNoLogs("vibetrace", level="WARNING"):
+            with self.assertNoLogs("codetalk", level="WARNING"):
                 sessions._parse_file(p)
 
     def test_warns_when_type_field_absent(self):
@@ -252,7 +252,7 @@ class TestFormatDriftWarning(unittest.TestCase):
             p = Path(tmp) / "drift.jsonl"
             p.write_text(_line({"role": "user", "content": "无 type 字段"}),
                          encoding="utf-8")
-            with self.assertLogs("vibetrace", level="WARNING") as cm:
+            with self.assertLogs("codetalk", level="WARNING") as cm:
                 sessions._parse_file(p)
             self.assertTrue(any("format may have changed" in m for m in cm.output))
 

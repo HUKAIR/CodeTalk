@@ -1,7 +1,7 @@
 import unittest
 from pathlib import Path
 
-from vibetrace import web
+from codetalk import web
 
 
 class TestWebChatFiletree(unittest.TestCase):

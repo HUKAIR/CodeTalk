@@ -8,8 +8,8 @@ from datetime import datetime
 from pathlib import Path
 from unittest import mock
 
-from vibetrace import cli, console
-from vibetrace.cache import Cache
+from codetalk import cli, console
+from codetalk.cache import Cache
 
 
 def _git(a, c):
@@ -162,7 +162,7 @@ class TestConsoleNavDeepLink(unittest.TestCase):
         self.assertIn("location.hash", self.html)       # nav/jump/键盘 经 hash 切换
 
     def test_remembers_last_view(self):
-        self.assertIn("vibetrace.view.", self.html)     # 上次视图持久化 key
+        self.assertIn("codetalk.view.", self.html)     # 上次视图持久化 key
         self.assertIn("validView", self.html)           # 恢复前校验合法视图
 
     def test_keyboard_view_switch_guarded(self):
@@ -305,7 +305,7 @@ class TestAccessibilityAndReanswer(unittest.TestCase):
 
 
 class TestConsoleChatEmbed(unittest.TestCase):
-    """P0a 去 silo:vibetrace web 服务时 console 内嵌接地对话 dock;静态/只读不挂。"""
+    """P0a 去 silo:codetalk web 服务时 console 内嵌接地对话 dock;静态/只读不挂。"""
 
     def _repo(self):
         d = tempfile.mkdtemp()
@@ -329,7 +329,7 @@ class TestConsoleChatEmbed(unittest.TestCase):
         with mock.patch.object(console, "CACHE_DB_PATH", dbfile):
             html, _p, err = console._build_html(d, serve=True, chat=True)
         self.assertIsNone(err)
-        self.assertIn("var CHAT = true", html)         # vibetrace web → chat 启用
+        self.assertIn("var CHAT = true", html)         # codetalk web → chat 启用
         self.assertIn('id="chatdock"', html)           # 内嵌 dock
         self.assertIn("/api/chat/stream", html)        # 流式接地对话端点(同源)
         self.assertIn("接地追问这段", html)            # 链 A:时光轴行内原地追问
@@ -362,7 +362,7 @@ class TestFiletreeAssemble(unittest.TestCase):
         _git(["config", "user.name", "t"], d)
         (Path(d) / "a.py").write_text("1\n"); _git(["add", "."], d)
         _git(["commit", "-q", "-m", "c1"], d)
-        from vibetrace import filetree as _ft
+        from codetalk import filetree as _ft
         with mock.patch.object(_ft.gitlog, "tracked_files", return_value=None):
             data, err = console._assemble(d, Cache(":memory:"))
         self.assertIsNone(err)
@@ -382,7 +382,7 @@ class TestFiletreeView(unittest.TestCase):
     def test_tree_and_panel_and_blame_hint(self):
         self.assertIn("fttree", self.html)                        # 左树容器
         self.assertIn('id="ftpanel"', self.html)                  # 右接地面板
-        self.assertIn("vibetrace blame", self.html)               # 无叙事降级指引
+        self.assertIn("codetalk blame", self.html)               # 无叙事降级指引
         self.assertIn('class="stb"', self.html)                   # 状态徽章标记
 
     def test_file_nodes_keyboard_accessible_and_collapsible(self):
@@ -401,7 +401,7 @@ class TestConsoleCLI(unittest.TestCase):
             called["pp"] = pp
             return Path("/x/c.html"), None
 
-        with mock.patch("vibetrace.console.render_console", fake_render), \
+        with mock.patch("codetalk.console.render_console", fake_render), \
              contextlib.redirect_stdout(io.StringIO()):
             rc = cli.main(["console", "--project", "."])
         self.assertEqual(rc, 0)

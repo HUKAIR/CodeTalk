@@ -3,7 +3,7 @@ import json, sqlite3, tempfile, unittest
 import unittest.mock
 from pathlib import Path
 from urllib.parse import quote
-from vibetrace import cursor_sessions as cs
+from codetalk import cursor_sessions as cs
 
 def make_workspace(user_dir, folder_path, composer_ids):
     """造一个 workspaceStorage/<h>/ : workspace.json(folder URI) + state.vscdb(ItemTable)。"""
@@ -81,7 +81,7 @@ class TestParseComposer(unittest.TestCase):
             self.assertIn("[REDACTED]", s["prompts"][0])
             self.assertNotIn("sk-abcdef0123456789ABCD", s["prompts"][0])
 
-from vibetrace.cache import Cache
+from codetalk.cache import Cache
 
 class TestScanSessions(unittest.TestCase):
     def _setup(self, t):
@@ -138,7 +138,7 @@ def make_global_rich(user_dir, composer_id, head, bubbles, created=1000):
 
 
 from datetime import datetime, timezone
-from vibetrace import align
+from codetalk import align
 
 
 class TestEditContextSeparation(unittest.TestCase):

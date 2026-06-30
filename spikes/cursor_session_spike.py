@@ -1,9 +1,9 @@
-"""只读 spike:从 Cursor 本地 SQLite 抽取一段 AI 会话,验证 vibetrace 能否吃 Cursor 源。
+"""只读 spike:从 Cursor 本地 SQLite 抽取一段 AI 会话,验证 codetalk 能否吃 Cursor 源。
 
 不是生产功能,是可行性验证(POC)。纯本地、只读、不外传;输出前 redact_secrets 脱敏 +
 消息正文截断(对话比代码更敏感)。回答三件事:
   1) composerData/bubble 里真有 用户提问 + AI 回答 + 文件上下文 + 时间戳 吗?
-  2) 能映射成 vibetrace 的 session 结构(prompts/excerpts/files/ts)吗?
+  2) 能映射成 codetalk 的 session 结构(prompts/excerpts/files/ts)吗?
   3) 自带的 文件/commit 引用,够不够给现有 align.py 做 session↔commit 软关联?
 
 用法:  python3 spikes/cursor_session_spike.py            # 自动挑最近最丰富的一段
@@ -16,10 +16,10 @@ import sqlite3
 import sys
 from pathlib import Path
 
-# 复用 vibetrace 脱敏;独立运行时退化为占位(spike 不强依赖)
+# 复用 codetalk 脱敏;独立运行时退化为占位(spike 不强依赖)
 try:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-    from vibetrace.config import redact_secrets
+    from codetalk.config import redact_secrets
 except Exception:  # pragma: no cover - spike fallback
     def redact_secrets(t):
         return t
@@ -85,7 +85,7 @@ def _files_from_bubble(b):
 
 
 def extract_session(con, cid):
-    """映射成 vibetrace session 形状:prompts / excerpts / files / commits / ts。"""
+    """映射成 codetalk session 形状:prompts / excerpts / files / commits / ts。"""
     head = _load(con, f"composerData:{cid}") or {}
     rows = con.execute(
         "SELECT key, value FROM cursorDiskKV WHERE key LIKE ?",
@@ -136,7 +136,7 @@ def main():
     cid = sys.argv[1] if len(sys.argv) > 1 else sessions[0][0]
     s = extract_session(con, cid)
     con.close()
-    print(f"\n== 抽取样例会话 {cid[:8]} (映射成 vibetrace session 形状) ==")
+    print(f"\n== 抽取样例会话 {cid[:8]} (映射成 codetalk session 形状) ==")
     print(f"createdAt={s['created_at']}  bubbles={s['bubble_count']}  "
           f"用户提问 {len(s['prompts'])} 条 / AI 回答 {len(s['excerpts'])} 条")
     print(f"涉及文件 {len(s['files_touched'])} 个 / 引用 commit {len(s['commits_referenced'])} 个 "
@@ -154,7 +154,7 @@ def main():
     has_text = bool(s["prompts"] or s["excerpts"])
     has_files = bool(s["files_touched"])
     print(f"  ① 有 用户提问+AI回答+时间戳 : {'是' if has_text else '否'}")
-    print(f"  ② 能映射 vibetrace session : 是(本函数已映射)")
+    print(f"  ② 能映射 codetalk session : 是(本函数已映射)")
     print(f"  ③ 自带文件/commit 上下文够软关联 : "
           f"{'是' if has_files or s['commits_referenced'] else '弱(需靠时间窗兜底)'}")
 

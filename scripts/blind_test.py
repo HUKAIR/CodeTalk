@@ -1,8 +1,8 @@
-"""护城河盲测(可复跑):纯 diff 反推 why vs vibetrace 引真实记录。
+"""护城河盲测(可复跑):纯 diff 反推 why vs codetalk 引真实记录。
 
 对位 README 那个手工 6-commit 盲测(此前明说『无单条复跑脚本』)——把它产品化:对任意仓取 N 个
 带真实面包屑的 commit,把**脱敏后、仅代码段的 diff**(无 message/注释/上下文,且**剔除文档段**)喂 LLM
-让它反推『当初为什么、否决了什么』,跟 vibetrace 零-LLM 引的真实面包屑并排。**剔文档段**是因为 doc 编辑
+让它反推『当初为什么、否决了什么』,跟 codetalk 零-LLM 引的真实面包屑并排。**剔文档段**是因为 doc 编辑
 的 diff 本身就是散文理由,留着会让纯 diff 反推变成『读散文』而非真考古、高估对手;doc/散文-only commit
 的代码段为空即排除。
 
@@ -23,10 +23,10 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from vibetrace.config import load_config, redact_data           # noqa: E402
-from vibetrace.gitlog import (collect_commit_files, commit_diff,  # noqa: E402
+from codetalk.config import load_config, redact_data           # noqa: E402
+from codetalk.gitlog import (collect_commit_files, commit_diff,  # noqa: E402
                               parse_breadcrumbs, parse_rejected)
-from vibetrace.llm import LLMClient, LLMError                    # noqa: E402
+from codetalk.llm import LLMClient, LLMError                    # noqa: E402
 
 DEFAULT_N = 6
 _MIN_BLOCK = 4         # 词重叠最小连续匹配长度,滤短噪
@@ -106,7 +106,7 @@ def format_comparison(commit, real, reconstruction, ratio, label):
     date = (raw_date.isoformat()[:10] if hasattr(raw_date, "isoformat")
             else str(raw_date or "")[:10])
     lines = [f"## [{sha}] {date} {commit.get('subject', '')}",
-             "**vibetrace 引真实记录(零-LLM,逐字):**"]
+             "**codetalk 引真实记录(零-LLM,逐字):**"]
     lines += [f"- {r}" for r in real] or ["-(无)"]
     lines += ["", "**纯 diff 反推(LLM,只给 diff):**",
               reconstruction or "(无 key,未跑反推)", "",
@@ -161,7 +161,7 @@ def main(project=".", n=DEFAULT_N):
             except LLMError as exc:
                 recon = f"(反推失败:{exc})"
         blocks.append(format_comparison(s["commit"], s["real"], recon, s["ratio"], s["label"]))
-    print(f"# 护城河盲测 · {pp.name}(纯 diff 反推[仅代码段] vs vibetrace 真实记录)\n")
+    print(f"# 护城河盲测 · {pp.name}(纯 diff 反推[仅代码段] vs codetalk 真实记录)\n")
     print(f"候选带面包屑 commit {len(crumbed)}(排除 doc/散文-only {excluded_prose} 个=diff 无代码段,"
           f"剩 {len(scored)} 个代码 commit)· 全库泄漏分布:未夹带 {bands['未夹带']} / "
           f"部分夹带 {bands['部分夹带']} / 已夹带 {bands['已夹带']}")

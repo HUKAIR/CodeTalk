@@ -4,7 +4,7 @@ from unittest import mock
 
 from fastapi.testclient import TestClient
 
-from vibetrace import web
+from codetalk import web
 
 
 def _client():

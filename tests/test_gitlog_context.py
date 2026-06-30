@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from vibetrace.gitlog import collect_commits, prior_commit
+from codetalk.gitlog import collect_commits, prior_commit
 
 
 def _git(args, cwd):

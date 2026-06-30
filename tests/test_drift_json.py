@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from vibetrace.drift import drift_json
+from codetalk.drift import drift_json
 
 
 class TestDriftJson(unittest.TestCase):

@@ -3,8 +3,8 @@ C-3 同源(喂模型材料含真实原话锚点、citations 同源)· C-1 出网
 no_llm/材料空 不调 LLM 降级 · 落库反哺。全 stdlib，无需 key/网络。"""
 import unittest
 
-from vibetrace import chat, retrieval
-from vibetrace.cache import Cache
+from codetalk import chat, retrieval
+from codetalk.cache import Cache
 
 
 def _seed(c):
@@ -99,7 +99,7 @@ class TestChat(unittest.TestCase):
     def test_turn_persisted_and_recallable(self):
         c = Cache(":memory:"); self.addCleanup(c.close); _seed(c)
         chat.answer(c, _FakeLLM(), "/proj", "流式响应", conv_id="cv", now="t", turn_seq=0)
-        from vibetrace import conversation
+        from codetalk import conversation
         turns = conversation.list_conversation(c, "cv")
         self.assertEqual([t["role"] for t in turns], ["user", "assistant"])
 
@@ -126,7 +126,7 @@ class TestChatStream(unittest.TestCase):
         self.assertEqual(events[-1]["type"], "done")
         self.assertFalse(events[-1]["degraded"])
         self.assertGreaterEqual(len(events[-1]["citations"]), 1)
-        from vibetrace import conversation
+        from codetalk import conversation
         turns = conversation.list_conversation(c, "s")
         self.assertEqual(turns[-1]["text"], "因为要支持流式响应")   # 落库=完整答案
 

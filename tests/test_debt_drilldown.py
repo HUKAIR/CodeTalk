@@ -7,8 +7,8 @@ import unittest
 from datetime import date
 from pathlib import Path
 
-from vibetrace import debt
-from vibetrace.cache import Cache
+from codetalk import debt
+from codetalk.cache import Cache
 
 
 def _git(a, c):

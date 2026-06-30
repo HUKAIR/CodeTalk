@@ -1,4 +1,4 @@
-"""vibetrace review:统一 diff 解析 + 逐改动块零-LLM 历史决策溯源。纯本地 git,无 key/网络。"""
+"""codetalk review:统一 diff 解析 + 逐改动块零-LLM 历史决策溯源。纯本地 git,无 key/网络。"""
 import shutil
 import subprocess
 import tempfile
@@ -6,10 +6,10 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from vibetrace import review as review_mod
-from vibetrace.blame import collect_graded, segment_has_why
-from vibetrace.cache import Cache
-from vibetrace.review import parse_unified_diff, review
+from codetalk import review as review_mod
+from codetalk.blame import collect_graded, segment_has_why
+from codetalk.cache import Cache
+from codetalk.review import parse_unified_diff, review
 
 
 def _git(a, c):
@@ -129,7 +129,7 @@ class TestReview(unittest.TestCase):
 
     def test_review_caps_hunks_on_large_diff(self):
         # 大仓大 diff:逐块 blame O(hunks) → 上限 MAX_REVIEW_HUNKS,超出截断 + 提示(防卡死/过慢)
-        from vibetrace.review import MAX_REVIEW_HUNKS
+        from codetalk.review import MAX_REVIEW_HUNKS
         n = MAX_REVIEW_HUNKS + 5
         diff = "--- a/a.py\n+++ b/a.py\n" + "".join(
             f"@@ -{i},1 +{i},1 @@\n-x\n+y\n" for i in range(1, n + 1))
@@ -138,7 +138,7 @@ class TestReview(unittest.TestCase):
         self.assertIsNone(err)
         self.assertIn(str(n), out)                       # 回显总块数
         self.assertIn(str(MAX_REVIEW_HUNKS), out)        # 回显上限
-        self.assertIn("vibetrace blame", out)            # 指引单点查余下
+        self.assertIn("codetalk blame", out)            # 指引单点查余下
         # 只处理前 cap 块:输出里的块标记数不超过 cap
         self.assertLessEqual(out.count("溯源精度:"), MAX_REVIEW_HUNKS)
 
@@ -160,7 +160,7 @@ class TestGroundingBadge(unittest.TestCase):
     """A1:接地强度三档徽标(行级/文件级/无逐字溯源)一眼可读;只描述 provenance 轴,
     绝不打语义对错(R6:零-LLM 不判 grounded/inferred/unsupported)。"""
     def test_three_tier_badge_glanceable(self):
-        from vibetrace.review import _precision_label
+        from codetalk.review import _precision_label
         seg = [{"why": "x"}]
         self.assertIn("[行级溯源]", _precision_label("line", seg))
         self.assertIn("[文件级溯源]", _precision_label("file", seg))
@@ -169,7 +169,7 @@ class TestGroundingBadge(unittest.TestCase):
         self.assertIn("溯源精度:", _precision_label("line", seg))
 
     def test_badge_is_provenance_not_semantic(self):
-        from vibetrace.review import _BADGE
+        from codetalk.review import _BADGE
         for v in _BADGE.values():
             for banned in ("推测", "inferred", "unsupported", "grounded",
                            "对不对", "可信", "可靠", "正确"):

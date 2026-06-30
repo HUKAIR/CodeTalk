@@ -5,7 +5,7 @@ from pathlib import Path
 
 from scripts.check_static_no_external import check_file, scan
 
-_PKG = Path(__file__).resolve().parent.parent / "vibetrace"
+_PKG = Path(__file__).resolve().parent.parent / "codetalk"
 
 
 class TestCheckStatic(unittest.TestCase):

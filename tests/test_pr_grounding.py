@@ -8,8 +8,8 @@ import unittest
 from datetime import datetime, timezone
 from unittest import mock
 
-from vibetrace import ask, blame, digest, enrich, gitlog
-from vibetrace.cache import Cache
+from codetalk import ask, blame, digest, enrich, gitlog
+from codetalk.cache import Cache
 
 
 # ----- (a) pr_discussion 解析 + (b) 容错降级 ------------------------------

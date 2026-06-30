@@ -2,8 +2,8 @@
 import copy
 import unittest
 
-from vibetrace.config import DEFAULTS
-from vibetrace.llm import LLMClient, LLMError
+from codetalk.config import DEFAULTS
+from codetalk.llm import LLMClient, LLMError
 
 
 def _cfg(provider, providers_extra=None, no_llm=False):

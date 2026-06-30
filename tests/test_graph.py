@@ -4,8 +4,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from unittest import mock
 
-from vibetrace import graph
-from vibetrace.cache import Cache
+from codetalk import graph
+from codetalk.cache import Cache
 
 
 def _c(sha, day, files, subject="s", body=""):

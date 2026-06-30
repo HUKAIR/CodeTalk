@@ -9,8 +9,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from vibetrace import cli
-from vibetrace.cache import Cache
+from codetalk import cli
+from codetalk.cache import Cache
 
 
 def _git(a, c):
@@ -54,7 +54,7 @@ class TestEnrichCmd(unittest.TestCase):
     def _run(self, *extra_argv):
         fake = _FakeLLM()
         with mock.patch.object(cli, "CACHE_DB_PATH", self.db), \
-             mock.patch("vibetrace.llm.LLMClient", return_value=fake), \
+             mock.patch("codetalk.llm.LLMClient", return_value=fake), \
              contextlib.redirect_stdout(io.StringIO()):
             rc = cli.main(["enrich", "--project", self.d, *extra_argv])
         return rc, fake
@@ -95,7 +95,7 @@ class TestEnrichCmd(unittest.TestCase):
 
     def test_backfill_evidence_from_aligned_sessions(self):
         from datetime import datetime
-        from vibetrace import enrich
+        from codetalk import enrich
         c = Cache(self.db)
         c.put_narrative(self.sha1, self.pkey, "m", {"why": "w", "decisions": []})  # 无 evidence
         commit = {"sha": self.sha1, "matches": [{"confidence": "high", "overlap": [],
@@ -108,7 +108,7 @@ class TestEnrichCmd(unittest.TestCase):
         self.assertEqual(n["evidence"][0]["prompts"], ["当初为什么这么写"])  # 收割到原话锚点
 
     def test_backfill_evidence_skips_when_already_present(self):
-        from vibetrace import enrich
+        from codetalk import enrich
         c = Cache(self.db)
         c.put_narrative(self.sha1, self.pkey, "m",
                         {"why": "w", "evidence": [{"source": "x"}]})   # 已有 evidence
@@ -166,7 +166,7 @@ class TestEnrichCmd(unittest.TestCase):
     def test_inmemory_narrative_redacts_quote_delimited_secret(self):
         """enrich 后的 in-memory narrative 也须脱敏(不只 cache):key="value" 形 secret
         若只靠 dumps-后-redact 会漏;redact_data 结构脱敏让 commit['narrative'] 直读也安全。"""
-        from vibetrace import enrich
+        from codetalk import enrich
 
         class _LeakLLM:
             model = "fake"

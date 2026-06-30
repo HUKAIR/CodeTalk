@@ -1,30 +1,70 @@
 {
   "manifest_version": "0.3",
-  "name": "vibetrace",
-  "display_name": "vibetrace —— 代码当初为什么这么写",
+  "name": "codetalk",
+  "display_name": "CodeTalk —— 代码当初为什么这么写",
   "version": "0.1.0",
   "description": "本地优先的代码决策溯源:就一段代码接地提问『当初为什么这么写』,用真实 commit / 测试 / PR / 会话原话作答。blame/graph/search 零 LLM、数据不出本机。",
-  "author": { "name": "vibetrace" },
-  "repository": { "type": "git", "url": "https://github.com/HUKAIR/CodeTalk" },
+  "author": {
+    "name": "codetalk"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/HUKAIR/CodeTalk"
+  },
   "license": "AGPL-3.0-or-later",
-  "keywords": ["git", "code-archaeology", "local-first", "zero-llm", "grounding"],
+  "keywords": [
+    "git",
+    "code-archaeology",
+    "local-first",
+    "zero-llm",
+    "grounding"
+  ],
   "server": {
     "type": "python",
-    "entry_point": "server/vibetrace/__main__.py",
+    "entry_point": "server/codetalk/__main__.py",
     "mcp_config": {
       "command": "python3",
-      "args": ["-m", "vibetrace", "mcp-serve", "--project", "${user_config.project}"],
-      "env": { "PYTHONPATH": "${__dirname}/server" }
+      "args": [
+        "-m",
+        "codetalk",
+        "mcp-serve",
+        "--project",
+        "${user_config.project}"
+      ],
+      "env": {
+        "PYTHONPATH": "${__dirname}/server"
+      }
     }
   },
   "tools": [
-    { "name": "vibetrace_ask", "description": "Grounded code Q&A: answer 'why was this code written this way' using real commit narratives and verbatim citations with SHA" },
-    { "name": "vibetrace_blame", "description": "Line-level decision provenance (zero-LLM): lists commits that touched these lines with real decisions and verbatim citations" },
-    { "name": "vibetrace_graph", "description": "Decision impact graph (timeline DAG, zero-LLM): which decision commits rippled into subsequent changes" },
-    { "name": "vibetrace_search", "description": "Topic-level 'why' recall (zero-LLM): search project memory by keyword for real why/decisions from matching commits" },
-    { "name": "vibetrace_drift", "description": "Deviation report (zero-LLM): AI tool actions vs actual git commits — shows files edited but never committed" },
-    { "name": "vibetrace_prompts", "description": "Replay your prompts to AI coding agents (zero-LLM, local-only) with soft-aligned commits" },
-    { "name": "vibetrace_adr", "description": "Export Architecture Decision Record from real git history (zero-LLM) with verbatim commit citations" }
+    {
+      "name": "codetalk_ask",
+      "description": "Grounded code Q&A: answer 'why was this code written this way' using real commit narratives and verbatim citations with SHA"
+    },
+    {
+      "name": "codetalk_blame",
+      "description": "Line-level decision provenance (zero-LLM): lists commits that touched these lines with real decisions and verbatim citations"
+    },
+    {
+      "name": "codetalk_graph",
+      "description": "Decision impact graph (timeline DAG, zero-LLM): which decision commits rippled into subsequent changes"
+    },
+    {
+      "name": "codetalk_search",
+      "description": "Topic-level 'why' recall (zero-LLM): search project memory by keyword for real why/decisions from matching commits"
+    },
+    {
+      "name": "codetalk_drift",
+      "description": "Deviation report (zero-LLM): AI tool actions vs actual git commits — shows files edited but never committed"
+    },
+    {
+      "name": "codetalk_prompts",
+      "description": "Replay your prompts to AI coding agents (zero-LLM, local-only) with soft-aligned commits"
+    },
+    {
+      "name": "codetalk_adr",
+      "description": "Export Architecture Decision Record from real git history (zero-LLM) with verbatim commit citations"
+    }
   ],
   "tools_generated": false,
   "user_config": {
@@ -36,6 +76,8 @@
     }
   },
   "compatibility": {
-    "runtimes": { "python": ">=3.11" }
+    "runtimes": {
+      "python": ">=3.11"
+    }
   }
 }

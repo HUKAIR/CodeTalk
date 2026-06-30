@@ -14,10 +14,10 @@ from contextlib import redirect_stderr
 from pathlib import Path
 from unittest import mock
 
-import vibetrace.config as config
-from vibetrace import cli
-from vibetrace.config import DEFAULTS
-from vibetrace.llm import LLMClient, LLMError
+import codetalk.config as config
+from codetalk import cli
+from codetalk.config import DEFAULTS
+from codetalk.llm import LLMClient, LLMError
 
 
 def _git(a, c):
@@ -36,12 +36,12 @@ class TestNoLlmChokepoint(unittest.TestCase):
     def test_default_no_llm_false(self):
         with mock.patch.object(config, "CONFIG_PATH", Path("/nonexistent/vt.json")), \
              mock.patch.dict(os.environ, {}, clear=False):
-            os.environ.pop("VIBETRACE_NO_LLM", None)
+            os.environ.pop("CODETALK_NO_LLM", None)
             self.assertFalse(config.load_config().get("no_llm"))
 
     def test_env_var_sets_no_llm(self):
         with mock.patch.object(config, "CONFIG_PATH", Path("/nonexistent/vt.json")), \
-             mock.patch.dict(os.environ, {"VIBETRACE_NO_LLM": "1"}):
+             mock.patch.dict(os.environ, {"CODETALK_NO_LLM": "1"}):
             self.assertTrue(config.load_config().get("no_llm"))
 
 

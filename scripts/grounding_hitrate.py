@@ -10,9 +10,9 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from vibetrace.cache import Cache                                  # noqa: E402
-from vibetrace.config import CACHE_DB_PATH                         # noqa: E402
-from vibetrace.gitlog import collect_commit_files, parse_breadcrumbs  # noqa: E402
+from codetalk.cache import Cache                                  # noqa: E402
+from codetalk.config import CACHE_DB_PATH                         # noqa: E402
+from codetalk.gitlog import collect_commit_files, parse_breadcrumbs  # noqa: E402
 
 
 def measure(cache, commits):

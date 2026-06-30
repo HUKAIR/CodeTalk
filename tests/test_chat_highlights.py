@@ -5,8 +5,8 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from vibetrace import chat  # noqa: E402
-from vibetrace.cache import Cache  # noqa: E402
+from codetalk import chat  # noqa: E402
+from codetalk.cache import Cache  # noqa: E402
 
 
 class TestChatHighlights(unittest.TestCase):
