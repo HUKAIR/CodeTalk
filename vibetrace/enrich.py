@@ -193,7 +193,7 @@ def enrich_commits(commits, llm, cache, project, with_pr=False, force=False):
                 commit["narrative"] = cached
                 stats["cache_hits"] += 1
                 continue
-        if _is_trivial(commit):  # 机械提交:不调 LLM,存稀疏 stub,仍进时间线
+        if not force and _is_trivial(commit):  # 机械提交:不调 LLM;force=reenrich 时跳过此门
             stub = {"what": commit["subject"],
                     "why": "机械改动(lockfile/生成文件),未叙事",
                     "decisions": [], "risks": [], "open_loops": []}

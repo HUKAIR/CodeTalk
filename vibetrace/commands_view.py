@@ -118,26 +118,7 @@ def prompts_cmd(args):
     return 0
 
 
-def _scan_sessions(cfg, args, pp, cache):
-    """按 config.sources/--source 扫会话(增量缓存)。"""
-    from . import codex_sessions, cursor_sessions, sessions
-    from .digest import _since_to_dt, _sources
-    import logging
-    log = logging.getLogger("vibetrace")
-    since_dt = _since_to_dt(args.since)
-    srcs = _sources(cfg, args)
-    sess = []
-    for name, mod in (("claude", sessions), ("cursor", cursor_sessions),
-                      ("codex", codex_sessions)):
-        if name not in srcs:
-            continue
-        if name != "claude":
-            mod.maybe_notice()
-        lst, err = mod.scan_sessions(pp, since_dt, cache)
-        if err:
-            log.warning("%s 会话层降级:%s", name, err)
-        sess += lst
-    return sess
+from .commands import _scan_sessions  # 单一来源,避免两份逻辑分叉
 
 
 def web_cmd(args):

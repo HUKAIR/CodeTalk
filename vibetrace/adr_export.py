@@ -34,7 +34,8 @@ def _to_cyclonedx(target, segments):
             latest_ts = s["date"]
             break
     seed = (target + "|" + "|".join(s.get("sha", "") for s in segments)).encode()
-    serial = "urn:uuid:" + hashlib.sha256(seed).hexdigest()[:32]
+    h = hashlib.sha256(seed).hexdigest()[:32]
+    serial = f"urn:uuid:{h[:8]}-{h[8:12]}-{h[12:16]}-{h[16:20]}-{h[20:32]}"
     components = []
     for s in segments:
         props = []
