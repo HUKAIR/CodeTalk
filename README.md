@@ -97,9 +97,11 @@ python3 -m scripts.build_mcpb     # 产出 vibetrace.mcpb
 | `vibetrace_search` | 主题级「为什么」召回 | 零 LLM |
 | `vibetrace_drift` | 偏差自检:AI 改了但没提交的文件 | 零 LLM |
 | `vibetrace_prompts` | 指令回看:你给 AI 下了什么指令 | 零 LLM |
-| `vibetrace_adr` | ADR 导出:从 git 历史自动生成架构决策记录 | 零 LLM |
+| `vibetrace_adr` | ADR 导出:MADR / Nygard / CycloneDX(AIBOM) | 零 LLM |
 
 > 各客户端逐步安装 + 自检 + 排错见 **[`docs/mcp-install.md`](docs/mcp-install.md)**。
+> Spec-driven 工作流(GitHub Spec Kit / AWS Kiro / OpenSpec / Antigravity)对接见
+> **[`docs/spec-kit-integration.md`](docs/spec-kit-integration.md)**。
 
 ## IDE Extension (VS Code / Cursor / Windsurf)
 
