@@ -33,18 +33,26 @@ def _on_this_day_block(entries):
     return ("\n".join(rows) + "\n") if rows else ""
 
 
-def _capsule_block(capsules, today):
+def _capsule_block(capsules, today, project_path=None):
     """今日开启的时间胶囊:旧 risk 到期,作为反思 checkbox 端回面前。
-    每枚胶囊前埋稳定锚(HTML 注释,Obsidian 不渲染),供下次运行回读勾选。"""
+    每枚胶囊前埋稳定锚(HTML 注释,Obsidian 不渲染),供下次运行回读勾选。
+    附 commit subject + 首条决策作为语境,帮助回忆当初在干什么。"""
     if not capsules:
         return ""
+    from .gitlog import commit_meta
     lines = ["## 🕰 今日开启的时间胶囊", ""]
     for cap in capsules:
         sealed = date.fromisoformat(cap["sealed_date"])
         n = (today - sealed).days
+        sha7 = cap["sha"][:7]
+        ctx = ""
+        if project_path:
+            _, subject = commit_meta(project_path, cap["sha"])
+            if subject:
+                ctx = f"\n\t> 📌 `{sha7}` {subject}"
         lines.append(f"<!-- vt-capsule:{cap['capsule_id']} -->")
-        lines.append(f"- **{n} 天前**(`{cap['sha'][:7]}`)你担心:"
-                     f"「{cap['risk']}」")
+        lines.append(f"- **{n} 天前**(`{sha7}`)你担心:"
+                     f"「{cap['risk']}」{ctx}")
         answered = cap.get("outcome")
         for o in _OUTCOMES:
             mark = "x" if o == answered else " "
@@ -53,7 +61,8 @@ def _capsule_block(capsules, today):
 
 
 def render(project, date_str, overview, commits, sessions, session_error,
-           run_stats, decision="", on_this_day=None, capsules=None, today=None):
+           run_stats, decision="", on_this_day=None, capsules=None, today=None,
+           project_path=None):
     today = today or date.today()
     lines = [f"# {date_str} {project} 开发日报", ""]
     otd = _on_this_day_block(on_this_day or {})
@@ -64,7 +73,7 @@ def render(project, date_str, overview, commits, sessions, session_error,
     lines += ["## 今日概览", "", overview, ""]
     if decision:
         lines += [f"> **今日决定** — {decision}", ""]
-    cap = _capsule_block(capsules or [], today)
+    cap = _capsule_block(capsules or [], today, project_path=project_path)
     if cap:
         lines += [cap]
     lines += ["## 变更叙事", ""]
@@ -79,10 +88,17 @@ def render(project, date_str, overview, commits, sessions, session_error,
         lines.append(_section("关键决策", n["decisions"]))
         lines.append(_section("风险(供日后验证)", _drop_filler(n["risks"])))
         lines.append(_section("未闭环", _drop_filler(n["open_loops"])))
-        refs = [f"`{m['session']['session_id'][:8]}`({m['confidence']}"
-                f",交集 {len(m['overlap'])} 文件)"
-                for m in commit.get("matches", [])]
-        lines.append("关联会话:" + ("、".join(refs) if refs else "无"))
+        high_matches = [m for m in commit.get("matches", [])
+                        if m["confidence"] == "high"]
+        if high_matches:
+            seen = set()
+            refs = []
+            for m in high_matches:
+                sid = m["session"]["session_id"][:8]
+                if sid not in seen:
+                    seen.add(sid)
+                    refs.append(f"`{sid}`(交集 {len(m['overlap'])} 文件)")
+            lines.append("关联会话:" + "、".join(refs))
         lines.append("")
     loops = [loop for c in commits
              for loop in _drop_filler(c["narrative"]["open_loops"])]
@@ -110,7 +126,7 @@ def write_report(vault_path, project, date_str, content):
 
 
 _CAPSULE_MARKER = "<!-- vt-capsule:"
-_OUTCOMES = ("想多了", "已解决", "还在担心")
+_OUTCOMES = ("想多了", "已解决", "还在担心", "忘记了")
 
 
 def read_capsule_answers(vault_path, project_path, cache):

@@ -223,7 +223,8 @@ def digest(args):
                                 d["commits"], session_list, session_err,
                                 run_stats, decision=d["decision"],
                                 on_this_day=d["on_this_day"],
-                                capsules=d["capsules"], today=d["today"])
+                                capsules=d["capsules"], today=d["today"],
+                                project_path=project_path)
         path = report.write_report(cfg["vault_path"], project, d["date_str"],
                                    content)
         paths.append(path)
