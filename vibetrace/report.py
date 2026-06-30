@@ -45,11 +45,10 @@ def _capsule_block(capsules, today):
         lines.append(f"<!-- vt-capsule:{cap['capsule_id']} -->")
         lines.append(f"- **{n} 天前**(`{cap['sha'][:7]}`)你担心:"
                      f"「{cap['risk']}」")
-        # 已回填的胶囊预勾选 [x],不擦回空框、不重复催问(回填环不被自身擦除)
         answered = cap.get("outcome")
-        boxes = "　".join(f"[{'x' if o == answered else ' '}] {o}"
-                          for o in _OUTCOMES)
-        lines.append("  - " + boxes)
+        for o in _OUTCOMES:
+            mark = "x" if o == answered else " "
+            lines.append(f"\t- [{mark}] {o}")
     return "\n".join(lines) + "\n"
 
 
