@@ -50,6 +50,9 @@ def _build_parser():
                      help="显式关闭 LLM(仍做零-LLM 的 evidence 补;未叙事项跳过)")
     enr.add_argument("--source", choices=["claude", "cursor", "codex", "both", "all"],
                      help="会话源(默认按 config.sources;影响 evidence 原话锚点收割)")
+    enr.add_argument("--reenrich", action="store_true",
+                     help="opt-in 违反 immutability:重 enrich 已有叙事(prompt 规则升级用);"
+                          "默认 SHA 缓存永不重算")
     crs = _proj(sub.add_parser("course", help="生成演进课程(项目怎么长成的,实验)"))
     crs.add_argument("--no-llm", action="store_true",
                      help="显式关闭 LLM(数据不出本机);降级为按时间均分的朴素课程")

@@ -180,16 +180,19 @@ def backfill_evidence(commits, cache, project):
     return done
 
 
-def enrich_commits(commits, llm, cache, project, with_pr=False):
+def enrich_commits(commits, llm, cache, project, with_pr=False, force=False):
+    """force=True:opt-in 违反 SHA 缓存 immutability,所有 commit 重 enrich
+    (典型用法:prompt 规则升级后回填已有叙事)。默认 False,守 ROADMAP 红线。"""
     stats = {"cache_hits": 0, "llm_calls": 0, "failures": 0, "trivial": 0}
     # 项目背景读一次脱敏,作稳定缓存前缀(系统提示+项目上下文),供本次所有 commit 复用
     cache_prefix = redact_secrets(_project_context(project))
     for commit in commits:
-        cached = cache.get_narrative(commit["sha"])
-        if cached:
-            commit["narrative"] = cached
-            stats["cache_hits"] += 1
-            continue
+        if not force:
+            cached = cache.get_narrative(commit["sha"])
+            if cached:
+                commit["narrative"] = cached
+                stats["cache_hits"] += 1
+                continue
         if _is_trivial(commit):  # 机械提交:不调 LLM,存稀疏 stub,仍进时间线
             stub = {"what": commit["subject"],
                     "why": "机械改动(lockfile/生成文件),未叙事",

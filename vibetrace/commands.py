@@ -135,7 +135,13 @@ def enrich_cmd(args):
     cache.rekey_project(pp.name, str(pp))
     align.align(commits, _scan_sessions(cfg, args, pp, cache), pp)
     ev = enrich.backfill_evidence(commits, cache, str(pp))
-    missing = [c for c in commits if not cache.get_narrative(c["sha"])]
+    reenrich = getattr(args, "reenrich", False)
+    if reenrich:
+        log.warning("--reenrich: 重 enrich 全部 %d 个 commit,违反 SHA 缓存 immutability "
+                    "(opt-in,用于 prompt 规则升级)", len(commits))
+        missing = commits
+    else:
+        missing = [c for c in commits if not cache.get_narrative(c["sha"])]
     if not missing:
         cache.close()
         print(f"补 evidence {ev} 条;全部 {len(commits)} 个 commit 已有叙事。")
@@ -148,7 +154,7 @@ def enrich_cmd(args):
             print(f"补 evidence {ev} 条;未叙事 {len(missing)} 个需 LLM(已关/无 key)跳过。")
             return 0
         return _fail(exc)
-    stats = enrich.enrich_commits(missing, llm, cache, str(pp))
+    stats = enrich.enrich_commits(missing, llm, cache, str(pp), force=reenrich)
     cache.close()
     print(f"补 evidence {ev} 条;补全 {len(missing)}/{len(commits)} 无叙事 commit:"
           f"LLM {stats['llm_calls']} · 机械 {stats['trivial']} · 失败 {stats['failures']}。")

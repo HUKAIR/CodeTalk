@@ -51,12 +51,12 @@ class TestEnrichCmd(unittest.TestCase):
         self.db = str(Path(self.d) / "cache.db")
         self.pkey = str(Path(self.d).resolve())
 
-    def _run(self):
+    def _run(self, *extra_argv):
         fake = _FakeLLM()
         with mock.patch.object(cli, "CACHE_DB_PATH", self.db), \
              mock.patch("vibetrace.llm.LLMClient", return_value=fake), \
              contextlib.redirect_stdout(io.StringIO()):
-            rc = cli.main(["enrich", "--project", self.d])
+            rc = cli.main(["enrich", "--project", self.d, *extra_argv])
         return rc, fake
 
     def test_backfills_only_uncached(self):
@@ -117,6 +117,33 @@ class TestEnrichCmd(unittest.TestCase):
                         "prompts": ["不该覆盖"], "excerpts": []}}]}
         self.assertEqual(enrich.backfill_evidence([commit], c, self.pkey), 0)  # 不覆盖既有
         c.close()
+
+    def test_reenrich_overwrites_existing_narrative(self):
+        """--reenrich opt-in:用户明示违反 immutability,所有 commit 重 enrich。
+        典型用法:prompt 规则升级后想重生成已有叙事(如反引号包裹规则)。"""
+        c = Cache(self.db)
+        c.put_narrative(self.sha1, self.pkey, "m",
+                        {"why": "旧叙事-不该保留", "decisions": []})
+        c.put_narrative(self.sha2, self.pkey, "m",
+                        {"why": "旧叙事2", "decisions": []})
+        c.close()
+        rc, fake = self._run("--reenrich")
+        self.assertEqual(rc, 0)
+        self.assertEqual(fake.calls, 2)             # 两个都重 enrich,不 skip
+        c = Cache(self.db)
+        self.assertEqual(c.get_narrative(self.sha1)["why"], "补全的原因")
+        self.assertEqual(c.get_narrative(self.sha2)["why"], "补全的原因")
+        c.close()
+
+    def test_default_still_skips_existing(self):
+        """守红线:默认行为不变——已有叙事不重 enrich。"""
+        c = Cache(self.db)
+        c.put_narrative(self.sha1, self.pkey, "m", {"why": "保留", "decisions": []})
+        c.put_narrative(self.sha2, self.pkey, "m", {"why": "保留", "decisions": []})
+        c.close()
+        rc, fake = self._run()
+        self.assertEqual(rc, 0)
+        self.assertEqual(fake.calls, 0)             # 全有 → 一次都不调
 
     def test_no_llm_exits_without_calling(self):
         with mock.patch.object(cli, "CACHE_DB_PATH", self.db), \
