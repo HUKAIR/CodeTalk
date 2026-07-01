@@ -132,7 +132,7 @@ class Cache:
         self.conn.execute(
             "INSERT OR REPLACE INTO session_enrichments VALUES (?,?,?,?,?,?)",
             (session_id, last_msg_ts, mtime, size,
-             json.dumps(summary, ensure_ascii=False), self._now()))
+             json.dumps(redact_data(summary), ensure_ascii=False), self._now()))
         self.conn.commit()
 
     # ---- daily digest index: On This Day 回流的检索底座 ----
@@ -145,7 +145,7 @@ class Cache:
     def put_daily(self, project, date, overview, decision):
         self.conn.execute(
             "INSERT OR REPLACE INTO daily_digests VALUES (?,?,?,?,?)",
-            (project, date, overview, decision, self._now()))
+            (project, date, redact_secrets(overview), redact_secrets(decision), self._now()))
         self.conn.commit()
 
     # ---- time capsules: risk 密封 → 到期开启,闭合预测-验证环 ----
@@ -153,7 +153,7 @@ class Cache:
         # INSERT OR IGNORE: 同日重跑不重置已有胶囊(opened_date 保持),不复制
         self.conn.execute(
             "INSERT OR IGNORE INTO capsules VALUES (?,?,?,?,?,?,?,?)",
-            (f"{sha}:{risk_idx}", project, sha, risk, sealed_date, open_date,
+            (f"{sha}:{risk_idx}", project, sha, redact_secrets(risk), sealed_date, open_date,
              None, None))
         self.conn.commit()
 

@@ -31,6 +31,23 @@ class TestRedactData(unittest.TestCase):
         self.assertNotIn("hunter2hunter2X", got)
         self.assertIn("[REDACTED]", got)
 
+    def test_cache_secondary_writes_redact_before_persisting(self):
+        c = Cache(":memory:")
+        c.put_session("s1", "t", 1, 2,
+                      {"prompts": ['api_key="Abcd1234Efgh5"'],
+                       "files_written": ["sk-abcdefghijklmnop1234/a.py"]})
+        c.put_daily("/p", "2026-06-01", "token=Abcd1234Efgh5", "plain")
+        c.seal_capsule("/p", "sha", 0, "risk sk-abcdefghijklmnop1234",
+                       "2026-06-01", "2026-06-22")
+        blob = "\n".join(r[0] for r in c.conn.execute(
+            "SELECT summary_json FROM session_enrichments UNION ALL "
+            "SELECT overview FROM daily_digests UNION ALL "
+            "SELECT risk FROM capsules"))
+        c.close()
+        self.assertNotIn("Abcd1234Efgh5", blob)
+        self.assertNotIn("sk-abcdefghijklmnop1234", blob)
+        self.assertIn("[REDACTED]", blob)
+
 
 if __name__ == "__main__":
     unittest.main()

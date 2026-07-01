@@ -41,7 +41,7 @@ LLM synthesis is optional and sits behind the evidence layer.
 
 ![CodeTalk pipeline](docs/images/codetalk-pipeline.png)
 
-> **Honest boundaries:** Blind test is N=5, this repo only, human-judged — not a population claim. Coverage depends on `enrich`: this repo (with full backfill) reaches 100% (220/220); a separate 605-commit repo **without** enrich starts at 0.3%, reaching ~100% after `codetalk enrich`. Without enrich or breadcrumbs, blame shows commit subjects only — similar to `git log`. Run `grounding_hitrate.py` on your own repo to measure. CodeTalk finds "what was actually said and decided", not "whether the code is correct" — source records themselves may be wrong. Coverage numbers are reproducible with `grounding_hitrate.py` on any repo; blind-test method: `python3 scripts/blind_test.py`; moat comparison write-up: `docs/discovery/2026-06-29-护城河对照卡-真实记录vs反推.md`.
+> **Honest boundaries:** Blind test is N=5, this repo only, human-judged — not a population claim. Coverage depends on `enrich`: this repo (with full backfill) reaches 100% (220/220); a separate 605-commit repo **without** enrich starts at 0.3%, reaching ~100% after `codetalk enrich`. Without enrich or breadcrumbs, blame shows commit subjects only — similar to `git log`. Run `grounding_hitrate.py` on your own repo to measure. CodeTalk finds "what was actually said and decided", not "whether the code is correct" — source records themselves may be wrong. Coverage numbers are reproducible with `grounding_hitrate.py` on any repo; blind-test method: `python3 scripts/blind_test.py`; moat comparison write-up: `docs/moat-real-records-vs-inference.md`.
 
 ## See it work in 30 seconds
 
