@@ -3,13 +3,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/codetalk-pixel-tech-logo.png" alt="CodeTalk pixel tech logo" width="180">
-</p>
-
-<h1 align="center">CodeTalk</h1>
-
-<p align="center">
-  Local-first AI coding provenance: turn commits, sessions, and decision breadcrumbs into verifiable answers to “why was this code written?”
+  <img src="docs/images/codetalk-logo-banner.png" alt="CodeTalk logo banner" width="820">
 </p>
 
 <p align="center">
