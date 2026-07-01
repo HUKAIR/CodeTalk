@@ -41,6 +41,28 @@ LLM synthesis is optional and sits behind the evidence layer.
 
 ![CodeTalk pipeline](docs/images/codetalk-pipeline.png)
 
+### Plain-language terms
+
+- **Decision breadcrumbs**: plain commit-message lines such as
+  `Vibe-Decision: ...` and `Vibe-Watch: ...`. They record the reason for a
+  change and anything worth checking later. They are just git text, not an AI
+  feature.
+- **`enrich`**: an optional backfill step. It asks an LLM to summarize old
+  commits plus nearby local session transcripts into decision narratives. You
+  only need it when your existing commits do not already carry breadcrumbs.
+- **Grounded / grounding**: every answer has to point back to real commits,
+  decision breadcrumbs, or session transcripts. No evidence means no confident
+  AI answer.
+- **Zero-LLM / zero egress**: deterministic local lookup without a model call.
+  `--no-llm` also disables the optional LLM call, so project data stays on your
+  machine.
+- **Time capsule**: a `Vibe-Watch` risk that CodeTalk brings back later so you
+  can verify whether the concern came true.
+- **MCP**: a standard way to expose CodeTalk commands to AI coding clients such
+  as Claude Code, Cursor, and Codex.
+- **Understanding debt**: files or decisions that likely deserve a reread
+  because they changed recently, carried risks, or have not been reviewed.
+
 > **Honest boundaries:** Blind test is N=5, this repo only, human-judged — not a population claim. Coverage depends on `enrich`: this repo (with full backfill) reaches 100% (220/220); a separate 605-commit repo **without** enrich starts at 0.3%, reaching ~100% after `codetalk enrich`. Without enrich or breadcrumbs, blame shows commit subjects only — similar to `git log`. Run `grounding_hitrate.py` on your own repo to measure. CodeTalk finds "what was actually said and decided", not "whether the code is correct" — source records themselves may be wrong. Coverage numbers are reproducible with `grounding_hitrate.py` on any repo; blind-test method: `python3 scripts/blind_test.py`; moat comparison write-up: `docs/moat-real-records-vs-inference.md`.
 
 ## See it work in 30 seconds
@@ -48,7 +70,8 @@ LLM synthesis is optional and sits behind the evidence layer.
 ```bash
 git clone https://github.com/HUKAIR/CodeTalk && cd CodeTalk && pip install -e .
 
-# This repo dogfoods itself — every commit carries decision breadcrumbs.
+# This repo uses CodeTalk on itself — every commit carries decision breadcrumbs
+# (plain Vibe-Decision / Vibe-Watch lines in the commit message).
 # No API key, no config, no enrich:
 codetalk doctor
 
@@ -64,7 +87,7 @@ You'll see, for each commit that touched the file: the **why**, the **decisions 
 # Step 0 — see coverage, local session availability, and the best next command:
 codetalk doctor --project /path/to/repo
 
-# Step 1 — breadcrumbs already in your history? blame works immediately, zero key:
+# Step 1 — decision breadcrumbs already in your history? blame works immediately, zero key:
 codetalk blame /path/to/yourfile.py
 
 # Step 2 — for full narratives on a repo without breadcrumbs (needs an LLM key):
@@ -72,7 +95,7 @@ codetalk init                              # write config, fill your API key
 codetalk enrich --project /path/to/repo    # backfill decision narratives from git+sessions
 
 # Step 3 — make future commits self-document (zero extra effort, no key):
-codetalk install-agent-seed --project .    # your AI agent leaves Vibe-Decision breadcrumbs
+codetalk install-agent-seed --project .    # your AI agent leaves Vibe-Decision notes
 ```
 
 **Honest cold-start:** a repo with no breadcrumbs and no `enrich` shows commit subjects only — like `git log`. The value comes from breadcrumbs (free, in git) or `enrich` (needs a key). This repo has both, which is why the 30-second demo above is rich. Yours starts empty and fills as you use it.
@@ -214,7 +237,7 @@ Vibe-Watch:    先这么扛,并发安全待验证
 
 `digest` folds `Vibe-Decision` into that commit's decisions and `Vibe-Watch` into its risks (sealed into a verifiable capsule on due date); `ask` uses them to ground its answers, and `graph` uses them to connect decision-impact edges. You already write code with AI — let it leave a trail while it's at it. Matched exactly at line start, case-sensitive.
 
-Committers who hand-write commits (without `-m`) can run `codetalk install-hook` once to install the `prepare-commit-msg` hook, and the editor will auto-prompt these two lines — fill them in and they become trailers; leave them blank and git strips them. Git hooks aren't version-controlled with the repo, so **install once per clone**.
+Committers who hand-write commits (without `-m`) can run `codetalk install-hook` once to install the `prepare-commit-msg` hook, and the editor will auto-prompt these two lines — fill them in and they stay in the commit message; leave them blank and git strips them. Git hooks aren't version-controlled with the repo, so **install once per clone**.
 
 ## Cache & privacy
 
