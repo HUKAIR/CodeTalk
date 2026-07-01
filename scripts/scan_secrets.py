@@ -46,7 +46,6 @@ _FIXTURE_MARKERS = (
 
 _FIXTURE_PATHS = (
     "tests/",
-    "docs/discovery/2026-06-30-隐私审计-五轮对抗log.md",
 )
 
 
