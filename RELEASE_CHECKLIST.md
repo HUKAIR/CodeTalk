@@ -20,7 +20,7 @@ Use this checklist before a public CodeTalk release.
 - `npm run build`
 - `npm run package`
 - `unzip -t vscode-codetalk-0.2.0.vsix`
-- Confirm the VSIX contains `extension/LICENSE`.
+- Confirm the VSIX contains `extension/LICENSE.txt`.
 - Install the VSIX in at least one VS Code-compatible editor and verify CodeLens
   plus hover behavior on a repository with CodeTalk cache data.
 

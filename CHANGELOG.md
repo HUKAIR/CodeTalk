@@ -51,7 +51,10 @@ made it verifiable.
 ### Known Release Notes
 
 - The supported soft-launch install path is clone plus `pip install -e .`.
-  PyPI publishing has not been performed yet.
-- Official VSIX packaging still needs to be rerun in a trusted network-enabled
-  environment because local npm registry access was intentionally not approved.
-- Demo media and marketplace assets are not yet included.
+  PyPI publishing has not been performed yet; `pip index versions codetalk`
+  currently reports no matching distribution.
+- Official VSIX packaging has been run locally; the package includes
+  `extension/LICENSE.txt`.
+- The GitHub repository URL must be made publicly reachable before promoting
+  clone-based install instructions.
+- Demo media and Marketplace assets are not yet included.

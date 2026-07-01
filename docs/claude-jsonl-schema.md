@@ -1,6 +1,6 @@
 # Claude Code Session JSONL — Schema Reference
 
-**Evidence base:** 4 independent sweeps over real local data under `~/.claude/projects/` (CodeTalk, SuperSearch, a large multi-workflow corpus, TradingAgents) plus a targeted edge-case hunt: ~58,000+ JSON lines across ~1,470 files, Claude Code versions **2.1.143 – 2.1.170**, **0 JSON parse failures observed**. Every claim below is empirical; disagreements between sweeps are flagged inline with ⚠️.
+**Evidence base:** 4 independent sweeps over real local data under `~/.claude/projects/` (CodeTalk plus several other local repos) plus a targeted edge-case hunt: ~58,000+ JSON lines across ~1,470 files, Claude Code versions **2.1.143 – 2.1.170**, **0 JSON parse failures observed**. Every claim below is empirical; disagreements between sweeps are flagged inline with ⚠️.
 
 ---
 
