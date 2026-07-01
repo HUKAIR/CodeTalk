@@ -1,6 +1,7 @@
 src/
 tsconfig.json
 esbuild.mjs
+sync-license.mjs
 node_modules/
 .vscode/
 package-lock.json

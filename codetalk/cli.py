@@ -5,6 +5,8 @@ import logging
 from . import commands
 from . import commands_view as cv
 from .adr_export import adr_export_cmd  # 命令逻辑在 adr_export.py(commands.py 守 <300)
+from .doctor import doctor_cmd  # 首跑诊断独立模块(commands.py 守 <300)
+from .demo import run_demo      # 30 秒 demo(现造 fixture 仓,零配置)
 from .drift import drift_cmd  # 命令逻辑在 drift.py(commands.py 守 <300)
 from .config import CACHE_DB_PATH  # commands 经 cli 读取它,沿用既有测试 patch 目标
 
@@ -17,6 +19,7 @@ def _build_parser():
     parser = argparse.ArgumentParser(
         prog="codetalk", description="本地优先的代码决策溯源:git+会话 → 可核验 why")
     sub = parser.add_subparsers(dest="command", required=True)
+    _proj(sub.add_parser("doctor", help="首跑诊断:证据覆盖/会话源/下一步建议(零 LLM)"))
     dig = _proj(sub.add_parser("digest", help="生成开发日报"))
     dig.add_argument("--since", default="1 day ago", help='如 "3 days ago"')
     dig.add_argument("--vault", help="覆盖日报输出目录")
@@ -112,6 +115,7 @@ def _build_parser():
     web.add_argument("--no-open", action="store_true", help="不自动开浏览器")
     web.add_argument("--no-llm", action="store_true",
                      help="显式关闭 LLM(对话降级为零-LLM 接地罗列,数据不出本机)")
+    sub.add_parser("demo", help="30 秒看效果:现造小仓跑真实 blame,零 key/配置/enrich")
     ini = sub.add_parser("init", help="生成配置模板到 ~/.codetalk/config.json")
     ini.add_argument("--force", action="store_true", help="已存在时覆盖")
     ihk = _proj(sub.add_parser("install-hook",
@@ -129,6 +133,8 @@ def _build_parser():
 # 子命令名 → commands.py 中的处理函数(add_subparsers required=True,必命中)。
 _DISPATCH = {
     "digest": commands.digest,
+    "doctor": doctor_cmd,
+    "demo": lambda args: run_demo(),
     "brief": commands.brief_cmd,
     "watch": commands.watch_cmd,
     "self": commands.self_cmd,

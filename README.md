@@ -48,7 +48,10 @@ CodeTalk grounds "why" in real commit history — verbatim citations you can cli
 git clone https://github.com/HUKAIR/CodeTalk && cd CodeTalk && pip install -e .
 
 # This repo dogfoods itself — every commit carries decision breadcrumbs.
-# No API key, no config, no enrich. Real decisions straight from git history:
+# No API key, no config, no enrich:
+codetalk doctor
+
+# Then inspect real decisions straight from git history:
 codetalk blame codetalk/cache.py
 ```
 
@@ -57,6 +60,9 @@ You'll see, for each commit that touched the file: the **why**, the **decisions 
 ## 用到你自己的仓 / On your own repo
 
 ```bash
+# Step 0 — see coverage, local session availability, and the best next command:
+codetalk doctor --project /path/to/repo
+
 # Step 1 — breadcrumbs already in your history? blame works immediately, zero key:
 codetalk blame /path/to/yourfile.py
 
@@ -204,6 +210,7 @@ LLM)形成两档隐私梯度。
 
 | 命令 | 做什么 | 例 |
 |---|---|---|
+| `doctor` | **首跑诊断**:证据覆盖、会话源、LLM 配置状态和下一步建议(**纯本地零 LLM**) | `codetalk doctor --project .` |
 | `digest` | 把一段时间的 commit + 会话富集成**变更叙事日报**(防幻觉、信件体、内嵌时间胶囊) | `codetalk digest --since "3 days ago"` |
 | `brief` | **开工简报**:你上次停在哪 + 理解债 top 3(**纯本地零 LLM**);`--all` 出**跨项目总览**(所有项目里有到期胶囊的 + 理解债最高的几个,按紧迫度) | `codetalk brief` · `codetalk brief --all` |
 | `graph` | **决策影响图**:哪个决定牵动了后续哪些改动(时间轴 DAG,**零 LLM**;`--canvas` 导出 Obsidian Canvas) | `codetalk graph --canvas` |
@@ -274,3 +281,10 @@ LLM 统一封装:llm.py(多 provider / 重试 / token 日志 / prompt caching / 
 `codetalk web` 是可选 web extra,仅该面允许 FastAPI / uvicorn,且惰性 import、不污染核心依赖。
 单模块 <300 行;解析外部数据一律容错、失败降级绝不崩溃。行为准则见 `CLAUDE.md`(Karpathy
 编码纪律:想清再写 / 简单优先 / 外科手术式改动 / 目标驱动)。设计与实现计划见 `docs/superpowers/`。
+
+## 发布与贡献
+
+- 发布前检查: [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md)
+- 变更记录: [`CHANGELOG.md`](CHANGELOG.md)
+- 贡献约束: [`CONTRIBUTING.md`](CONTRIBUTING.md)
+- 安全报告: [`SECURITY.md`](SECURITY.md)

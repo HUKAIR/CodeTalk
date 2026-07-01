@@ -284,5 +284,14 @@ class Cache:
         ).fetchall()
         return sorted(r[0] for r in rows)
 
+    def __enter__(self): return self
+    def __exit__(self, *_exc): self.close()
+    def __del__(self):
+        try: self.close()
+        except Exception: pass
+
     def close(self):
-        self.conn.close()
+        conn = getattr(self, "conn", None)
+        if conn is not None:
+            conn.close()
+            self.conn = None

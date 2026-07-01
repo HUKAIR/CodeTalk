@@ -16,6 +16,13 @@ class TestUsageLogRedacted(unittest.TestCase):
             self.assertIn("[REDACTED]", content)
             self.assertNotIn("sk-abcdef0123456789ABCD", content)
 
+    def test_parent_directory_created(self):
+        with tempfile.TemporaryDirectory() as t:
+            log = Path(t) / "missing" / "usage.log"
+            with unittest.mock.patch.object(report, "USAGE_LOG_PATH", log):
+                report.append_usage({"project": "/x"})
+            self.assertTrue(log.exists())
+
 
 if __name__ == "__main__":
     unittest.main()

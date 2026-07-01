@@ -27,6 +27,17 @@ interface FileBlameData {
 
 const blameCache = new Map<string, FileBlameData>();
 const expandedState = new Map<string, Set<string>>();
+let fetchFailureNotified = false;
+
+function notifyFetchFailure(detail: string): void {
+  if (fetchFailureNotified) return;   // 一次性,避免每次切文件刷屏
+  fetchFailureNotified = true;
+  const notFound = /ENOENT|not found|No module named/i.test(detail);
+  const msg = notFound
+    ? 'CodeTalk: `codetalk` 跑不起来。装了吗?`pip install -e .`,或在设置里把 codetalk.pythonPath 指向装了 codetalk 的解释器。'
+    : `CodeTalk: 取 blame 失败(${detail.slice(0, 120)})。`;
+  vscode.window.showWarningMessage(msg);
+}
 
 function segmentHasWhy(seg: BlameSegment): boolean {
   return !!(
@@ -52,7 +63,10 @@ async function fetchBlameData(
       { cwd: workspaceRoot, timeout: 10_000 }
     );
     segments = JSON.parse(stdout);
-  } catch {
+  } catch (err) {
+    // 别静默:装了扩展但没 pip install / pythonPath 错的用户,不给诊断=最糟 UX。
+    // 一次性可操作通知(仅首次,避免每次切文件刷屏)。
+    notifyFetchFailure(String(err));
     return null;
   }
 
@@ -165,40 +179,20 @@ class CodetalkCodeLensProvider implements vscode.CodeLensProvider {
       const toggleArgs = [document.uri.fsPath, sha];
 
       if (expanded.has(sha)) {
+        // 同 range 的多个 CodeLens 会被 VS Code 挤成一行,做不出竖直树。
+        // 故展开态出一条信息量足的单行摘要;完整多行树在 hover 卡里(buildHoverCard)。
         const date = (seg.date || '').slice(0, 10);
+        const parts: string[] = [];
+        if (seg.why) parts.push(`Why: ${truncate(seg.why, 60)}`);
+        for (const d of seg.decisions ?? []) parts.push(`决策: ${truncate(d, 50)}`);
+        for (const r of seg.rejected ?? []) parts.push(`否决: ${truncate(r, 50)}`);
+        for (const r of seg.risks ?? []) parts.push(`风险: ${truncate(r, 50)}`);
         lenses.push(new vscode.CodeLens(range, {
-          title: `▾ ${sha7} · ${date} · ${truncate(seg.subject, 60)}`,
+          title: `▾ ${sha7} · ${date} · ${truncate(seg.subject, 40)} — `
+            + (parts.join(' · ') || 'why') + '  (hover 看全文)',
           command: 'codetalk.toggleBlame',
           arguments: toggleArgs,
         }));
-        if (seg.why) {
-          lenses.push(new vscode.CodeLens(range, {
-            title: `    Why: ${truncate(seg.why, 80)}`,
-            command: 'codetalk.toggleBlame',
-            arguments: toggleArgs,
-          }));
-        }
-        for (const d of seg.decisions ?? []) {
-          lenses.push(new vscode.CodeLens(range, {
-            title: `    决策: ${truncate(d, 70)}`,
-            command: 'codetalk.toggleBlame',
-            arguments: toggleArgs,
-          }));
-        }
-        for (const r of seg.rejected ?? []) {
-          lenses.push(new vscode.CodeLens(range, {
-            title: `    否决: ${truncate(r, 70)}`,
-            command: 'codetalk.toggleBlame',
-            arguments: toggleArgs,
-          }));
-        }
-        for (const r of seg.risks ?? []) {
-          lenses.push(new vscode.CodeLens(range, {
-            title: `    风险: ${truncate(r, 70)}`,
-            command: 'codetalk.toggleBlame',
-            arguments: toggleArgs,
-          }));
-        }
       } else {
         const counts: string[] = [];
         if (seg.decisions?.length) counts.push(`决策(${seg.decisions.length})`);
@@ -294,7 +288,13 @@ export function activate(context: vscode.ExtensionContext): void {
       }),
       vscode.workspace.onDidChangeConfiguration((e) => {
         if (!e.affectsConfiguration('codetalk')) return;
-        codeLensProvider.refresh();
+        // enabled off→on:缓存可能为空(refresh 在禁用时早退),须重新拉数据而非只刷 provider
+        const cfg = vscode.workspace.getConfiguration('codetalk');
+        if (cfg.get<boolean>('enabled', true)) {
+          refresh(vscode.window.activeTextEditor);
+        } else {
+          codeLensProvider.refresh();
+        }
       })
     );
 

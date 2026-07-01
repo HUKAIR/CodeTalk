@@ -25,6 +25,9 @@ def build(out_path, root=ROOT):
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(out_path, "w", zipfile.ZIP_DEFLATED) as z:
         z.write(manifest, "manifest.json")
+        license_file = root / "LICENSE"
+        if license_file.exists():
+            z.write(license_file, "LICENSE")
         for p in sorted(pkg.rglob("*")):
             if not p.is_file() or p.suffix in _SKIP_SUFFIX:
                 continue

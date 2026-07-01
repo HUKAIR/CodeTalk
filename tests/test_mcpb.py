@@ -71,6 +71,9 @@ class TestBuild(unittest.TestCase):
             with zipfile.ZipFile(out) as z:
                 names = z.namelist()
                 self.assertIn("manifest.json", names)
+                self.assertIn("LICENSE", names)
+                self.assertIn("GNU AFFERO GENERAL PUBLIC LICENSE",
+                              z.read("LICENSE").decode("utf-8"))
                 self.assertIn("server/codetalk/mcp_server.py", names)
                 self.assertIn("server/codetalk/__main__.py", names)
                 self.assertIn("server/codetalk/__init__.py", names)

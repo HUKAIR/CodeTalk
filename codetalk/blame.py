@@ -145,4 +145,10 @@ def blame(project_path, target, json_output=False):
         print(json.dumps(redact_data(segments), ensure_ascii=False), end="")
     else:
         print(redact_secrets(_format(file, start, end, segments)), end="")
+        # 冷启动 on-ramp:全是裸 subject(无 why/决策/面包屑)时,别让陌生人以为=git log。
+        # 末行(stderr,不污染管道)指下一步:富集或装面包屑捕捉。
+        if not any(segment_has_why(s) for s in segments):
+            print("\n提示:该文件暂无决策记录(仅 commit 标题)。跑 `codetalk enrich .` "
+                  "补叙事,或 `codetalk install-agent-seed .` 让 AI 提交时留 why。",
+                  file=sys.stderr)
     return 0

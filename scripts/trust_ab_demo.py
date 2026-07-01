@@ -85,6 +85,22 @@ def main(project=".", n=DEFAULT_N):
         llm = None
         print("(No LLM key — showing real records only, no AI comparison)\n")
 
+    # 无 key:没有对照的一侧,盲测不成立(否则一侧写死 "(no LLM)" 直接暴露哪个是真)。
+    # 降级为纯展示真实记录,不摆 A/B 架子。
+    if llm is None:
+        print(f"# CodeTalk real records — {pp.name} ({len(sample)} commits)\n")
+        print("Zero-LLM, verbatim from git. (Set an LLM key to run the A/B blind test.)\n---\n")
+        for i, c in enumerate(sample, 1):
+            sha7 = c["sha"][:7]
+            date = (c["date"].isoformat()[:10] if hasattr(c.get("date"), "isoformat")
+                    else str(c.get("date", ""))[:10])
+            real = _real_record(cache, c["sha"], c.get("body", ""))
+            subject = redact_secrets(c.get("subject", ""))
+            print(f"## Commit {i}: [{sha7}] {date} {subject}\n")
+            print(redact_secrets("\n".join(f"- {r}" for r in real)) + "\n\n---\n")
+        cache.close()
+        return 0
+
     print(f"# A/B Trust Demo — {pp.name} ({len(sample)} commits)\n")
     print("For each commit: **A** is one source, **B** is the other.")
     print("Which do you trust more? (The reveal is at the end.)\n")
@@ -98,11 +114,13 @@ def main(project=".", n=DEFAULT_N):
         real = _real_record(cache, c["sha"], c.get("body", ""))
 
         diff_text = commit_diff(pp, c["sha"])
-        guess = _llm_guess(llm, diff_text) if llm else None
+        guess = _llm_guess(llm, diff_text)
+        if not guess:                        # 该 commit 无 diff/反推失败 → 跳过,不摆空 A/B
+            continue
 
         coin = random.random() > 0.5
-        a_text = "\n".join(f"- {r}" for r in real) if coin else (guess or "(no LLM)")
-        b_text = (guess or "(no LLM)") if coin else "\n".join(f"- {r}" for r in real)
+        a_text = "\n".join(f"- {r}" for r in real) if coin else guess
+        b_text = guess if coin else "\n".join(f"- {r}" for r in real)
         reveals.append("A = real record" if coin else "B = real record")
 
         # 输出设计为可公开分享(HN/Reddit)→ subject/real-record/guess 全脱敏后再打印

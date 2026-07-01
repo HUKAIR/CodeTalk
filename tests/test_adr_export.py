@@ -115,12 +115,16 @@ class TestCycloneDxFormat(unittest.TestCase):
         self.assertIn("[REDACTED]", out)
         json.loads(out)                                 # 仍合法 JSON
 
-    def test_serialnumber_is_valid_uuid(self):
+    def test_serialnumber_is_valid_rfc4122_uuid(self):
         import uuid
         bom = json.loads(to_adr("f.py:1-5", _SEG, "cyclonedx"))
         sn = bom["serialNumber"]
         self.assertTrue(sn.startswith("urn:uuid:"))
-        uuid.UUID(sn[len("urn:uuid:"):])                # 非法 UUID 会抛 → 守门 hyphen 修复
+        u = uuid.UUID(sn[len("urn:uuid:"):])
+        self.assertEqual(u.version, 5)                  # RFC-4122 v5(裸 sha 切片 version 非法)
+        self.assertIn(u.variant, ("specified in RFC 4122",))  # variant 合规
+        # 确定性:同输入字节级一致
+        self.assertEqual(sn, json.loads(to_adr("f.py:1-5", _SEG, "cyclonedx"))["serialNumber"])
 
     def test_tools_use_non_deprecated_components_form(self):
         # legacy tools[] 不允许 description 字段(schema additionalProperties:false);

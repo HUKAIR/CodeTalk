@@ -10,9 +10,9 @@ cyclonedx 格式输出 CycloneDX 1.5 base schema 子集(bomFormat/specVersion/co
 commit 时间保证 reproducible(同输入同输出),不假装符合 modelCard/formulation 等 AI 专门段
 ——codetalk 跟踪的是代码决策不是模型,硬塞会编造。
 """
-import hashlib
 import json
 import sys
+import uuid
 from pathlib import Path
 
 from .config import redact_data, redact_secrets
@@ -33,9 +33,10 @@ def _to_cyclonedx(target, segments):
         if s.get("date"):
             latest_ts = s["date"]
             break
-    seed = (target + "|" + "|".join(s.get("sha", "") for s in segments)).encode()
-    h = hashlib.sha256(seed).hexdigest()[:32]
-    serial = f"urn:uuid:{h[:8]}-{h[8:12]}-{h[12:16]}-{h[16:20]}-{h[20:32]}"
+    # uuid5(确定性:同输入同 UUID,仍字节级 reproducible)且是合法 RFC-4122 v5——
+    # 裸 sha256 切片虽过 CycloneDX 宽松 regex,但 version/variant nibble 不合规,严格校验会拒。
+    seed = target + "|" + "|".join(s.get("sha", "") for s in segments)
+    serial = f"urn:uuid:{uuid.uuid5(uuid.NAMESPACE_URL, seed)}"
     components = []
     for s in segments:
         props = []

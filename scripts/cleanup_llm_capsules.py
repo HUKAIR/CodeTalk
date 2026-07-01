@@ -16,7 +16,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from codetalk.cache import Cache                       # noqa: E402
 import subprocess                                       # noqa: E402
-from codetalk.config import CACHE_DB_PATH              # noqa: E402
+from codetalk.config import CACHE_DB_PATH, redact_secrets  # noqa: E402
 from codetalk.gitlog import commit_body, parse_breadcrumbs  # noqa: E402
 
 
@@ -43,7 +43,10 @@ def main(confirm=False):
             errors += 1
             continue       # commit 不可达 → 保守保留,绝不删(可能是用户手写 Watch)
         _decs, watches = parse_breadcrumbs(commit_body(project, sha))
-        if risk in watches:
+        # 两侧同口径脱敏:capsule.risk 是 seal 时 redact_secrets(watch) 存的,watches 来自原始
+        # commit body。含 secret 的手写 Watch 否则会因 [REDACTED] 不等被误删(与 _seal 同口径)。
+        watches_norm = {redact_secrets(w) for w in watches}
+        if redact_secrets(risk) in watches_norm:
             keep += 1
         else:
             to_delete.append(cap_id)

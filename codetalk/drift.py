@@ -13,8 +13,7 @@ from pathlib import Path
 
 from . import gitlog, sessions
 from .align import _relative_files, align
-from .cache import Cache
-from .config import CACHE_DB_PATH, load_config
+from .config import load_config
 from .digest import _since_to_dt
 
 
@@ -63,11 +62,7 @@ def drift_json(project, since="7 days ago"):
     commits, err = gitlog.collect_commit_files(pp)
     if err:
         return json.dumps({"error": err, "flagged": []}, ensure_ascii=False)
-    cache = Cache(CACHE_DB_PATH)
-    try:
-        sess, serr = sessions.scan_sessions(pp, _since_to_dt(since), cache)
-    finally:
-        cache.close()
+    sess, serr = sessions.scan_sessions(pp, _since_to_dt(since), cache=None)
     all_fw = set()
     for s in sess:
         all_fw |= _relative_files(s, pp)
@@ -85,9 +80,7 @@ def drift_cmd(args):
     if err:
         print(f"错误:{err}", file=sys.stderr)
         return 2
-    cache = Cache(CACHE_DB_PATH)
-    sess, serr = sessions.scan_sessions(pp, _since_to_dt(args.since), cache)
-    cache.close()
+    sess, serr = sessions.scan_sessions(pp, _since_to_dt(args.since), cache=None)
     if serr:
         print(f"会话层降级:{serr}", file=sys.stderr)
     all_fw = set()

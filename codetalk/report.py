@@ -171,6 +171,7 @@ def append_usage(record):
     容错红线:埋点是旁路,任何失败都只记警告、绝不拖垮主命令。"""
     try:
         record["ts"] = datetime.now(timezone.utc).isoformat()
+        Path(USAGE_LOG_PATH).parent.mkdir(parents=True, exist_ok=True)
         with open(USAGE_LOG_PATH, "a", encoding="utf-8") as fh:
             # 脱敏结构叶子(项目路径/--since 等)在 dumps 之前:dumps 转义引号会让
             # key="value" 形 secret 漏过 redact_secrets(config.py:102);usage.log 无下游兜底

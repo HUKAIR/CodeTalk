@@ -3,8 +3,13 @@ import json
 import subprocess
 import tempfile
 import unittest
+from argparse import Namespace
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
+from unittest import mock
 
+from codetalk import drift
 from codetalk.drift import drift_json
 
 
@@ -35,6 +40,43 @@ class TestDriftJson(unittest.TestCase):
             data = json.loads(result)
             self.assertIn("error", data)
             self.assertEqual(data["flagged"], [])
+
+    def test_json_scan_is_readonly(self):
+        with tempfile.TemporaryDirectory() as t:
+            repo = Path(t) / "r"
+            repo.mkdir()
+            self._git(repo, "init")
+            seen = []
+
+            def fake_scan(_project, _since, cache=None):
+                seen.append(cache)
+                return [], None
+
+            with mock.patch.object(drift.gitlog, "collect_commit_files",
+                                   return_value=([], None)), \
+                    mock.patch.object(drift.sessions, "scan_sessions", fake_scan):
+                data = json.loads(drift_json(str(repo)))
+            self.assertEqual(seen, [None])
+            self.assertEqual(data["flagged"], [])
+
+    def test_cli_scan_is_readonly(self):
+        with tempfile.TemporaryDirectory() as t:
+            repo = Path(t) / "r"
+            repo.mkdir()
+            self._git(repo, "init")
+            seen = []
+
+            def fake_scan(_project, _since, cache=None):
+                seen.append(cache)
+                return [], None
+
+            args = Namespace(project=str(repo), since="7 days ago")
+            with mock.patch.object(drift.gitlog, "collect_commit_files",
+                                   return_value=([], None)), \
+                    mock.patch.object(drift.sessions, "scan_sessions", fake_scan), \
+                    redirect_stdout(StringIO()):
+                self.assertEqual(drift.drift_cmd(args), 0)
+            self.assertEqual(seen, [None])
 
 
 if __name__ == "__main__":

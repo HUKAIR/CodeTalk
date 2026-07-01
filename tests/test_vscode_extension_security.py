@@ -28,6 +28,14 @@ class TestVscodeHoverSecurity(unittest.TestCase):
             self.assertIn(expr, self.src)
         self.assertIn("function escapeMarkdown", self.src)
 
+    def test_escape_regex_is_not_neutered(self):
+        # 行为守门:掏空 escapeMarkdown 的正则(return s 原样)会让 injection 复活,但字符串
+        # 存在性检查照过。断言实际转义正则字面量在,neuter 掉正则体即失败。
+        self.assertIn(r"replace(/([\\`*_{}\[\]()#+\-.!|>])/g, '\\$1')", self.src)
+        # 且必须作用在传入参数上(不是 return 空/原样)
+        self.assertRegex(self.src,
+                         r"function escapeMarkdown\([^)]*\)\s*(?::[^{]+)?\{\s*return\s*\([^)]*\)\.replace\(")
+
 
 if __name__ == "__main__":
     unittest.main()
