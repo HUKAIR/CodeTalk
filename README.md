@@ -1,4 +1,8 @@
 <p align="center">
+  <a href="README.md"><b>English</b></a> · <a href="README.zh-CN.md">简体中文</a>
+</p>
+
+<p align="center">
   <img src="docs/images/codetalk-pixel-tech-logo.png" alt="CodeTalk pixel tech logo" width="180">
 </p>
 
@@ -18,19 +22,11 @@ CodeTalk grounds "why" in real commit history — verbatim citations you can cli
 
 ---
 
-**AI 高速写码，三个月后没人知道当初为什么这么写。** CodeTalk 把「为什么」钉在真实 commit 记录上——逐字引用、可点开核验，不是 AI 反推编造。零 LLM、数据不出本机、纯标准库。
-
 ### Why this matters
 
 - **Trust is collapsing.** 46% of developers actively distrust AI output; only 3% highly trust it. *(Stack Overflow 2025, N=33,244)*
 - **AI "explanations" are fabricated.** We blind-tested 5 real commits: AI inferred "why" from diffs alone — **5/5 missed the real decisions, 2/5 completely wrong.** *(This repo, reproducible: `python3 scripts/blind_test.py . 5`)*
 - **Your chat history is fragile.** 8+ bug reports across Cursor, Claude Code, and Copilot: conversations silently vanish — data still on disk, UI can't surface it.
-
-### 为什么重要
-
-- **信任正在崩塌。** 46% 开发者不信 AI 输出，仅 3% 高度信任。*(SO 2025, N=33,244)*
-- **AI「解释」是编造的。** 本仓 5 commit 盲测：纯 diff 反推 5/5 漏真实决策、2/5 完全弄错。*(可复跑: `python3 scripts/blind_test.py . 5`)*
-- **你的对话历史很脆弱。** Cursor / Claude Code / Copilot 共 8+ bug 报告：对话静默消失——数据还在磁盘，UI 接不回。
 
 ### How CodeTalk is different
 
@@ -41,30 +37,19 @@ CodeTalk grounds "why" in real commit history — verbatim citations you can cli
 | Verifiable | no — plausible but ungrounded | yes — click SHA to see original |
 | Data | sent to cloud | local-first; LLM calls opt-in (`--no-llm` for zero egress) |
 
-### CodeTalk 有什么不同
-
-| | AI 反推 (Cursor/Copilot) | CodeTalk |
-|---|---|---|
-| 来源 | 当前 diff | 真实 commit + 会话原话 |
-| 方法 | LLM 从代码猜测 | 零-LLM 确定性按 SHA 查找 |
-| 可核验 | 否——听起来对但无据 | 是——点开 SHA 看原文 |
-| 数据 | 发往云端 | 本地优先；LLM 调用可关（`--no-llm` 零出网） |
-
-## Pipeline / 管道
+## Pipeline
 
 CodeTalk is a local evidence pipeline. It reads git history and AI coding
 session files, parses them defensively, aligns sessions to commits, stores
 redacted evidence in a local SQLite cache, then exposes deterministic tools for
-`doctor`, `blame`, `search`, `review`, `drift`, `graph`, `prompts`, and `adr`.
+`ask`, `blame`, `search`, `review`, `drift`, `graph`, `prompts`, and `adr`.
 LLM synthesis is optional and sits behind the evidence layer.
 
-![CodeTalk pipeline](docs/images/codetalk-pipeline-easydataset-style.png)
+![CodeTalk pipeline](docs/images/codetalk-pipeline.png)
 
-> **Honest boundaries / 诚实边界:** Blind test is N=5, this repo only, human-judged — not a population claim. Coverage depends on `enrich`: this repo (with full backfill) reaches 100% (220/220); a separate 605-commit repo **without** enrich starts at 0.3%, reaching ~100% after `codetalk enrich`. Without enrich or breadcrumbs, blame shows commit subjects only — similar to `git log`. Run `grounding_hitrate.py` on your own repo to measure. CodeTalk finds "what was actually said and decided", not "whether the code is correct" — source records themselves may be wrong. Full methodology: `docs/discovery/2026-06-29-护城河对照卡-真实记录vs反推.md`.
->
-> 盲测 N=5、本仓、人工判读，不是人群结论。覆盖率取决于 `enrich`：本仓（全量补全）100%（220/220）；另一本地 605-commit 仓**未 enrich** 时仅 0.3%，跑完 `codetalk enrich` 后可达 ~100%。未 enrich 且无面包屑时，blame 只显示 commit subject——与 `git log` 接近。请在你自己的仓上跑 `grounding_hitrate.py` 度量。CodeTalk 找的是「当初到底说了什么、为什么这么写」，不保证代码正确——源记录本身可能有误。完整方法见 `docs/discovery/` 下对照卡和盲测文档。
+> **Honest boundaries:** Blind test is N=5, this repo only, human-judged — not a population claim. Coverage depends on `enrich`: this repo (with full backfill) reaches 100% (220/220); a separate 605-commit repo **without** enrich starts at 0.3%, reaching ~100% after `codetalk enrich`. Without enrich or breadcrumbs, blame shows commit subjects only — similar to `git log`. Run `grounding_hitrate.py` on your own repo to measure. CodeTalk finds "what was actually said and decided", not "whether the code is correct" — source records themselves may be wrong. Coverage numbers are reproducible with `grounding_hitrate.py` on any repo; blind-test method: `python3 scripts/blind_test.py`; moat comparison write-up: `docs/discovery/2026-06-29-护城河对照卡-真实记录vs反推.md`.
 
-## 30 秒看效果 / See it work in 30 seconds
+## See it work in 30 seconds
 
 ```bash
 git clone https://github.com/HUKAIR/CodeTalk && cd CodeTalk && pip install -e .
@@ -79,7 +64,7 @@ codetalk blame codetalk/cache.py
 
 You'll see, for each commit that touched the file: the **why**, the **decisions made**, the **alternatives rejected** — verbatim from the commit record, zero LLM. That's the whole pitch in one command.
 
-## 用到你自己的仓 / On your own repo
+## On your own repo
 
 ```bash
 # Step 0 — see coverage, local session availability, and the best next command:
@@ -98,97 +83,85 @@ codetalk install-agent-seed --project .    # your AI agent leaves Vibe-Decision 
 
 **Honest cold-start:** a repo with no breadcrumbs and no `enrich` shows commit subjects only — like `git log`. The value comes from breadcrumbs (free, in git) or `enrich` (needs a key). This repo has both, which is why the 30-second demo above is rich. Yours starts empty and fills as you use it.
 
-## 安装
+## Install
 
 ```bash
-pip install -e .                 # 核心:纯标准库,零三方依赖
-pip install -e ".[anthropic]"    # 可选:仅 anthropic provider 需要
+pip install -e .                 # Core: pure standard library, zero third-party dependencies
+pip install -e ".[anthropic]"    # Optional: only needed for the anthropic provider
 ```
 
-要求 Python ≥ 3.11。安装后有 `codetalk` 命令(等价于 `python3 -m codetalk`)。
+Requires Python ≥ 3.11. After installing you get the `codetalk` command (equivalent to `python3 -m codetalk`).
 
-## MCP 一键装(.mcpb)
+## One-click MCP install (.mcpb)
 
-把零-LLM 接地能力暴露给 Claude Code / Cursor / Codex 等 MCP 客户端,在 agent 工作流里
-直接问「这段代码当初为什么这么写」。CodeTalk 纯标准库、零三方依赖,打成一个 `.mcpb`
-(zip:`manifest.json` + 源码)即可**一键装、一次构建覆盖所有客户端**,靠你已装的
-`python3` 运行、**不打包解释器**:
+Expose the zero-LLM grounding capability to MCP clients such as Claude Code / Cursor / Codex, so you can ask "why was this code written this way" right inside your agent workflow. CodeTalk is pure standard library with zero third-party dependencies, so it packs into a single `.mcpb` (a zip of `manifest.json` + source), giving you a **one-click install and a single build that covers every client**. It runs on the `python3` you already have installed and **does not bundle an interpreter**:
 
 ```bash
-python3 -m scripts.build_mcpb     # 产出 codetalk.mcpb
+python3 -m scripts.build_mcpb     # produces codetalk.mcpb
 ```
 
-把 `codetalk.mcpb` 拖进客户端的扩展安装入口,装时选一个项目根目录即可。暴露 **7 个工具**
-(全标 `readOnlyHint: true`,Claude Code / Cursor 可自动批准不弹确认):
+Drag `codetalk.mcpb` into your client's extension-install entry point, and pick a project root during installation. It exposes **7 tools** (all marked `readOnlyHint: true`, so Claude Code / Cursor can auto-approve them without a confirmation prompt):
 
-| 工具 | 作用 | LLM |
+| Tool | Purpose | LLM |
 |---|---|---|
-| `codetalk_ask` | 接地提问「当初为什么这么写」 | 有 key 用 LLM;无 key 降级确定性 |
-| `codetalk_blame` | 行级决策溯源 | 零 LLM |
-| `codetalk_graph` | 决策影响图(时间轴 DAG) | 零 LLM |
-| `codetalk_search` | 主题级「为什么」召回 | 零 LLM |
-| `codetalk_drift` | 偏差自检:AI 改了但没提交的文件 | 零 LLM |
-| `codetalk_prompts` | 指令回看:你给 AI 下了什么指令 | 零 LLM |
-| `codetalk_adr` | ADR 导出:MADR / Nygard / CycloneDX(AIBOM) | 零 LLM |
+| `codetalk_ask` | Grounded question "why was this written" | Uses LLM if a key is set; falls back to deterministic without one |
+| `codetalk_blame` | Line-level decision provenance | Zero LLM |
+| `codetalk_graph` | Decision-impact graph (timeline DAG) | Zero LLM |
+| `codetalk_search` | Topic-level "why" retrieval | Zero LLM |
+| `codetalk_drift` | Drift self-check: files AI changed but never committed | Zero LLM |
+| `codetalk_prompts` | Instruction recall: what you told the AI to do | Zero LLM |
+| `codetalk_adr` | ADR export: MADR / Nygard / CycloneDX (AIBOM) | Zero LLM |
 
-> 各客户端逐步安装 + 自检 + 排错见 **[`docs/mcp-install.md`](docs/mcp-install.md)**。
-> Spec-driven 工作流(GitHub Spec Kit / AWS Kiro / OpenSpec / Antigravity)对接见
-> **[`docs/spec-kit-integration.md`](docs/spec-kit-integration.md)**。
+> Step-by-step install, self-check, and troubleshooting per client: **[`docs/mcp-install.md`](docs/mcp-install.md)**.
+> Spec-driven workflow integrations (GitHub Spec Kit / AWS Kiro / OpenSpec / Antigravity):
+> **[`docs/spec-kit-integration.md`](docs/spec-kit-integration.md)**.
 
 ## IDE Extension (VS Code / Cursor / Windsurf)
 
 Foldable decision CodeLens + hover cards — see **why** a line was written that way, with real commit citations. Like GitLens but for decisions, not just authorship.
 
-**IDE 扩展**——可折叠 CodeLens + hover 决策卡：点开一条提交看 why / decision / rejected / risk，hover 任意行看完整上下文。类 GitLens 但补 why。
-
 ```bash
 cd vscode-codetalk
-npm install && npm run build                        # 构建
-npx @vscode/vsce package --no-dependencies          # 打包 .vsix
+npm install && npm run build                        # build
+npx @vscode/vsce package --no-dependencies          # package the .vsix
 ```
 
-安装（三选一）：
+Install (pick one):
 
 ```bash
 cursor --install-extension vscode-codetalk-0.2.0.vsix   # Cursor
 code --install-extension vscode-codetalk-0.2.0.vsix      # VS Code
-# Windsurf: Extensions → Install from VSIX → 选文件
+# Windsurf: Extensions → Install from VSIX → pick the file
 ```
 
-装完 Cmd+Shift+P → **Reload Window**，打开有 CodeTalk 缓存的项目即可看到可展开的决策 CodeLens；hover 行可看完整卡片。
+After installing, run Cmd+Shift+P → **Reload Window**, then open a project that has a CodeTalk cache to see the expandable decision CodeLens; hover a line to view the full card.
 
-| 设置 | 默认 | 说明 |
+| Setting | Default | Description |
 |---|---|---|
-| `codetalk.enabled` | `true` | 主开关 |
-| `codetalk.pythonPath` | `"python3"` | 装了 CodeTalk 的 Python 解释器路径 |
+| `codetalk.enabled` | `true` | Master switch |
+| `codetalk.pythonPath` | `"python3"` | Path to the Python interpreter that has CodeTalk installed |
 
-> 详细安装 + 排错 + 配置见 **[`vscode-codetalk/README.md`](vscode-codetalk/README.md)**。
+> Detailed install + troubleshooting + configuration: **[`vscode-codetalk/README.md`](vscode-codetalk/README.md)**.
 
-## codetalk web —— 自托管接地对话(新)
+## codetalk web — self-hosted grounded conversation (new)
 
-一个本地优先的交互网页:和 LLM 多轮讨论「这段代码当初为什么这么写」,但每一轮**先零-LLM
-检索你项目的真实记录**(commit 叙事 / 决策面包屑 / 会话原话),把真实证据喂给模型,答案旁
-**并排可核验的引用**;讨论本身脱敏后落库,反哺未来的 `ask`/`search`。**自托管 = 数据留在
-你自己机器,卖软件不卖服务。**
+A local-first interactive web page: hold a multi-turn discussion with an LLM about "why was this code written this way", but on every turn it **first runs a zero-LLM retrieval over your project's real records** (commit narratives / decision breadcrumbs / verbatim session transcripts), feeds that real evidence to the model, and puts **side-by-side verifiable citations** next to the answer. The discussion itself is redacted before being stored, feeding back into future `ask` / `search`. **Self-hosted = your data stays on your own machine; we sell software, not a service.**
 
 ```bash
-pip install -e ".[web]"                            # web 面可选 extra(FastAPI/uvicorn;CLI/MCP 仍纯 stdlib)
-codetalk web --project /path/to/repo              # 绑 127.0.0.1、自动开浏览器、逐字流式
-codetalk web --project /path/to/repo --no-llm     # 零出网:降级为零-LLM 接地罗列
+pip install -e ".[web]"                            # optional web extra (FastAPI/uvicorn; CLI/MCP stay pure stdlib)
+codetalk web --project /path/to/repo              # binds 127.0.0.1, auto-opens the browser, verbatim streaming
+codetalk web --project /path/to/repo --no-llm     # zero egress: falls back to a zero-LLM grounded listing
 ```
 
-- **接地、可核验**:答案锚定真实 commit / 决策 / 会话原话,每条结论旁的引用可点开核验——这是
-  和「套壳聊天」的分界线;**模型脱离真实材料不作答**(材料空 → 不调模型,只确定性罗列)。
-- **隐私红线**:默认只绑 `127.0.0.1`、绝不 phone home(除 LLM 调用)、出网前 + 落库前脱敏、
-  前端零外联(CSP `connect-src 'self'`;静态产物经 `scripts/check_static_no_external.py` 守);
-  后端拒绝非 loopback Host 与跨 Origin 请求,防其它网页借 localhost 触发本地检索/LLM 调用。
-- **给客户自托管**:单镜像 Docker(见 `Dockerfile`:`docker build -t codetalk .` → `docker run`)。
-- 前端首版为零-build 单文件 vanilla-JS;React/Vite 仅在 chat UX(流式已有,后续如需消息管理)再上。
+- **Grounded and verifiable**: answers are anchored to real commits / decisions / verbatim session transcripts, and the citation next to each conclusion can be clicked to verify — this is the line that separates it from a "chat wrapper"; **the model won't answer when detached from real material** (empty material → the model isn't called, just a deterministic listing).
+- **Privacy red lines**: by default it only binds `127.0.0.1`, never phones home (except the LLM call), redacts before going out to the network and before persisting, and the frontend has zero external links (CSP `connect-src 'self'`; static artifacts are guarded by `scripts/check_static_no_external.py`); the backend rejects non-loopback Host and cross-Origin requests, preventing other web pages from using localhost to trigger local retrieval / LLM calls.
+- **Self-host for customers**: single-image Docker (see `Dockerfile`: `docker build -t codetalk .` → `docker run`).
+- The first frontend release is a zero-build single-file vanilla-JS; React/Vite comes only if the chat UX truly needs it (streaming already exists; message management later if required).
 
-## 配置
+## Configuration
 
 ```bash
-codetalk init        # 写配置模板到 ~/.codetalk/config.json(自动 chmod 600)
+codetalk init        # write a config template to ~/.codetalk/config.json (auto chmod 600)
 ```
 
 `~/.codetalk/config.json`:
@@ -215,98 +188,72 @@ codetalk init        # 写配置模板到 ~/.codetalk/config.json(自动 chmod 6
 }
 ```
 
-切换模型:把顶层 `provider` 改成上面任一,并设对应 `model`(如 kimi→`kimi-k2-0905-preview`、
-glm→`glm-4.6`、grok→`grok-4`、gemini→`gemini-2.5-pro`、doubao→端点 ID 或 `doubao-seed-1-6`)。
-API key 也可用环境变量 `<PROVIDER>_API_KEY`(如 `DEEPSEEK_API_KEY` / `KIMI_API_KEY` /
-`GLM_API_KEY` / `GROK_API_KEY` / `GEMINI_API_KEY` / `DOUBAO_API_KEY` / `ANTHROPIC_API_KEY`)。
-除 anthropic 走官方 SDK(json_schema 结构化输出 + prompt caching)外,其余全走 OpenAI 兼容
-协议(标准库 urllib,零额外依赖;DeepSeek 上下文缓存自动生效)。
+To switch models: change the top-level `provider` to any of the above and set the matching `model` (e.g. kimi→`kimi-k2-0905-preview`, glm→`glm-4.6`, grok→`grok-4`, gemini→`gemini-2.5-pro`, doubao→endpoint ID or `doubao-seed-1-6`). The API key can also come from the environment variable `<PROVIDER>_API_KEY` (e.g. `DEEPSEEK_API_KEY` / `KIMI_API_KEY` / `GLM_API_KEY` / `GROK_API_KEY` / `GEMINI_API_KEY` / `DOUBAO_API_KEY` / `ANTHROPIC_API_KEY`). Except for anthropic, which goes through the official SDK (json_schema structured output + prompt caching), everything else uses the OpenAI-compatible protocol (stdlib urllib, zero extra dependencies; DeepSeek context caching kicks in automatically).
 
-**零-egress 本地推理**:把 `provider` 设为 `ollama`(或任何 `local: true` / 指向 `localhost`、
-`127.0.0.1` 的 OpenAI 兼容端点,如 LM Studio / llama.cpp / vLLM),综合推理就在本机跑、**连
-「LLM 调用」这唯一出网例外也不出网**(本地无需 key)。本地 32B 级代码模型在生成类任务上已逼近
-云端;定位为「接地后的本地润色/解释」,agentic / 复杂综合仍建议云端。与 `--no-llm`(完全不调
-LLM)形成两档隐私梯度。
+**Zero-egress local inference**: set `provider` to `ollama` (or any OpenAI-compatible endpoint that is `local: true` / points at `localhost` or `127.0.0.1`, such as LM Studio / llama.cpp / vLLM), and the synthesis runs on your own machine — **even that single network exception, the "LLM call", stays off the network** (no key needed locally). Local 32B-class code models are already closing in on the cloud for generation-style tasks; position them as "local polishing/explanation after grounding", while agentic / complex synthesis is still better on the cloud. Together with `--no-llm` (never call an LLM at all), this forms a two-tier privacy gradient.
 
-## 命令
+## Commands
 
-| 命令 | 做什么 | 例 |
+| Command | What it does | Example |
 |---|---|---|
-| `doctor` | **首跑诊断**:证据覆盖、会话源、LLM 配置状态和下一步建议(**纯本地零 LLM**) | `codetalk doctor --project .` |
-| `digest` | 把一段时间的 commit + 会话富集成**变更叙事日报**(防幻觉、信件体、内嵌时间胶囊) | `codetalk digest --since "3 days ago"` |
-| `brief` | **开工简报**:你上次停在哪 + 理解债 top 3(**纯本地零 LLM**);`--all` 出**跨项目总览**(所有项目里有到期胶囊的 + 理解债最高的几个,按紧迫度) | `codetalk brief` · `codetalk brief --all` |
-| `graph` | **决策影响图**:哪个决定牵动了后续哪些改动(时间轴 DAG,**零 LLM**;`--canvas` 导出 Obsidian Canvas) | `codetalk graph --canvas` |
-| `course` | **演进课程**:项目怎么一步步长成这样(分章 + 大白话 + 场景测验,单文件 HTML) | `codetalk course` |
-| `ask` | **就某段代码提问**,答案接项目记忆(叙事 + 决策面包屑),引用真实 commit | `codetalk ask codetalk/llm.py:72-78 "为什么这么写"` |
-| `console` | **统一控制台(web 入口)**:开工概览 / 时光轴 / 决策图 / 理解债 四视图单页,概览优先、点击钻取——不再一整页 dump(**零 LLM**;`--serve` 回写胶囊) | `codetalk console --serve` |
-| `tunnel` | **时光轴**:线性提交时间线,最新在顶、按天分组、点开看叙事(`--serve` 胶囊回答即时写回) | `codetalk tunnel` |
-| `install-hook` | 装 git 钩子:手写 commit 时在编辑器里提示留 `Vibe-Decision`/`Vibe-Watch` 面包屑 | `codetalk install-hook` |
-| `install-agent-seed` | 把决策捕获约定植入项目 `CLAUDE.md` + `AGENTS.md`,让 **AI coding agent**(Claude / 其他)提交时自动留推导面包屑(**写时捕获 > 事后从 diff 反推**) | `codetalk install-agent-seed` |
+| `doctor` | **First-run diagnosis**: evidence coverage, session sources, LLM config status, and next-step suggestions (**pure local, zero LLM**) | `codetalk doctor --project .` |
+| `digest` | Enrich a span of commits + sessions into a **change-narrative daily report** (anti-hallucination, letter style, embedded time capsules) | `codetalk digest --since "3 days ago"` |
+| `brief` | **Kickoff brief**: where you left off + top 3 understanding debts (**pure local, zero LLM**); `--all` gives a **cross-project overview** (across all projects: those with due capsules + those with the highest understanding debt, ordered by urgency) | `codetalk brief` · `codetalk brief --all` |
+| `graph` | **Decision-impact graph**: which decision drove which later changes (timeline DAG, **zero LLM**; `--canvas` exports an Obsidian Canvas) | `codetalk graph --canvas` |
+| `course` | **Evolution course**: how the project grew into what it is, step by step (chaptered + plain-language + scenario quizzes, single-file HTML) | `codetalk course` |
+| `ask` | **Ask about a piece of code**, with answers wired to project memory (narratives + decision breadcrumbs), citing real commits | `codetalk ask codetalk/llm.py:72-78 "why written this way"` |
+| `console` | **Unified console (web entry)**: kickoff overview / timeline / decision graph / understanding debt — four views on one page, overview-first with click-to-drill, no more full-page dumps (**zero LLM**; `--serve` writes capsules back) | `codetalk console --serve` |
+| `tunnel` | **Timeline**: a linear commit timeline, newest on top, grouped by day, click to read the narrative (`--serve` writes capsule answers back instantly) | `codetalk tunnel` |
+| `install-hook` | Install a git hook: when hand-writing a commit, prompt in the editor to leave `Vibe-Decision`/`Vibe-Watch` breadcrumbs | `codetalk install-hook` |
+| `install-agent-seed` | Plant the decision-capture convention into the project `CLAUDE.md` + `AGENTS.md`, so an **AI coding agent** (Claude / others) automatically leaves reasoning breadcrumbs on commit (**capture-at-write-time > inferring from the diff afterward**) | `codetalk install-agent-seed` |
 
-`digest` 产物:`<vault>/YYYY-MM-DD-<project>.md` —— 去年今日 / 上月今日回流 → 今日概览(信件体)
-+ 今日决定 → 到期的时间胶囊(供回填)→ 按 commit 的叙事 → 未闭环汇总 → 运行统计。时间胶囊把
-每条 risk 密封 21 天,到期在日报里端回面前,闭合「预测—验证」环。
+`digest` output: `<vault>/YYYY-MM-DD-<project>.md` — a-year-ago-today / a-month-ago-today reflowed → today's overview (letter style) + today's decisions → due time capsules (to backfill) → per-commit narratives → an open-loop summary → run stats. Time capsules seal each risk for 21 days and, when due, bring it back in front of you in the daily report, closing the "predict → verify" loop.
 
-### 决策面包屑(让 `ask` / `graph` 更准)
+### Decision breadcrumbs (make `ask` / `graph` sharper)
 
-做关键技术取舍时,在 commit message 正文留一行:
+When you make a key technical tradeoff, leave a line in the commit message body:
 
 ```
 Vibe-Decision: 用 urllib 不引第三方——M0 禁三方依赖
 Vibe-Watch:    先这么扛,并发安全待验证
 ```
 
-`digest` 会把 `Vibe-Decision` 并进该 commit 的决策、`Vibe-Watch` 并进风险(到期封成可验证胶囊);
-`ask` 据此接地回答、`graph` 据此连决策影响边。你本就用 AI 写代码——让它顺手留痕。行首精确匹配、
-区分大小写。
+`digest` folds `Vibe-Decision` into that commit's decisions and `Vibe-Watch` into its risks (sealed into a verifiable capsule on due date); `ask` uses them to ground its answers, and `graph` uses them to connect decision-impact edges. You already write code with AI — let it leave a trail while it's at it. Matched exactly at line start, case-sensitive.
 
-手写 commit(不带 `-m`)的提交者,跑一次 `codetalk install-hook` 装 `prepare-commit-msg` 钩子,
-编辑器里会自动提示这两行——填则成 trailer,不填被 git 剥除。git 钩子不随仓库版本控制,
-**每个 clone 各装一次**。
+Committers who hand-write commits (without `-m`) can run `codetalk install-hook` once to install the `prepare-commit-msg` hook, and the editor will auto-prompt these two lines — fill them in and they become trailers; leave them blank and git strips them. Git hooks aren't version-controlled with the repo, so **install once per clone**.
 
-## 缓存与隐私
+## Cache & privacy
 
-- commit 叙事以 SHA 为键缓存于 `~/.codetalk/cache.db`,**永不重算**;重跑同一天 digest 为
-  0 次 LLM 调用、亚秒级返回。`graph:`/`course:`/`ask:` 派生结果同表加前缀键缓存。
-- 会话解析以 (session_id, mtime, size) 增量缓存;每次运行参数追加到 `~/.codetalk/usage.log`。
-- **数据不出本机**(LLM API 调用除外);写缓存 / 写 vault / 注入 HTML **之前**,对常见 secret
-  模式(API key / token / JWT / 私钥 / Google / Stripe / Slack …)一律脱敏。
-- **`no_llm` 硬开关**:把那个「LLM 调用」例外也关掉,**保证零 egress**。三种方式任一即生效,
-  全局覆盖(含 MCP `ask` 工具):config.json 置 `"no_llm": true`、设环境变量 `CODETALK_NO_LLM=1`、
-  或给 `digest`/`ask`/`course` 加 `--no-llm`。开启后 blame/graph/search/brief/prompts 照常,
-  ask/course/MCP ask 降级为确定性检索,digest 因必须用 LLM 而直接退出(信息明确,不静默)。
+- Commit narratives are cached by SHA in `~/.codetalk/cache.db` and **never recomputed**; re-running the same day's digest is 0 LLM calls and sub-second. `graph:` / `course:` / `ask:` derived results are cached in the same table under prefixed keys.
+- Session parsing is incrementally cached by (session_id, mtime, size); every run's parameters are appended to `~/.codetalk/usage.log`.
+- **Data does not leave your machine** (except LLM API calls); **before** writing the cache / writing the vault / injecting HTML, common secret patterns (API key / token / JWT / private key / Google / Stripe / Slack …) are always redacted.
+- **`no_llm` hard switch**: turn off even that "LLM call" exception to **guarantee zero egress**. Any of three ways takes effect, applying globally (including the MCP `ask` tool): set `"no_llm": true` in config.json, set the environment variable `CODETALK_NO_LLM=1`, or pass `--no-llm` to `digest`/`ask`/`course`. Once on, blame/graph/search/brief/prompts work as usual, ask/course/MCP ask fall back to deterministic retrieval, and digest — which must use an LLM — exits directly (clearly stated, never silent).
 
-## 已知限制(M0)
+## Known limitations (M0)
 
-- 会话源不是完整审计日志:Claude 主会话与 `*/subagents/**/agent-*.jsonl` 会纳入,但
-  journal/meta 等旁路文件不采;Cursor / Codex 本地会话源为 opt-in 且依赖非官方本地格式。
-- 会话-commit 对齐是软关联(±30 分钟时间窗 + 文件交集),目标准确率 80%,带 high/low 置信度
-  标注,**不保证全对**。
-- commit 被 amend / rebase 后 SHA 变化即视为新 commit;旧 SHA 缓存成为死数据。
-- `graph` 文件级边在极小项目(如本仓 7 文件)偏密,靠稀疏节点压制;行级精度作非目标延后。
-- Claude Code / Cursor / Codex 的本地会话格式都非官方稳定 API;版本升级可能破坏解析,
-  解析器对未知字段忽略、缺字段降级,最坏退化为纯 git 模式。
+- The session source is not a complete audit log: Claude main sessions and `*/subagents/**/agent-*.jsonl` are included, but side files like journal/meta are not collected; Cursor / Codex local session sources are opt-in and depend on unofficial local formats.
+- Session-to-commit alignment is a soft association (±30-minute time window + file intersection), targeting 80% accuracy, annotated with high/low confidence — **not guaranteed to be all correct**.
+- Once a commit is amended / rebased and its SHA changes, it's treated as a new commit; the old SHA's cache becomes dead data.
+- `graph`'s file-level edges get dense on very small projects (like this repo's 7 files) and are suppressed with sparse nodes; line-level precision is deferred as a non-goal.
+- The local session formats of Claude Code / Cursor / Codex are all unofficial, non-stable APIs; a version upgrade may break parsing — the parser ignores unknown fields and degrades on missing ones, worst-case falling back to pure-git mode.
 
-## 架构
+## Architecture
 
 ```
-cli → gitlog(commit/diff/行历史/面包屑) ─┐
-      sessions(Claude/Cursor/Codex 容错) ─┼→ align(软关联) → enrich(LLM,SHA 缓存) → report → vault
-      cache(SQLite 单一真相源)          ─┘
-零-LLM 工具:brief / debt / graph 直接读 cache + git,不经 enrich/llm。
-LLM 统一封装:llm.py(多 provider / 重试 / token 日志 / prompt caching / 反幻觉+文风纪律)。
+cli → gitlog (commit/diff/line history/breadcrumbs) ─┐
+      sessions (Claude/Cursor/Codex, fault-tolerant) ─┼→ align (soft assoc.) → enrich (LLM, SHA cache) → report → vault
+      cache (SQLite single source of truth)          ─┘
+Zero-LLM tools: brief / debt / graph read cache + git directly, bypassing enrich/llm.
+Unified LLM wrapper: llm.py (multi-provider / retry / token log / prompt caching / anti-hallucination + style discipline).
 ```
 
-## 设计哲学(M0)
+## Design philosophy (M0)
 
-核心 CLI/MCP 面保持标准库 + anthropic SDK(可选);**禁** LangGraph / 向量库 / 重前端链路。
-`codetalk web` 是可选 web extra,仅该面允许 FastAPI / uvicorn,且惰性 import、不污染核心依赖。
-单模块 <300 行;解析外部数据一律容错、失败降级绝不崩溃。行为准则见 `CLAUDE.md`(Karpathy
-编码纪律:想清再写 / 简单优先 / 外科手术式改动 / 目标驱动)。设计与实现计划见 `docs/superpowers/`。
+The core CLI/MCP surface stays on standard library + anthropic SDK (optional); LangGraph / vector DBs / heavy frontend chains are **forbidden**. `codetalk web` is an optional web extra — only that surface allows FastAPI / uvicorn, and it's lazily imported so it doesn't pollute the core dependencies. Modules stay <300 lines; parsing external data is always fault-tolerant, degrading on failure and never crashing. Behavioral guidelines are in `CLAUDE.md` (Karpathy coding discipline: think before writing / simplicity first / surgical changes / goal-driven). Design and implementation plans are in `docs/superpowers/`.
 
-## 发布与贡献
+## Release & contributing
 
-- 发布前检查: [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md)
-- 变更记录: [`CHANGELOG.md`](CHANGELOG.md)
-- 贡献约束: [`CONTRIBUTING.md`](CONTRIBUTING.md)
-- 安全报告: [`SECURITY.md`](SECURITY.md)
+- Pre-release checks: [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md)
+- Change log: [`CHANGELOG.md`](CHANGELOG.md)
+- Contribution constraints: [`CONTRIBUTING.md`](CONTRIBUTING.md)
+- Security reports: [`SECURITY.md`](SECURITY.md)
