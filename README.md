@@ -1,4 +1,16 @@
-# CodeTalk
+<p align="center">
+  <img src="docs/images/codetalk-pixel-tech-logo.png" alt="CodeTalk pixel tech logo" width="180">
+</p>
+
+<h1 align="center">CodeTalk</h1>
+
+<p align="center">
+  Local-first AI coding provenance: turn commits, sessions, and decision breadcrumbs into verifiable answers to “why was this code written?”
+</p>
+
+<p align="center">
+  <strong>Zero-LLM core · Real citations · Local cache · MCP / CLI / VS Code</strong>
+</p>
 
 **AI writes your code. Three months later, nobody knows why it was written that way.**
 
@@ -37,6 +49,16 @@ CodeTalk grounds "why" in real commit history — verbatim citations you can cli
 | 方法 | LLM 从代码猜测 | 零-LLM 确定性按 SHA 查找 |
 | 可核验 | 否——听起来对但无据 | 是——点开 SHA 看原文 |
 | 数据 | 发往云端 | 本地优先；LLM 调用可关（`--no-llm` 零出网） |
+
+## Pipeline / 管道
+
+CodeTalk is a local evidence pipeline. It reads git history and AI coding
+session files, parses them defensively, aligns sessions to commits, stores
+redacted evidence in a local SQLite cache, then exposes deterministic tools for
+`doctor`, `blame`, `search`, `review`, `drift`, `graph`, `prompts`, and `adr`.
+LLM synthesis is optional and sits behind the evidence layer.
+
+![CodeTalk pipeline](docs/images/codetalk-pipeline-easydataset-style.png)
 
 > **Honest boundaries / 诚实边界:** Blind test is N=5, this repo only, human-judged — not a population claim. Coverage depends on `enrich`: this repo (with full backfill) reaches 100% (220/220); a separate 605-commit repo **without** enrich starts at 0.3%, reaching ~100% after `codetalk enrich`. Without enrich or breadcrumbs, blame shows commit subjects only — similar to `git log`. Run `grounding_hitrate.py` on your own repo to measure. CodeTalk finds "what was actually said and decided", not "whether the code is correct" — source records themselves may be wrong. Full methodology: `docs/discovery/2026-06-29-护城河对照卡-真实记录vs反推.md`.
 >
