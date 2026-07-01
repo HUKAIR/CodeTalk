@@ -249,7 +249,7 @@ Unified LLM wrapper: llm.py (multi-provider / retry / token log / prompt caching
 
 ## Design philosophy (M0)
 
-The core CLI/MCP surface stays on standard library + anthropic SDK (optional); LangGraph / vector DBs / heavy frontend chains are **forbidden**. `codetalk web` is an optional web extra — only that surface allows FastAPI / uvicorn, and it's lazily imported so it doesn't pollute the core dependencies. Modules stay <300 lines; parsing external data is always fault-tolerant, degrading on failure and never crashing. Behavioral guidelines are in `CLAUDE.md` (Karpathy coding discipline: think before writing / simplicity first / surgical changes / goal-driven). Design and implementation plans are in `docs/superpowers/`.
+The core CLI/MCP surface stays on standard library + anthropic SDK (optional); LangGraph / vector DBs / heavy frontend chains are **forbidden**. `codetalk web` is an optional web extra — only that surface allows FastAPI / uvicorn, and it's lazily imported so it doesn't pollute the core dependencies. Modules stay <300 lines; parsing external data is always fault-tolerant, degrading on failure and never crashing. Behavioral guidelines are in `CLAUDE.md` (Karpathy coding discipline: think before writing / simplicity first / surgical changes / goal-driven).
 
 ## Release & contributing
 

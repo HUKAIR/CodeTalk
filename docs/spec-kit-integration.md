@@ -127,5 +127,4 @@ If your team is already in the Spec Kit / Kiro / OpenSpec / BMAD / Antigravity u
 - [README](../README.md) — what CodeTalk is
 - [MCP install guide](mcp-install.md) — agent integration
 - [VS Code extension](../vscode-codetalk/README.md) — foldable CodeLens + hover decision cards
-- [RepoWise comparison](repowise-vs-codetalk.md) — adjacent tool, different design
 - [Spec Kit](https://github.com/github/spec-kit) — the spec-driven workflow this complements

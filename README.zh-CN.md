@@ -279,7 +279,7 @@ LLM 统一封装:llm.py(多 provider / 重试 / token 日志 / prompt caching / 
 核心 CLI/MCP 面保持标准库 + anthropic SDK(可选);**禁** LangGraph / 向量库 / 重前端链路。
 `codetalk web` 是可选 web extra,仅该面允许 FastAPI / uvicorn,且惰性 import、不污染核心依赖。
 单模块 <300 行;解析外部数据一律容错、失败降级绝不崩溃。行为准则见 `CLAUDE.md`(Karpathy
-编码纪律:想清再写 / 简单优先 / 外科手术式改动 / 目标驱动)。设计与实现计划见 `docs/superpowers/`。
+编码纪律:想清再写 / 简单优先 / 外科手术式改动 / 目标驱动)。
 
 ## 发布与贡献
 
