@@ -41,37 +41,41 @@ LLM synthesis is optional and sits behind the evidence layer.
 
 ![CodeTalk pipeline](docs/images/codetalk-pipeline.png)
 
-### Plain-language terms
+### What These Terms Mean
 
-- **Decision breadcrumbs**: plain commit-message lines such as
-  `Vibe-Decision: ...` and `Vibe-Watch: ...`. They record the reason for a
-  change and anything worth checking later. They are just git text, not an AI
-  feature.
-- **`enrich`**: an optional backfill step. It asks an LLM to summarize old
-  commits plus nearby local session transcripts into decision narratives. You
-  only need it when your existing commits do not already carry breadcrumbs.
-- **Grounded / grounding**: every answer has to point back to real commits,
-  decision breadcrumbs, or session transcripts. No evidence means no confident
-  AI answer.
-- **Zero-LLM / zero egress**: deterministic local lookup without a model call.
-  `--no-llm` also disables the optional LLM call, so project data stays on your
+- **Decision notes** (called breadcrumbs internally) are two optional lines in a
+  git commit message: `Vibe-Decision: ...` for the reason behind a change, and
+  `Vibe-Watch: ...` for a risk to check later. They are stored in git, can be
+  written by a person, a git hook, or an AI coding agent, and CodeTalk reads them
+  in `blame`, `ask`, `graph`, and `digest`.
+- **`enrich`** is optional backfill for old commits. It asks an LLM to read a
+  commit plus nearby local session snippets, then stores a redacted narrative in
+  `~/.codetalk/cache.db` under that commit SHA. Use it when old commits do not
+  already have decision notes.
+- **Grounding evidence** is the material CodeTalk can cite: commit messages,
+  `Vibe-Decision` / `Vibe-Watch` lines, and local session transcript excerpts.
+  If there is no evidence, CodeTalk should fall back to listing what it found,
+  not inventing an answer.
+- **Zero-LLM / zero egress** means CodeTalk only does local deterministic lookup.
+  `--no-llm` also disables optional model calls, so project data stays on your
   machine.
-- **Time capsule**: a `Vibe-Watch` risk that CodeTalk brings back later so you
-  can verify whether the concern came true.
-- **MCP**: a standard way to expose CodeTalk commands to AI coding clients such
-  as Claude Code, Cursor, and Codex.
-- **Understanding debt**: files or decisions that likely deserve a reread
-  because they changed recently, carried risks, or have not been reviewed.
+- **Time capsule** means a `Vibe-Watch` line is brought back in a future report
+  so you can check whether the risk actually happened.
+- **MCP** is the protocol CodeTalk uses to expose its commands inside AI coding
+  clients such as Claude Code, Cursor, and Codex.
+- **Understanding debt** is CodeTalk's priority list of files or decisions that
+  deserve a reread because they changed recently, carried risks, or have not
+  been reviewed.
 
-> **Honest boundaries:** Blind test is N=5, this repo only, human-judged — not a population claim. Coverage depends on `enrich`: this repo (with full backfill) reaches 100% (220/220); a separate 605-commit repo **without** enrich starts at 0.3%, reaching ~100% after `codetalk enrich`. Without enrich or breadcrumbs, blame shows commit subjects only — similar to `git log`. Run `grounding_hitrate.py` on your own repo to measure. CodeTalk finds "what was actually said and decided", not "whether the code is correct" — source records themselves may be wrong. Coverage numbers are reproducible with `grounding_hitrate.py` on any repo; blind-test method: `python3 scripts/blind_test.py`; moat comparison write-up: `docs/moat-real-records-vs-inference.md`.
+> **Honest boundaries:** Blind test is N=5, this repo only, human-judged — not a population claim. Coverage depends on `enrich`: this repo (with full backfill) reaches 100% (220/220); a separate 605-commit repo **without** enrich starts at 0.3%, reaching ~100% after `codetalk enrich`. Without enrich or decision notes, blame shows commit subjects only — similar to `git log`. Run `grounding_hitrate.py` on your own repo to measure. CodeTalk finds "what was actually said and decided", not "whether the code is correct" — source records themselves may be wrong. Coverage numbers are reproducible with `grounding_hitrate.py` on any repo; blind-test method: `python3 scripts/blind_test.py`; moat comparison write-up: `docs/moat-real-records-vs-inference.md`.
 
 ## See it work in 30 seconds
 
 ```bash
 git clone https://github.com/HUKAIR/CodeTalk && cd CodeTalk && pip install -e .
 
-# This repo uses CodeTalk on itself — every commit carries decision breadcrumbs
-# (plain Vibe-Decision / Vibe-Watch lines in the commit message).
+# This repo uses CodeTalk on itself — every commit carries decision notes
+# (Vibe-Decision / Vibe-Watch lines in the commit message).
 # No API key, no config, no enrich:
 codetalk doctor
 
@@ -87,10 +91,10 @@ You'll see, for each commit that touched the file: the **why**, the **decisions 
 # Step 0 — see coverage, local session availability, and the best next command:
 codetalk doctor --project /path/to/repo
 
-# Step 1 — decision breadcrumbs already in your history? blame works immediately, zero key:
+# Step 1 — decision notes already in your history? blame works immediately, zero key:
 codetalk blame /path/to/yourfile.py
 
-# Step 2 — for full narratives on a repo without breadcrumbs (needs an LLM key):
+# Step 2 — for full narratives on a repo without decision notes (needs an LLM key):
 codetalk init                              # write config, fill your API key
 codetalk enrich --project /path/to/repo    # backfill decision narratives from git+sessions
 
@@ -98,7 +102,7 @@ codetalk enrich --project /path/to/repo    # backfill decision narratives from g
 codetalk install-agent-seed --project .    # your AI agent leaves Vibe-Decision notes
 ```
 
-**Honest cold-start:** a repo with no breadcrumbs and no `enrich` shows commit subjects only — like `git log`. The value comes from breadcrumbs (free, in git) or `enrich` (needs a key). This repo has both, which is why the 30-second demo above is rich. Yours starts empty and fills as you use it.
+**Honest cold-start:** a repo with no decision notes and no `enrich` shows commit subjects only — like `git log`. The value comes from decision notes (free, in git) or `enrich` (needs a key). This repo has both, which is why the 30-second demo above is rich. Yours starts empty and fills as you use it.
 
 ## Install
 
@@ -162,7 +166,7 @@ After installing, run Cmd+Shift+P → **Reload Window**, then open a project tha
 
 ## codetalk web — self-hosted grounded conversation (new)
 
-A local-first interactive web page: hold a multi-turn discussion with an LLM about "why was this code written this way", but on every turn it **first runs a zero-LLM retrieval over your project's real records** (commit narratives / decision breadcrumbs / verbatim session transcripts), feeds that real evidence to the model, and puts **side-by-side verifiable citations** next to the answer. The discussion itself is redacted before being stored, feeding back into future `ask` / `search`. **Self-hosted = your data stays on your own machine; we sell software, not a service.**
+A local-first interactive web page: hold a multi-turn discussion with an LLM about "why was this code written this way", but on every turn it **first runs a zero-LLM retrieval over your project's real records** (commit narratives / decision notes / verbatim session transcripts), feeds that real evidence to the model, and puts **side-by-side verifiable citations** next to the answer. The discussion itself is redacted before being stored, feeding back into future `ask` / `search`. **Self-hosted = your data stays on your own machine; we sell software, not a service.**
 
 ```bash
 pip install -e ".[web]"                            # optional web extra (FastAPI/uvicorn; CLI/MCP stay pure stdlib)
@@ -218,15 +222,15 @@ To switch models: change the top-level `provider` to any of the above and set th
 | `brief` | **Kickoff brief**: where you left off + top 3 understanding debts (**pure local, zero LLM**); `--all` gives a **cross-project overview** (across all projects: those with due capsules + those with the highest understanding debt, ordered by urgency) | `codetalk brief` · `codetalk brief --all` |
 | `graph` | **Decision-impact graph**: which decision drove which later changes (timeline DAG, **zero LLM**; `--canvas` exports an Obsidian Canvas) | `codetalk graph --canvas` |
 | `course` | **Evolution course**: how the project grew into what it is, step by step (chaptered + plain-language + scenario quizzes, single-file HTML) | `codetalk course` |
-| `ask` | **Ask about a piece of code**, with answers wired to project memory (narratives + decision breadcrumbs), citing real commits | `codetalk ask codetalk/llm.py:72-78 "why written this way"` |
+| `ask` | **Ask about a piece of code**, with answers wired to project memory (narratives + decision notes), citing real commits | `codetalk ask codetalk/llm.py:72-78 "why written this way"` |
 | `console` | **Unified console (web entry)**: kickoff overview / timeline / decision graph / understanding debt — four views on one page, overview-first with click-to-drill, no more full-page dumps (**zero LLM**; `--serve` writes capsules back) | `codetalk console --serve` |
 | `tunnel` | **Timeline**: a linear commit timeline, newest on top, grouped by day, click to read the narrative (`--serve` writes capsule answers back instantly) | `codetalk tunnel` |
-| `install-hook` | Install a git hook: when hand-writing a commit, prompt in the editor to leave `Vibe-Decision`/`Vibe-Watch` breadcrumbs | `codetalk install-hook` |
-| `install-agent-seed` | Plant the decision-capture convention into the project `CLAUDE.md` + `AGENTS.md`, so an **AI coding agent** (Claude / others) automatically leaves reasoning breadcrumbs on commit (**capture-at-write-time > inferring from the diff afterward**) | `codetalk install-agent-seed` |
+| `install-hook` | Install a git hook: when hand-writing a commit, prompt in the editor to leave `Vibe-Decision`/`Vibe-Watch` decision notes | `codetalk install-hook` |
+| `install-agent-seed` | Plant the decision-capture convention into the project `CLAUDE.md` + `AGENTS.md`, so an **AI coding agent** (Claude / others) automatically leaves decision notes on commit (**capture-at-write-time > inferring from the diff afterward**) | `codetalk install-agent-seed` |
 
 `digest` output: `<vault>/YYYY-MM-DD-<project>.md` — a-year-ago-today / a-month-ago-today reflowed → today's overview (letter style) + today's decisions → due time capsules (to backfill) → per-commit narratives → an open-loop summary → run stats. Time capsules seal each risk for 21 days and, when due, bring it back in front of you in the daily report, closing the "predict → verify" loop.
 
-### Decision breadcrumbs (make `ask` / `graph` sharper)
+### Decision Notes (make `ask` / `graph` sharper)
 
 When you make a key technical tradeoff, leave a line in the commit message body:
 
@@ -257,7 +261,7 @@ Committers who hand-write commits (without `-m`) can run `codetalk install-hook`
 ## Architecture
 
 ```
-cli → gitlog (commit/diff/line history/breadcrumbs) ─┐
+cli → gitlog (commit/diff/line history/decision notes) ─┐
       sessions (Claude/Cursor/Codex, fault-tolerant) ─┼→ align (soft assoc.) → enrich (LLM, SHA cache) → report → vault
       cache (SQLite single source of truth)          ─┘
 Zero-LLM tools: brief / debt / graph read cache + git directly, bypassing enrich/llm.
