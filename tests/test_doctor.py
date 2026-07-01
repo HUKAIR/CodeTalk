@@ -46,6 +46,28 @@ class TestDoctor(unittest.TestCase):
         self.assertIn("Evidence: cold-start (0/1 commits with breadcrumbs", report)
         self.assertIn("codetalk enrich --project", report)
 
+    def test_demo_file_prefers_groundable_signal_over_churn(self):
+        # 改动最多的文件全是光秃提交,另一个改动少却带 Vibe-* 面包屑;
+        # 冷启动首个 blame 应落在有零-LLM 可接地信号的文件上,而非改得最多的空文件。
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        repo = Path(tmp.name)
+        self._git(repo, "init")
+        self._git(repo, "config", "user.email", "t@t")
+        self._git(repo, "config", "user.name", "t")
+        for i in range(3):
+            (repo / "busy.py").write_text(f"print({i})\n", encoding="utf-8")
+            self._git(repo, "add", "busy.py")
+            self._git(repo, "commit", "-m", f"tweak busy {i}")
+        (repo / "rich.py").write_text("print('rich')\n", encoding="utf-8")
+        self._git(repo, "add", "rich.py")
+        self._git(repo, "commit", "-m", "add rich", "-m",
+                  "Vibe-Decision: 逐字记录当初为何这么写")
+        report, err = doctor.build_doctor_report(repo)
+        self.assertIsNone(err)
+        self.assertIn("codetalk blame rich.py --project", report)
+        self.assertNotIn("codetalk blame busy.py", report)
+
     def test_cli_dispatches_doctor(self):
         seen = {}
 

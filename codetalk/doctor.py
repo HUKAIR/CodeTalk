@@ -33,15 +33,24 @@ def _best_demo_file(commits, tracked):
     if not tracked:
         return ""
     counts = {}
+    signal = {}
     for commit in commits:
+        dec, wat = gitlog.parse_breadcrumbs(commit.get("body", ""))
+        grounded = bool(dec or wat or gitlog.parse_rejected(commit.get("body", "")))
         for file in commit.get("files", []):
             if file in tracked:
                 counts[file] = counts.get(file, 0) + 1
+                if grounded:
+                    signal[file] = signal.get(file, 0) + 1
     preferred = (".py", ".ts", ".tsx", ".js", ".jsx", ".md")
     def is_test(file):
         return file.startswith("tests/") or "/test" in file or file.startswith("test_")
 
-    ranked = sorted(counts.items(), key=lambda item: (is_test(item[0]), -item[1], item[0]))
+    # 冷启动第一印象:同类文件里优先落在带零-LLM 可接地信号(Vibe-* 面包屑)的那个,
+    # 而非单纯改动最多——改得最多却全是光秃标题的文件会让首个 blame 看着像空的。
+    ranked = sorted(counts.items(),
+                    key=lambda item: (is_test(item[0]), -signal.get(item[0], 0),
+                                      -item[1], item[0]))
     for ext in preferred:
         for file, _count in ranked:
             if file.endswith(ext):
