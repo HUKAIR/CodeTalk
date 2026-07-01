@@ -11,6 +11,7 @@ LLM 作注入依赖(对象需有 .chat(messages)->str);真流式/provider 调用
 """
 from . import conversation, highlight, retrieval
 from .config import redact_data
+from .llm import LLMError
 from .prompts import CHAT_SYSTEM_PROMPT
 
 _NO_MATERIAL = ("没有在项目记忆里找到相关记录;换个关键词,"
@@ -57,8 +58,12 @@ def answer(cache, llm, project_path, question, *, target=None, conv_id="c1",
         messages = [{"role": "system", "content": CHAT_SYSTEM_PROMPT},
                     {"role": "user",
                      "content": build_user_message(question, history, ev["material"])}]
-        answer_text = llm.chat(messages)
-        degraded = False
+        try:
+            answer_text = llm.chat(messages)
+            degraded = False
+        except LLMError:                        # LLM 活着但调用失败 → 降级为零-LLM 材料,不崩
+            answer_text = ev["material"] or _NO_MATERIAL
+            degraded = True
     conversation.save_turn(cache, f"{conv_id}:{turn_seq:03d}:1", conv_id,
                            str(project_path), now, "assistant", answer_text,
                            cited_shas=[h["sha"] for h in ev["hits"]])
@@ -87,10 +92,19 @@ def answer_stream(cache, llm, project_path, question, *, target=None, conv_id="c
         messages = [{"role": "system", "content": CHAT_SYSTEM_PROMPT},
                     {"role": "user",
                      "content": build_user_message(question, history, ev["material"])}]
-        for delta in llm.chat_stream(messages):
-            pieces.append(delta)
-            yield {"type": "token", "text": delta}
-        degraded = False
+        try:
+            for delta in llm.chat_stream(messages):
+                pieces.append(delta)
+                yield {"type": "token", "text": delta}
+            degraded = False
+        except LLMError:                        # 流式失败:未产出→整体降级;已产出→标注中断,不静默截断
+            if not pieces:
+                text = ev["material"] or _NO_MATERIAL
+                pieces.append(text)
+                yield {"type": "token", "text": text}
+            else:
+                yield {"type": "token", "text": "\n\n[生成中断,以上为部分结果]"}
+            degraded = True
     answer_text = "".join(pieces)
     conversation.save_turn(cache, f"{conv_id}:{turn_seq:03d}:1", conv_id,
                            str(project_path), now, "assistant", answer_text,

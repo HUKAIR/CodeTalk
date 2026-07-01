@@ -65,6 +65,37 @@ class TestAnswerQuestion(unittest.TestCase):
         self.assertNotIn("sk-abcdefghijklmnop1234", text)
         self.assertIn("[REDACTED]", text)
 
+    def test_hallucinated_cited_sha_dropped(self):
+        """核心承诺:LLM 自报但不在检索证据里的 SHA 不外露、不落缓存。"""
+        cache = Cache(":memory:")
+
+        class _HallucLLM:
+            model = "m"
+
+            def narrate(self, *a, **k):
+                return {"answer": "答案",
+                        "cited_shas": ["sha1aaa", "deadbeef", "9999999"], "unsure": ""}
+
+        with _patch_retrieve():   # 检索真 SHA 只有 sha1aaaabbbb
+            text, err = ask.answer_question(cache, _HallucLLM(), ".", "P",
+                                            "f.py:1-2", "Q")
+        self.assertIn("sha1aaa", text)          # 真 SHA 的前缀:保留
+        self.assertNotIn("deadbeef", text)      # 编造:丢弃
+        self.assertNotIn("9999999", text)
+
+
+class TestVerifyCited(unittest.TestCase):
+    def test_keeps_only_prefix_matches(self):
+        real = ["abc1234567890", "def9876543210"]
+        cited = ["abc1234", "def9876543210", "ffffff", "abc1234567890extra"]
+        # 双向前缀:短引真 SHA、全等、以及真 SHA 是引用前缀 均保留;无关的丢
+        self.assertEqual(ask._verify_cited(cited, real),
+                         ["abc1234", "def9876543210", "abc1234567890extra"])
+
+    def test_empty_inputs(self):
+        self.assertEqual(ask._verify_cited([], ["abc"]), [])
+        self.assertEqual(ask._verify_cited(["abc"], []), [])
+
 
 if __name__ == "__main__":
     unittest.main()

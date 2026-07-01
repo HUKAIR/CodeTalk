@@ -84,6 +84,15 @@ def _retrieve(project_path, file, start, end, cache, since=None):
     return context, shas, code_state, evidence, test_refs, pr_refs
 
 
+def _verify_cited(cited, shas):
+    """只保留能对上检索集合里真实 commit 的引用(双向前缀匹配),丢掉模型自造的 SHA。
+    守『引用可点验证』:LLM 自报但不在检索证据里的 SHA 一律不外露、不落缓存。"""
+    real = [str(s) for s in (shas or [])]
+    return [str(c) for c in cited
+            if any(r == str(c) or r.startswith(str(c)) or str(c).startswith(r)
+                   for r in real)]
+
+
 def _ask_prompt(context, question):
     return ("材料(这段代码相关 commit 的叙事与决策面包屑,旧→新):\n"
             f"{context}\n\n问题:{question}\n"
@@ -218,7 +227,7 @@ def answer_question(cache, llm, project_path, project, target, question,
             evidence, test_refs, pr_refs), None
     payload = {
         "answer": redact_secrets(str(raw.get("answer", ""))),
-        "cited_shas": [str(s) for s in (raw.get("cited_shas") or [])],
+        "cited_shas": _verify_cited(raw.get("cited_shas") or [], shas),
         "unsure": redact_secrets(str(raw.get("unsure", ""))),
     }
     cache.put_narrative(key, project, llm.model, payload)

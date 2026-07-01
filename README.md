@@ -20,7 +20,7 @@ CodeTalk grounds "why" in real commit history — verbatim citations you can cli
 
 - **Trust is collapsing.** 46% of developers actively distrust AI output; only 3% highly trust it. *(Stack Overflow 2025, N=33,244)*
 - **AI "explanations" are fabricated.** We blind-tested 5 real commits: AI inferred "why" from diffs alone — **5/5 missed the real decisions, 2/5 completely wrong.** *(This repo, reproducible: `python3 scripts/blind_test.py . 5`)*
-- **Your chat history is fragile.** 8+ bug reports across Cursor, Claude Code, and Copilot: conversations silently vanish — data still on disk, UI can't surface it.
+- **Your chat history is fragile.** Multiple bug reports across Cursor, Claude Code, and Copilot describe conversations silently vanishing — data still on disk, UI can't surface it. One confirmed Cursor case (~175 agent chats hidden while intact on disk) is written up in `docs/moat-real-records-vs-inference.md`.
 
 ### How CodeTalk is different
 
@@ -67,15 +67,15 @@ LLM synthesis is optional and sits behind the evidence layer.
   deserve a reread because they changed recently, carried risks, or have not
   been reviewed.
 
-> **Honest boundaries:** Blind test is N=5, this repo only, human-judged — not a population claim. Coverage depends on `enrich`: this repo (with full backfill) reaches 100% (220/220); a separate 605-commit repo **without** enrich starts at 0.3%, reaching ~100% after `codetalk enrich`. Without enrich or decision notes, blame shows commit subjects only — similar to `git log`. Run `grounding_hitrate.py` on your own repo to measure. CodeTalk finds "what was actually said and decided", not "whether the code is correct" — source records themselves may be wrong. Coverage numbers are reproducible with `grounding_hitrate.py` on any repo; blind-test method: `python3 scripts/blind_test.py`; moat comparison write-up: `docs/moat-real-records-vs-inference.md`.
+> **Honest boundaries:** Blind test is N=5, this repo only, human-judged — not a population claim. Coverage depends on decision notes + `enrich`: a fresh clone of this repo reproduces **57.4% (105/183 commits, breadcrumb-only, measured 2026-07-02)** — run `python3 scripts/grounding_hitrate.py .` to reproduce that exact number; after a full `codetalk enrich` backfill it reaches ~100%. A separate 605-commit repo **without** enrich starts at 0.3%, reaching ~100% after `codetalk enrich`. Without enrich or decision notes, blame shows commit subjects only — similar to `git log`. Run `grounding_hitrate.py` on your own repo to measure. CodeTalk finds "what was actually said and decided", not "whether the code is correct" — source records themselves may be wrong. Coverage numbers are reproducible with `grounding_hitrate.py` on any repo; blind-test method: `python3 scripts/blind_test.py`; moat comparison write-up: `docs/moat-real-records-vs-inference.md`.
 
 ## See it work in 30 seconds
 
 ```bash
 git clone https://github.com/HUKAIR/CodeTalk && cd CodeTalk && pip install -e .
 
-# This repo uses CodeTalk on itself — every commit carries decision notes
-# (Vibe-Decision / Vibe-Watch lines in the commit message).
+# This repo uses CodeTalk on itself — most commits carry decision notes
+# (Vibe-Decision / Vibe-Watch lines in the commit message; 101/183 so far).
 # No API key, no config, no enrich:
 codetalk doctor
 
@@ -83,7 +83,7 @@ codetalk doctor
 codetalk blame codetalk/cache.py
 ```
 
-You'll see, for each commit that touched the file: the **why**, the **decisions made**, the **alternatives rejected** — verbatim from the commit record, zero LLM. That's the whole pitch in one command.
+For every commit that carries decision notes, you'll see: the **why**, the **decisions made**, the **alternatives rejected** — verbatim from the commit record, zero LLM. Commits without notes show their subject only. That's the whole pitch in one command.
 
 ## On your own repo
 
@@ -92,7 +92,7 @@ You'll see, for each commit that touched the file: the **why**, the **decisions 
 codetalk doctor --project /path/to/repo
 
 # Step 1 — decision notes already in your history? blame works immediately, zero key:
-codetalk blame /path/to/yourfile.py
+codetalk blame yourfile.py --project /path/to/repo
 
 # Step 2 — for full narratives on a repo without decision notes (needs an LLM key):
 codetalk init                              # write config, fill your API key
@@ -255,7 +255,7 @@ Committers who hand-write commits (without `-m`) can run `codetalk install-hook`
 - The session source is not a complete audit log: Claude main sessions and `*/subagents/**/agent-*.jsonl` are included, but side files like journal/meta are not collected; Cursor / Codex local session sources are opt-in and depend on unofficial local formats.
 - Session-to-commit alignment is a soft association (±30-minute time window + file intersection), targeting 80% accuracy, annotated with high/low confidence — **not guaranteed to be all correct**.
 - Once a commit is amended / rebased and its SHA changes, it's treated as a new commit; the old SHA's cache becomes dead data.
-- `graph`'s file-level edges get dense on very small projects (like this repo's 7 files) and are suppressed with sparse nodes; line-level precision is deferred as a non-goal.
+- `graph`'s file-level edges get dense on very small projects and are suppressed with sparse nodes; line-level precision is deferred as a non-goal.
 - The local session formats of Claude Code / Cursor / Codex are all unofficial, non-stable APIs; a version upgrade may break parsing — the parser ignores unknown fields and degrades on missing ones, worst-case falling back to pure-git mode.
 
 ## Architecture

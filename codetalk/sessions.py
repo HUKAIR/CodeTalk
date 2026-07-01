@@ -68,7 +68,7 @@ def _human_text(obj):
         if any((b or {}).get("type") == "tool_result" for b in content
                if isinstance(b, dict)):
             return None
-        text = "\n".join((b or {}).get("text", "") for b in content
+        text = "\n".join((b or {}).get("text") or "" for b in content
                          if isinstance(b, dict) and b.get("type") == "text").strip()
     else:
         return None

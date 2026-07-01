@@ -66,7 +66,10 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ## Project-Specific Guidelines
 - Python 3.11+;M0 仅允许标准库 + anthropic SDK(GitPython 可选)。
-  禁止引入 LangGraph、向量数据库、Web 框架——出现即违反 Simplicity First
+  禁止引入 LangGraph、向量数据库——出现即违反 Simplicity First。
+  依赖分面:CLI/MCP 核心面须纯 stdlib(`pip install -e .` 的 dependencies=[]);
+  Web 框架(FastAPI/uvicorn)仅限 `codetalk web` 的可选 `.[web]` extra,且不得被
+  CLI/MCP import(惰性 import,核心仍纯 stdlib)。详见 CLAUDE.md「依赖分面」段。
 - 所有 LLM 调用走统一封装 llm.py:prompt 模板、重试、token 计数日志、
   Anthropic prompt caching(系统提示+项目上下文作缓存前缀)
 - 所有解析外部数据(JSONL、git)的代码必须容错:失败记警告并降级,绝不崩溃

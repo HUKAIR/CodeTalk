@@ -91,5 +91,27 @@ class TestWebApiRedaction(unittest.TestCase):
         self.assertIn("graph unavailable", r.text)
 
 
+class TestServeBindHost(unittest.TestCase):
+    """默认绑 127.0.0.1(隐私红线);仅 CODETALK_WEB_HOST(容器内)可放开监听地址。"""
+
+    def _serve_host(self, env):
+        captured = {}
+        with mock.patch.object(web, "uvicorn") as uv, \
+             mock.patch.dict("os.environ", env, clear=False):
+            uv.run.side_effect = lambda *a, **k: captured.update(k)
+            web.serve(project=".", port=8000, no_open=True)
+        return captured.get("host")
+
+    def test_default_binds_loopback(self):
+        with mock.patch.dict("os.environ", {}, clear=False):
+            import os
+            os.environ.pop("CODETALK_WEB_HOST", None)
+            self.assertEqual(self._serve_host({}), "127.0.0.1")
+
+    def test_env_override_for_container(self):
+        self.assertEqual(self._serve_host({"CODETALK_WEB_HOST": "0.0.0.0"}),
+                         "0.0.0.0")
+
+
 if __name__ == "__main__":
     unittest.main()

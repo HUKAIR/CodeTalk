@@ -186,7 +186,7 @@ def scan_sessions(project_path, since_dt, cache=None):
                 continue
             ckey = "codex:" + (sid or fp.stem)      # 源前缀:与 claude/cursor 键隔离
             cached = cache.get_session(ckey) if cache else None
-            if cached and cached["mtime"] == st.st_mtime_ns \
+            if cached and cached["mtime"] == st.st_mtime \
                     and cached["size"] == st.st_size:
                 s = _thaw(cached["summary"])
             else:
@@ -196,7 +196,7 @@ def scan_sessions(project_path, since_dt, cache=None):
                 if cache and s["records"]:
                     cache.put_session(
                         ckey, s["end"].isoformat() if s["end"] else "",
-                        st.st_mtime_ns, st.st_size, _freeze(s))
+                        st.st_mtime, st.st_size, _freeze(s))
             if not s["records"]:
                 continue
             if since_dt and s["end"] and s["end"] < since_dt:

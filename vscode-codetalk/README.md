@@ -50,7 +50,7 @@ Only blocks with real decisions/why get CodeLens. Hover works on any line.
 ## Prerequisites
 
 - Python >= 3.11
-- `pip install -e .` (or `pip install codetalk`) in the project root
+- `pip install -e .` in the project root (clone CodeTalk first; PyPI package not yet published)
 - The project has been enriched: `codetalk enrich --project /path/to/repo`
   (gives CodeTalk commit narratives to display; without this, only `Vibe-Decision` breadcrumbs show)
 

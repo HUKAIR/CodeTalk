@@ -237,4 +237,8 @@ def serve(project=".", port=8000, no_open=False, no_llm=False):
             webbrowser.open(url)
         except Exception:                          # noqa: BLE001 开浏览器失败不影响服务
             pass
-    uvicorn.run(app, host="127.0.0.1", port=port)
+    # 默认绑 127.0.0.1(守隐私红线)。仅容器内经 CODETALK_WEB_HOST=0.0.0.0 放开监听地址,
+    # 此时仍靠 _local_request_guard 拒绝非 loopback Host,配合 `-p 127.0.0.1:8000:8000`
+    # 端口映射,数据不出宿主机。非容器场景保持 127.0.0.1,行为不变。
+    host = os.environ.get("CODETALK_WEB_HOST", "127.0.0.1")
+    uvicorn.run(app, host=host, port=port)

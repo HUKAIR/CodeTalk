@@ -42,7 +42,9 @@ class TestAssemble(unittest.TestCase):
         commits = [_c("d1aaaaaa", 1, ["a.py"],
                       body="Vibe-Decision: token=sk-abcdefghijklmnop1234")]
         cache = Cache(":memory:")
-        cache.seal_capsule("P", "d1aaaaaa", 0, "并发风险", "2026-06-01", "2026-06-22")
+        # 胶囊以 project_path 为键封存(与 digest pkey=str(project_path) 对齐);
+        # _assemble 现按 str(project_path) 查,故 seal 键须用同一 "." 而非 basename "P"。
+        cache.seal_capsule(".", "d1aaaaaa", 0, "并发风险", "2026-06-01", "2026-06-22")
         data = graph._assemble(commits, ".", "P", cache)
         n = data["nodes"][0]
         self.assertTrue(n["badge"].startswith("胶囊:"))     # 有胶囊 → 徽标

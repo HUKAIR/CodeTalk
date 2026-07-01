@@ -10,6 +10,7 @@ Like tunnel.py: assembles data and substitutes it into course.html;
 the template's JS renders chapters / code-pairs / quizzes.
 """
 import hashlib
+import html
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -155,7 +156,7 @@ def build_course(project_path, no_llm=False):
     template = Template((Path(__file__).parent / "course.html")
                         .read_text(encoding="utf-8"))
     html_text = template.substitute(
-        project=project,
+        project=html.escape(project, quote=True),  # 目录名转义防 HTML/JS 注入
         data=inline_json(redact_data(data)),  # 编码前脱敏:fresh subject 不走 cache 脱敏
         generated=f"{today:%Y.%m.%d}")
     html_text = redact_secrets(html_text)  # 隐私红线:落盘前对整页再兜底脱敏

@@ -15,8 +15,11 @@ CHARS_PER_TOKEN = 4  # rough budget heuristic; exact counting needs no extra dep
 def _git(args, cwd):
     # core.quotepath=false:让 git 对中文/重音文件名输出原始 UTF-8 而非 C 转义
     # ("\303\274ber.py"),恢复文件级交集;对已用 -z 的调用无副作用。
+    # errors="replace":老仓库/混编码仓的非-UTF-8 diff 或 commit message 不让 git 输出
+    # 解码抛 UnicodeDecodeError 崩掉整条管道(考古目标常是老仓)——替换字符对叙事输入无害。
     out = subprocess.run(["git", "-c", "core.quotepath=false", *args], cwd=cwd,
-                         capture_output=True, text=True, timeout=60)
+                         capture_output=True, text=True, encoding="utf-8",
+                         errors="replace", timeout=60)
     if out.returncode != 0:
         raise RuntimeError(out.stderr.strip()[:200])
     return out.stdout

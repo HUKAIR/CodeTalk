@@ -15,6 +15,7 @@ Two run modes (Issue #4 — single cache.db source of truth):
                    cache.db live (/capsule, /reviewed). cache.db is the only
                    capsule store — the page keeps no answers in localStorage.
 """
+import html
 from datetime import datetime, timezone
 from pathlib import Path
 from string import Template
@@ -79,7 +80,7 @@ def _build_html(project_path, serve):
     template = Template((Path(__file__).parent / "tunnel.html")
                         .read_text(encoding="utf-8"))
     html_text = template.substitute(
-        project=project_path.name,
+        project=html.escape(project_path.name, quote=True),  # 目录名转义防 HTML/JS 注入
         data=inline_json(redact_data(data)),  # 编码前脱敏:fresh subject 不走 cache 脱敏
         generated=f"{today:%Y.%m.%d}",
         serve="true" if serve else "false",

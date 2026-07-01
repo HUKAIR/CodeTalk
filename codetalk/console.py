@@ -4,6 +4,7 @@
 全程零 LLM(吃已缓存数据);复用 tunnel._payload / graph._assemble / debt_board / brief。
 单文件、零构建、离线;--serve 经 webserve 把胶囊回答 + 回看写回 cache.db。
 """
+import html
 from datetime import datetime, timezone
 from pathlib import Path
 from string import Template
@@ -122,33 +123,33 @@ def _build_html(project_path, serve, chat=False):
     today = datetime.now(timezone.utc).astimezone().date()
     template = Template((Path(__file__).parent / "console.html")
                         .read_text(encoding="utf-8"))
-    html = template.substitute(
-        project=pp.name,
+    html_text = template.substitute(
+        project=html.escape(pp.name, quote=True),  # 目录名可含 HTML/JS 元字符 → 转义防注入
         data=inline_json(redact_data(data)),
         generated=f"{today:%Y.%m.%d}",
         serve="true" if serve else "false",
         chat="true" if chat else "false",
     )
-    return redact_secrets(html), pp.name, None
+    return redact_secrets(html_text), pp.name, None
 
 
 def render_console(project_path):
     """写静态控制台 HTML(file://,只读)。→ (path, error)。"""
     cfg = load_config()
-    html, project, err = _build_html(project_path, serve=False)
+    html_text, project, err = _build_html(project_path, serve=False)
     if err:
         return None, err
     vault = Path(cfg["vault_path"]).expanduser()
     vault.mkdir(parents=True, exist_ok=True)
     out = vault / (project + "-console.html")
-    out.write_text(html, encoding="utf-8")
+    out.write_text(html_text, encoding="utf-8")
     return out, None
 
 
 def serve_console(project_path, open_browser=True):
     """起本地服务,胶囊回答 + 回看即时写回 cache。→ error_or_None(阻塞到 Ctrl+C)。"""
-    html, _, err = _build_html(project_path, serve=True)
+    html_text, _, err = _build_html(project_path, serve=True)
     if err:
         return err
     from .webserve import serve_html
-    return serve_html(html, project_path, open_browser)
+    return serve_html(html_text, project_path, open_browser)

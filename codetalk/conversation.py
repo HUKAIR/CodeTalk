@@ -42,9 +42,12 @@ def save_turn(cache, turn_id, conv_id, project, ts, role, text, cited_shas=()):
 
 
 def _row(r):
+    try:                                       # 坏 cited_shas JSON 降级为空引用,不崩取 turn
+        cited = json.loads(r[6]) if r[6] else []
+    except (json.JSONDecodeError, TypeError):
+        cited = []
     return {"turn_id": r[0], "conv_id": r[1], "project": r[2], "ts": r[3],
-            "role": r[4], "text": r[5],
-            "cited_shas": json.loads(r[6]) if r[6] else []}
+            "role": r[4], "text": r[5], "cited_shas": cited}
 
 
 def get_turn(cache, turn_id):

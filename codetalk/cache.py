@@ -79,7 +79,10 @@ class Cache:
         row = self.conn.execute(
             "SELECT narrative_json FROM commit_narratives WHERE sha=?",
             (sha,)).fetchone()
-        return json.loads(row[0]) if row else None
+        try:                                   # 容错红线:坏 JSON 降级为「无叙事」,不崩查询层底座
+            return json.loads(row[0]) if row else None
+        except (json.JSONDecodeError, TypeError):
+            return None
 
     def put_narrative(self, sha, project, model, narrative):
         # 落盘前统一脱敏:无论叙事来自哪条路径(LLM/trivial stub/digest/course),

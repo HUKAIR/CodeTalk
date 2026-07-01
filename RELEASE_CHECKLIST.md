@@ -32,6 +32,18 @@ Use this checklist before a public CodeTalk release.
 - Run MCP `initialize` and `tools/list`.
 - Confirm all exposed tools are read-only and use the `codetalk_*` names.
 
+## Docker Self-Host (if promoting the Docker path)
+
+- On a machine with a running Docker daemon: `docker build -t codetalk .`
+- `docker run --rm -p 127.0.0.1:8000:8000 -v "$PWD:/repo:ro" codetalk`
+- `curl -sS http://127.0.0.1:8000/ | head` returns the chat page (confirms the
+  container binds `0.0.0.0` via `CODETALK_WEB_HOST` and the host loopback
+  port-map reaches it).
+- Confirm a request with a non-loopback `Host:` header is rejected (403), so the
+  `_local_request_guard` still holds with the wider bind.
+- This path is not exercisable in the CI sandbox (no daemon); it must pass on a
+  real machine before the README Docker claim goes public.
+
 ## Public Launch
 
 - Confirm `https://github.com/HUKAIR/CodeTalk` is public from a logged-out or
