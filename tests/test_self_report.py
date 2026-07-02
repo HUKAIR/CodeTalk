@@ -59,10 +59,14 @@ class TestRender(unittest.TestCase):
         agg = self_report.aggregate(recs)
         out = self_report.render(agg, days=7, fill=(4, 3))
         self.assertIn("7", out)
-        self.assertIn("回填", out)        # 回填率出现
+        self.assertIn("回填", out)        # 回填率仍在(降级为护栏)
         self.assertIn("brief", out)
         # 零 LLM 仍有价值的自证文案在场
         self.assertIn("零", out)
+        # 北极星框架修正:价值=防事故拦截 + 输入杠杆=真实接地率;回填率不再当北极星
+        self.assertIn("防事故拦截", out)
+        self.assertIn("真实接地率", out)
+        self.assertIn("护栏", out)         # 回填率归入护栏,不标北极星
 
     def test_empty_report_does_not_crash(self):
         out = self_report.render(self_report.aggregate([]), days=7, fill=(0, 0))

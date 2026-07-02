@@ -105,9 +105,17 @@ def render(agg, days, fill):
     opened, filled = fill
     rate = f"{filled}/{opened}" + (
         f"({filled * 100 // opened}%)" if opened else "")
-    lines.append("## 预测回填率(北极星)")
-    lines.append(f"- 到期胶囊回填:{rate}" if opened
-                 else "- 到期胶囊回填:暂无已开启的胶囊")
+    # 北极星框架(Amplitude output+levers):价值=防事故拦截(OUTPUT,dogfood 可测);
+    # 输入杠杆=真实接地率(breadth,按仓跑脚本自测)。回填率是仪式护栏、非价值,别当北极星。
+    lines.append("## 北极星(价值)+ 输入杠杆")
+    lines.append("- 北极星·防事故拦截(真拦一次理由丢失型踩坑):记于 "
+                 "docs/discovery/interceptions.md(dogfood 手记,零遥测下唯一价值信号)。")
+    lines.append("- 输入杠杆·真实接地率(可点验证的 why 覆盖):按仓跑 "
+                 "`python3 scripts/grounding_hitrate.py <repo>` 看 ★ 那行。")
+    lines.append("")
+    lines.append("## 护栏指标(仪式,非价值)")
+    lines.append(f"- 到期胶囊回填率:{rate}(回填=填没填,是仪式护栏,不等于价值兑现)"
+                 if opened else "- 到期胶囊回填:暂无已开启的胶囊")
     lines.append("")
 
     # 自证:关掉 LLM 仍有价值
