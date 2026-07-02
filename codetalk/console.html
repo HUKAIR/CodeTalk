@@ -377,7 +377,7 @@ var I18N = {
     ft_close_aria: "关闭检索结果",
     searching: "检索中…", no_result: "无结果", search_fail: "检索失败(后端没起来?)",
     today: "今天", days_ago: "天前",
-    out_overthought: "想多了", out_resolved: "已解决", out_worried: "还在担心",
+    out_overthought: "想多了", out_resolved: "已解决", out_worried: "还在担心", out_forgot: "忘记了",
     recorded: "已记录:", reanswer: "改答 ↺", writeback_fail: "写回失败,请重试",
     readonly_hint: "只读 · 跑 console --serve 可回写",
     last_decision_label: "上次的决定 · ",
@@ -447,7 +447,7 @@ var I18N = {
     ft_close_aria: "Close search results",
     searching: "Searching…", no_result: "No results", search_fail: "Search failed (backend not running?)",
     today: "today", days_ago: "days ago",
-    out_overthought: "Overthought it", out_resolved: "Resolved", out_worried: "Still worried",
+    out_overthought: "Overthought it", out_resolved: "Resolved", out_worried: "Still worried", out_forgot: "Forgot",
     recorded: "Recorded: ", reanswer: "Change answer ↺", writeback_fail: "Write-back failed, please retry",
     readonly_hint: "Read-only · run console --serve to write back",
     last_decision_label: "Last decision · ",
@@ -509,8 +509,10 @@ var LANG = (function(){ try { var s = localStorage.getItem("codetalk.lang");
 } catch(e){ return "zh"; } })();
 function t(k){ return (I18N[LANG] && I18N[LANG][k] != null) ? I18N[LANG][k] : I18N.zh[k]; }
 var OUTCOMES = [["out_overthought","想多了"],["out_resolved","已解决"],["out_worried","还在担心"]];
-function outLabel(canon){                 // 规范中文 outcome → 当前语言显示;未知则原样
-  for (var i = 0; i < OUTCOMES.length; i++) if (OUTCOMES[i][1] === canon) return t(OUTCOMES[i][0]);
+// 显示映射含后端第 4 值「忘记了」(仅经 vault markdown 手勾产生,前端不作按钮);未知则原样
+var OUTLABELS = OUTCOMES.concat([["out_forgot","忘记了"]]);
+function outLabel(canon){                 // 规范中文 outcome → 当前语言显示
+  for (var i = 0; i < OUTLABELS.length; i++) if (OUTLABELS[i][1] === canon) return t(OUTLABELS[i][0]);
   return canon;
 }
 function applyLang(){
@@ -1130,7 +1132,7 @@ applyLang();
     var n = location.hash.slice(1);
     if (validView(n)) { show(n); storeView(n); }
   });
-  document.addEventListener("keydown", function(e){     // 数字键 1-5 切视图
+  document.addEventListener("keydown", function(e){     // 数字键 1-6 切视图
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     var tag = e.target && e.target.tagName;             // 输入/文本域内不劫持
     if (tag === "INPUT" || tag === "TEXTAREA" || (e.target && e.target.isContentEditable)) return;

@@ -131,6 +131,8 @@ def write_report(vault_path, project, date_str, content):
 
 
 _CAPSULE_MARKER = "<!-- vt-capsule:"
+# 写回白名单(web.py/webserve.py 共用)。「忘记了」仅经 vault markdown 手勾产生;
+# 前端 tunnel/console 的 OUTCOMES 按钮故意只暴露前 3 个,outLabel 仍能显示全 4 个。
 _OUTCOMES = ("想多了", "已解决", "还在担心", "忘记了")
 
 

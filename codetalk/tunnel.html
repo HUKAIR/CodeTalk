@@ -137,7 +137,7 @@ var I18N = {
     lbl_decisions: "关键决策 — Decisions", lbl_open: "待验证 — Open",
     lbl_capsule: "时间胶囊 — Capsule",
     body_unnarrated: "这枚 commit 尚未被叙事。回终端跑 codetalk digest。",
-    btn_overthought: "想多了", btn_resolved: "已解决", btn_worried: "还在担心",
+    btn_overthought: "想多了", btn_resolved: "已解决", btn_worried: "还在担心", btn_forgot: "忘记了",
     due_recorded: "已记录:", due_reanswer: "改答 ↺",
     due_head_p1: "■ 到期待验证的预测 — ", due_head_p2: " 枚",
     due_worried: "你担心:", q_open: "「", q_close: "」",
@@ -161,7 +161,7 @@ var I18N = {
     lbl_decisions: "Decisions", lbl_open: "Open",
     lbl_capsule: "Capsule",
     body_unnarrated: "This commit hasn't been narrated yet. Run codetalk digest in the terminal.",
-    btn_overthought: "Overthought it", btn_resolved: "Resolved", btn_worried: "Still worried",
+    btn_overthought: "Overthought it", btn_resolved: "Resolved", btn_worried: "Still worried", btn_forgot: "Forgot",
     due_recorded: "Recorded: ", due_reanswer: "Change answer ↺",
     due_head_p1: "■ Predictions due for verification — ", due_head_p2: "",
     due_worried: " you worried: ", q_open: "“", q_close: "”",
@@ -177,8 +177,10 @@ var LANG = (function(){ try { var s = localStorage.getItem("codetalk.lang");
 } catch(e){ return "zh"; } })();
 function t(k){ return (I18N[LANG] && I18N[LANG][k] != null) ? I18N[LANG][k] : I18N.zh[k]; }
 var OUTCOMES = [["btn_overthought","想多了"],["btn_resolved","已解决"],["btn_worried","还在担心"]];
-function outLabel(canon){                 // 规范中文 outcome → 当前语言显示;未知则原样
-  for (var i = 0; i < OUTCOMES.length; i++) if (OUTCOMES[i][1] === canon) return t(OUTCOMES[i][0]);
+// 显示映射含后端第 4 值「忘记了」(仅经 vault markdown 手勾产生,前端不作按钮);未知则原样
+var OUTLABELS = OUTCOMES.concat([["btn_forgot","忘记了"]]);
+function outLabel(canon){                 // 规范中文 outcome → 当前语言显示
+  for (var i = 0; i < OUTLABELS.length; i++) if (OUTLABELS[i][1] === canon) return t(OUTLABELS[i][0]);
   return canon;
 }
 var PROJECT = "$project";
