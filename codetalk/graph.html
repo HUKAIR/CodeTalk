@@ -19,6 +19,8 @@ h1{margin:0;font-size:15px;letter-spacing:1px}
 .empty{padding:48px;color:var(--mut);text-align:center;line-height:1.8}
 svg text{font-family:var(--px);fill:var(--fg)}
 .node rect{cursor:pointer}
+.node{outline:none}
+.node:focus-visible rect{stroke:var(--accent);stroke-width:3}
 .node title{font-family:var(--px)}
 .dec-b{fill:var(--accent);stroke:#0d4f99;stroke-width:2}
 .dec-n{fill:#242424;stroke:var(--accent);stroke-width:2;stroke-dasharray:3 2}
@@ -105,7 +107,7 @@ function render(){
     var full = (nd.text || nd.subject || '');
     var lbl = esc(full.slice(0, 22));
     var tip = '[' + nd.id + '] ' + full + (nd.badge ? ('  ·  ' + nd.badge) : '');
-    s += '<g class="node" data-id="' + nd.id + '">';
+    s += '<g class="node" data-id="' + nd.id + '" tabindex="0" role="button" aria-label="' + esc(tip) + '">';
     s += '<title>' + esc(tip) + '</title>';                 // 原生 tooltip:悬停显全名
     s += '<rect class="' + cls + '" x="' + nd.x + '" y="' + nd.y + '" width="' + NW + '" height="' + NH + '" rx="3"/>';
     s += '<text x="' + (nd.x + 6) + '" y="' + (nd.y + 17) + '" font-size="10">' + lbl + '</text>';
@@ -114,7 +116,13 @@ function render(){
   }
   svg.innerHTML = s;
   var gs = svg.querySelectorAll('.node');
-  for(var g=0;g<gs.length;g++){ gs[g].addEventListener('click', (function(id){ return function(){ showPanel(id); }; })(gs[g].getAttribute('data-id'))); }
+  for(var g=0;g<gs.length;g++){
+    var act = (function(id){ return function(){ showPanel(id); }; })(gs[g].getAttribute('data-id'));
+    gs[g].addEventListener('click', act);
+    gs[g].addEventListener('keydown', (function(fn){ return function(e){  // 键盘可达:Enter/Space 激活
+      if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); fn(); }
+    }; })(act));
+  }
 }
 function setViewBox(x, y, w, h){
   VB = {x: x, y: y, w: w, h: h};

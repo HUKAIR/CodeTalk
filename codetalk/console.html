@@ -303,6 +303,17 @@
   .ftbtn { font-size: 11px; padding: 1px 8px; margin-left: 6px; border: 1px solid var(--line);
     border-radius: 6px; background: transparent; color: inherit; cursor: pointer; font-family: inherit; }
   .ftbtn:hover { border-color: var(--accent); }
+  #ftres { position: fixed; right: 16px; bottom: 16px; width: min(560px, 92vw);
+    max-height: 70vh; display: flex; flex-direction: column; z-index: 40;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+    box-shadow: 0 8px 40px rgba(0,0,0,.5); }
+  #ftres .ch { display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 14px; border-bottom: 1px solid var(--line); font-family: var(--mono);
+    font-size: 12px; color: var(--mut); }
+  #ftres .ch button { background: none; border: none; color: var(--mut);
+    cursor: pointer; font-size: 15px; }
+  #ftbody { margin: 0; padding: 14px; overflow: auto; white-space: pre-wrap;
+    word-break: break-word; font-size: 12.5px; line-height: 1.5; color: var(--fg); }
 </style></head><body>
 <header>
   <div class="bar">
@@ -310,8 +321,8 @@
     <span>LOCAL-FIRST · $generated<button id="themebtn" class="themebtn" title="切换浅色/深色">☀</button></span>
   </div>
   <nav id="nav"></nav>
-  <input id="q" type="search" placeholder="搜时光轴 — 关键词(按 / 聚焦,Esc 清空)"
-    aria-label="搜索时光轴">
+  <input id="q" type="search" placeholder="搜时光轴 — 输入即过滤,Enter 搜全仓(/ 聚焦,Esc 清空)"
+    aria-label="搜索时光轴,Enter 全库检索">
   <div id="chips">
     <button class="chip" data-f="crumb" aria-pressed="false">带决策</button>
     <button class="chip" data-f="risk" aria-pressed="false">有待验证</button>
@@ -335,6 +346,11 @@
     placeholder="问这段代码当初为什么这么写…"></textarea>
     <button id="chatsend" type="submit">问</button></form>
 </div>
+<div id="ftres" hidden role="dialog" aria-label="全库检索结果">
+  <div class="ch"><span>全库检索 · 零 LLM(Enter 搜全仓,不止已加载)</span>
+    <button id="ftclose" aria-label="关闭检索结果">✕</button></div>
+  <pre id="ftbody" tabindex="0"></pre>
+</div>
 <footer id="foot"></footer>
 <script>
 var DATA = $data;
@@ -353,6 +369,19 @@ function post(path, payload){ if (!SERVE) return Promise.resolve(false);
   return fetch(path, {method:"POST", headers:{"Content-Type":"application/json"},
     body:JSON.stringify(payload)}).then(function(r){ return r.ok; })
     .catch(function(){ return false; }); }
+function ftHide(){ var p = document.getElementById("ftres"); if (p) p.hidden = true; }
+function ftSearch(q){   // 全库 FTS(/api/search),覆盖未加载到时光轴的 commit;仅 serve 模式
+  if (!SERVE) return;   // 静态 file:// 无后端 → 保持客户端时光轴过滤(TLQ)即可
+  q = (q || "").trim();
+  var panel = document.getElementById("ftres"), body = document.getElementById("ftbody");
+  if (!panel || !body) return;
+  if (q.length < 2) { ftHide(); return; }
+  body.textContent = "检索中…"; panel.hidden = false;
+  fetch("/api/search?q=" + encodeURIComponent(q))
+    .then(function(r){ return r.json(); })
+    .then(function(d){ body.textContent = (d && d.text) || "无结果"; })
+    .catch(function(){ body.textContent = "检索失败(后端没起来?)"; });
+}
 function agoText(n){ return n === 0 ? "今天" : n + " 天前"; }
 // 键盘可达:Enter / Space 激活;Space 阻止默认滚屏。给可点击非按钮元素接键。
 function onActivate(el, fn){
@@ -942,9 +971,12 @@ renderFiletree(); renderPrompts(); renderFoot(); initChat();
       if (TLQ && location.hash.slice(1) !== "timeline") location.hash = "timeline";
     });
     qel.addEventListener("keydown", function(e){
-      if (e.key === "Escape") { clearFilters(); qel.blur(); }
+      if (e.key === "Escape") { clearFilters(); ftHide(); qel.blur(); }
+      else if (e.key === "Enter") { e.preventDefault(); ftSearch(qel.value.trim()); }
     });
   }
+  var ftc = document.getElementById("ftclose");
+  if (ftc) ftc.addEventListener("click", ftHide);
   document.querySelectorAll("#chips .chip").forEach(function(b){
     b.addEventListener("click", function(){
       var f = b.getAttribute("data-f"); TLF[f] = !TLF[f];
