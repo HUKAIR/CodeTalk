@@ -190,6 +190,17 @@ function renderDone(body, ev, acc){
   }
   var cites = ev.citations || [];
   if (!cites.length) return;
+  function openCommit(sha, panel){                       // 点 SHA → 拉真实 commit 到就地面板
+    panel.textContent = "读取 commit…"; panel.style.display = "block";
+    panel.dataset.cur = "commit:" + sha;
+    fetch("/api/commit/" + encodeURIComponent(sha))
+      .then(function(r){ return r.ok ? r.json() : Promise.reject(); })
+      .then(function(d){
+        panel.textContent = (d.date ? d.date + "  " : "") + (d.subject || "")
+          + (d.body ? "\n\n" + d.body : "") + (d.diff ? "\n\n" + d.diff : "");
+      })
+      .catch(function(){ panel.textContent = "打不开该 commit(可能不在本地仓)"; });
+  }
   var box = document.createElement("div"); box.className = "cites";
   var panel = document.createElement("pre"); panel.className = "evid";
   panel.style.display = "none";
@@ -208,6 +219,16 @@ function renderDone(body, ev, acc){
       }
     });
     box.appendChild(s);
+    if (c.sha && c.kind !== "conversation"){             // commit 引用:点开真实 git show 核验
+      var d = document.createElement("span"); d.className = "cite";
+      d.textContent = "diff ▾"; d.title = "看这枚 commit 的真实改动(git show,零 LLM)";
+      d.setAttribute("role", "button"); d.tabIndex = 0;
+      var open = function(){ openCommit(c.sha, panel); };
+      d.addEventListener("click", open);
+      d.addEventListener("keydown", function(e){
+        if (e.key === "Enter" || e.key === " "){ e.preventDefault(); open(); } });
+      box.appendChild(d);
+    }
     (c.sources || []).forEach(function(src){             // PR 可点击跳真实源(新标签页)
       if (src.type === "pr" && src.url){
         var a = document.createElement("a"); a.className = "cite";
