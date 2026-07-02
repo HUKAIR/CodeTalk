@@ -54,21 +54,78 @@
 .st-M{color:#e3b341}.st-A{color:#3fb950}.st-D{color:#f85149}
 .st-R{color:#a371f7}.st-C{color:#a371f7}.st-U{color:#f85149}
 </style></head><body>
-<header><span><b>CodeTalk</b> // 接地对话 · 数据不出本机</span>
-  <span><a href="/console">控制台</a> &nbsp; <a href="/tunnel">时光轴</a> &nbsp; <a href="/graph">决策图</a> &nbsp; <a href="/course">演进课程</a></span></header>
+<header><span><b>CodeTalk</b> // <span data-i18n="tagline">接地对话 · 数据不出本机</span></span>
+  <span><a href="/console" data-i18n="nav_console">控制台</a> &nbsp; <a href="/tunnel" data-i18n="nav_tunnel">时光轴</a> &nbsp; <a href="/graph" data-i18n="nav_graph">决策图</a> &nbsp; <a href="/course" data-i18n="nav_course">演进课程</a>
+  &nbsp; <button id="langbtn" type="button" class="copybtn" aria-label="switch language">EN</button></span></header>
 <main>
-  <button id="filesbtn" type="button">文件 &#9658;</button>
+  <button id="filesbtn" type="button" data-i18n="files_btn">文件 ▸</button>
   <aside id="ftdrawer" hidden></aside>
-  <p class="hint">问「这段代码当初为什么这么写」——答案接地到真实 commit / 决策 / 会话原话;
+  <p class="hint" data-i18n="hint">问「这段代码当初为什么这么写」——答案接地到真实 commit / 决策 / 会话原话;
     无 key 或 --no-llm 时降级为零-LLM 接地罗列(不出网)。</p>
   <div id="log" aria-live="polite" aria-relevant="additions text"></div>
   <div id="shint" class="hint"></div>
   <form id="f">
-    <textarea id="q" placeholder="例:为什么把重试从装饰器改成显式循环?(可带 文件:行)"></textarea>
-    <button id="send" type="submit">问</button>
+    <textarea id="q" data-i18n-ph="q_ph" placeholder="例:为什么把重试从装饰器改成显式循环?(可带 文件:行)"></textarea>
+    <button id="send" type="submit" data-i18n="send">问</button>
   </form>
 </main>
 <script>
+// ---- i18n:zh/en 字典 + 切换(零外联,复用 localStorage;数据仍不出本机)----
+var I18N = {
+  zh: {
+    title: "CodeTalk · 接地对话", tagline: "接地对话 · 数据不出本机",
+    nav_console: "控制台", nav_tunnel: "时光轴", nav_graph: "决策图", nav_course: "演进课程",
+    files_btn: "文件 ▸", send: "问", you: "你", searching: "…接地检索中",
+    hint: "问「这段代码当初为什么这么写」——答案接地到真实 commit / 决策 / 会话原话;无 key 或 --no-llm 时降级为零-LLM 接地罗列(不出网)。",
+    q_ph: "例:为什么把重试从装饰器改成显式循环?(可带 文件:行)",
+    ft_empty: "无文件或非 git 仓。", ft_head: "点变更文件 → 接地追问",
+    ft_prefix: "这个文件当初为什么改:", suggest_prefix: "💡 Tab 填入:",
+    degraded: "零-LLM 接地(未调模型)", copy: "复制", copied: "已复制", copy_fail: "复制失败",
+    hl_legend: "高亮=逐字源自来源;其余为综合,点引用核验",
+    loading_commit: "读取 commit…", commit_fail: "打不开该 commit(可能不在本地仓)",
+    discuss: "讨论·", no_evidence: "(无证据)",
+    diff_title: "看这枚 commit 的真实改动(git show,零 LLM)",
+    err: "出错了(后端没起来?查 codetalk web 终端)",
+    suggest: ["为什么这段代码当初要这么写?", "这里的关键决策是什么,依据什么?",
+      "为什么从 X 改成 Y?", "这段有哪些待验证的风险?",
+      "codetalk/llm.py:43-56 当初为什么这么设计?"]
+  },
+  en: {
+    title: "CodeTalk · Grounded chat", tagline: "Grounded chat · data stays local",
+    nav_console: "Console", nav_tunnel: "Timeline", nav_graph: "Graph", nav_course: "Course",
+    files_btn: "Files ▸", send: "Ask", you: "You", searching: "…grounding retrieval",
+    hint: "Ask \"why was this code written this way\" — answers are grounded in real commits / decisions / session transcripts; without a key or with --no-llm it degrades to a zero-LLM evidence list (no egress).",
+    q_ph: "e.g. why was retry moved from a decorator to an explicit loop? (optional file:line)",
+    ft_empty: "No files, or not a git repo.", ft_head: "Click a changed file → grounded follow-up",
+    ft_prefix: "Why was this file changed: ", suggest_prefix: "💡 Tab to fill: ",
+    degraded: "Zero-LLM grounding (no model call)", copy: "Copy", copied: "Copied", copy_fail: "Copy failed",
+    hl_legend: "Highlight = verbatim from source; the rest is synthesized — click a citation to verify",
+    loading_commit: "Loading commit…", commit_fail: "Can't open that commit (maybe not in the local repo)",
+    discuss: "chat·", no_evidence: "(no evidence)",
+    diff_title: "See this commit's real change (git show, zero-LLM)",
+    err: "Error (backend down? check the codetalk web terminal)",
+    suggest: ["Why was this code written this way?", "What's the key decision here, and on what basis?",
+      "Why change from X to Y?", "What risks here are still unverified?",
+      "Why was codetalk/llm.py:43-56 designed this way?"]
+  }
+};
+var LANG = (function(){ try { var s = localStorage.getItem("codetalk.lang");
+  if (s === "zh" || s === "en") return s;
+  return (navigator.language || "").slice(0,2).toLowerCase() === "zh" ? "zh" : "en";
+} catch(e){ return "zh"; } })();
+function t(k){ return (I18N[LANG] && I18N[LANG][k] != null) ? I18N[LANG][k] : I18N.zh[k]; }
+function applyLang(){
+  document.documentElement.lang = LANG;
+  document.title = t("title");
+  document.querySelectorAll("[data-i18n]").forEach(function(el){ el.textContent = t(el.getAttribute("data-i18n")); });
+  document.querySelectorAll("[data-i18n-ph]").forEach(function(el){ el.placeholder = t(el.getAttribute("data-i18n-ph")); });
+  var lb = document.getElementById("langbtn"); if (lb) lb.textContent = LANG === "zh" ? "EN" : "中文";
+  if (window.onLangChange) window.onLangChange();     // 让动态内容(建议/文件树)重渲染
+}
+function toggleLang(){ LANG = LANG === "zh" ? "en" : "zh";
+  try { localStorage.setItem("codetalk.lang", LANG); } catch(e){}
+  applyLang(); }
+
 var convId = "web-" + Date.now();
 var turn = 0;
 var TREE = $tree_data;
@@ -83,7 +140,7 @@ function renderFiletree(){
   var T = TREE && TREE.nodes;
   var dr = document.getElementById("ftdrawer");
   if (!T || !T.children || !T.children.length){
-    dr.innerHTML = '<p class="hint">无文件或非 git 仓。</p>'; return; }
+    dr.innerHTML = '<p class="hint">'+esc(t("ft_empty"))+'</p>'; return; }
   function mark(code){ return code ? code.replace(/ /g,"").charAt(0) : ""; }
   function nodeHtml(node, depth){
     var pad = ' style="padding-left:'+(depth*14)+'px"';
@@ -100,12 +157,12 @@ function renderFiletree(){
     return '<details'+(node.changed?" open":"")+'><summary'+pad+'>'+esc(node.name)
       + '</summary>'+kids+'</details>';
   }
-  dr.innerHTML = '<div class="hint">点变更文件 → 接地追问</div>'
+  dr.innerHTML = '<div class="hint">'+esc(t("ft_head"))+'</div>'
     + T.children.map(function(c){ return nodeHtml(c, 0); }).join("");
   dr.querySelectorAll(".ftf").forEach(function(el){
     function act(){
       var p = el.getAttribute("data-path");
-      document.getElementById("q").value = "这个文件当初为什么改:" + p;
+      document.getElementById("q").value = t("ft_prefix") + p;
       pendingTarget = p;
       document.getElementById("q").focus();
       dr.hidden = true;
@@ -122,12 +179,9 @@ document.addEventListener("keydown", function(e){      // Esc 关文件抽屉
     if (dr && !dr.hidden) dr.hidden = true; } });
 renderFiletree();
 
-// 输入框为空时按 Tab → 填入当前建议问题并切下一条(无外联,纯本地)
-var SUGGEST = ["为什么这段代码当初要这么写?", "这里的关键决策是什么,依据什么?",
-  "为什么从 X 改成 Y?", "这段有哪些待验证的风险?",
-  "codetalk/llm.py:43-56 当初为什么这么设计?"];
+// 输入框为空时按 Tab → 填入当前建议问题并切下一条(无外联,纯本地;建议随语言切换)
 var sIdx = 0, qEl = document.getElementById("q"), sHint = document.getElementById("shint");
-function showSuggest(){ sHint.textContent = "💡 Tab 填入:" + SUGGEST[sIdx]; }
+function showSuggest(){ var sg = t("suggest"); sHint.textContent = t("suggest_prefix") + sg[sIdx % sg.length]; }
 showSuggest();
 qEl.addEventListener("keydown", function(e){
   // Enter 发送、Shift+Enter 换行;IME 合成中(中文选词)不发,避免误触
@@ -140,8 +194,9 @@ qEl.addEventListener("keydown", function(e){
   }
   if (e.key === "Tab" && !qEl.value.trim()){
     e.preventDefault();
-    qEl.value = SUGGEST[sIdx];
-    sIdx = (sIdx + 1) % SUGGEST.length;
+    var sg = t("suggest");
+    qEl.value = sg[sIdx % sg.length];
+    sIdx = (sIdx + 1) % sg.length;
     showSuggest();
   }
 });
@@ -160,17 +215,17 @@ function add(who, cls){
 function renderDone(body, ev, acc){
   if (ev.degraded){
     var b = document.createElement("span");
-    b.className = "badge"; b.textContent = "零-LLM 接地(未调模型)";
+    b.className = "badge"; b.textContent = t("degraded");
     body.parentNode.querySelector(".who").appendChild(b);
   }
   var cp = document.createElement("button");            // 复制答案(127.0.0.1 = clipboard 安全上下文)
-  cp.type = "button"; cp.className = "copybtn"; cp.textContent = "复制";
+  cp.type = "button"; cp.className = "copybtn"; cp.textContent = t("copy");
   cp.addEventListener("click", function(){
-    function ok(){ cp.textContent = "已复制";
-      setTimeout(function(){ cp.textContent = "复制"; }, 1200); }
+    function ok(){ cp.textContent = t("copied");
+      setTimeout(function(){ cp.textContent = t("copy"); }, 1200); }
     if (navigator.clipboard && navigator.clipboard.writeText){
-      navigator.clipboard.writeText(acc).then(ok, function(){ cp.textContent = "复制失败"; });
-    } else { cp.textContent = "复制失败"; }
+      navigator.clipboard.writeText(acc).then(ok, function(){ cp.textContent = t("copy_fail"); });
+    } else { cp.textContent = t("copy_fail"); }
   });
   body.parentNode.querySelector(".who").appendChild(cp);
   function setBody(html){ body.innerHTML = html; }      // 全文件唯一 innerHTML sink
@@ -184,14 +239,14 @@ function renderDone(body, ev, acc){
           : '<mark class="vb" data-cite="' + String(s.cite_id) + '">' + esc(s.text) + '</mark>';
       }).join(""));
       var lg = document.createElement("div"); lg.className = "hl-legend";
-      lg.textContent = "高亮=逐字源自来源;其余为综合,点引用核验";
+      lg.textContent = t("hl_legend");
       body.parentNode.appendChild(lg);
     }
   }
   var cites = ev.citations || [];
   if (!cites.length) return;
   function openCommit(sha, panel){                       // 点 SHA → 拉真实 commit 到就地面板
-    panel.textContent = "读取 commit…"; panel.style.display = "block";
+    panel.textContent = t("loading_commit"); panel.style.display = "block";
     panel.dataset.cur = "commit:" + sha;
     fetch("/api/commit/" + encodeURIComponent(sha))
       .then(function(r){ return r.ok ? r.json() : Promise.reject(); })
@@ -199,14 +254,14 @@ function renderDone(body, ev, acc){
         panel.textContent = (d.date ? d.date + "  " : "") + (d.subject || "")
           + (d.body ? "\n\n" + d.body : "") + (d.diff ? "\n\n" + d.diff : "");
       })
-      .catch(function(){ panel.textContent = "打不开该 commit(可能不在本地仓)"; });
+      .catch(function(){ panel.textContent = t("commit_fail"); });
   }
   var box = document.createElement("div"); box.className = "cites";
   var panel = document.createElement("pre"); panel.className = "evid";
   panel.style.display = "none";
   cites.forEach(function(c){
     var s = document.createElement("span"); s.className = "cite";
-    s.textContent = (c.kind === "conversation" ? "讨论·" : "") + (c.sha || c.id) + " ▸";
+    s.textContent = (c.kind === "conversation" ? t("discuss") : "") + (c.sha || c.id) + " ▸";
     s.title = (c.evidence || "").slice(0, 280);          // hover 预览真实原话(GitLens 范式)
     s.dataset.cite = String(c.id);                       // <mark> 点击联动锚点
     s.addEventListener("click", function(){              // 点开就地核验真实记录,再点收起
@@ -214,14 +269,14 @@ function renderDone(body, ev, acc){
       if (panel.dataset.cur === cur && panel.style.display !== "none"){
         panel.style.display = "none"; panel.dataset.cur = "";
       } else {
-        panel.textContent = c.evidence || "(无证据)";
+        panel.textContent = c.evidence || t("no_evidence");
         panel.style.display = "block"; panel.dataset.cur = cur;
       }
     });
     box.appendChild(s);
     if (c.sha && c.kind !== "conversation"){             // commit 引用:点开真实 git show 核验
       var d = document.createElement("span"); d.className = "cite";
-      d.textContent = "diff ▾"; d.title = "看这枚 commit 的真实改动(git show,零 LLM)";
+      d.textContent = "diff ▾"; d.title = t("diff_title");
       d.setAttribute("role", "button"); d.tabIndex = 0;
       var open = function(){ openCommit(c.sha, panel); };
       d.addEventListener("click", open);
@@ -253,10 +308,10 @@ document.getElementById("f").addEventListener("submit", function(e){
   e.preventDefault();
   var q = document.getElementById("q").value.trim();
   if (!q) return;
-  add("你", "user").textContent = q;
+  add(t("you"), "user").textContent = q;
   document.getElementById("q").value = "";
   var btn = document.getElementById("send"); btn.disabled = true;
-  var body = add("codetalk", "bot"); body.textContent = "…接地检索中"; scrollEnd();
+  var body = add("codetalk", "bot"); body.textContent = t("searching"); scrollEnd();
   var acc = "";                                          // 累积完整答案,供 done 切段重渲染
   fetch("/api/chat/stream", { method:"POST", headers:{"Content-Type":"application/json"},
     body: JSON.stringify({ question:q, conv_id:convId, turn_seq:turn++, target: pendingTarget }) })
@@ -283,9 +338,15 @@ document.getElementById("f").addEventListener("submit", function(e){
       }
       return pump();
     })
-    .catch(function(){ body.textContent = "出错了(后端没起来?查 codetalk web 终端)";
+    .catch(function(){ body.textContent = t("err");
       btn.disabled = false; });
   pendingTarget = null;
 });
+
+// 语言切换:静态元素由 applyLang 换,动态内容(建议行 + 文件树)经 onLangChange 重渲染
+window.onLangChange = function(){ showSuggest(); renderFiletree(); };
+var _lb = document.getElementById("langbtn");
+if (_lb) _lb.addEventListener("click", toggleLang);
+applyLang();
 </script>
 </body></html>
