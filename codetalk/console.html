@@ -805,7 +805,7 @@ function renderPrompts(){
   var sec = document.getElementById("v-prompts");
   if (!md || md.indexOf("没有抓到指令") >= 0) {
     sec.innerHTML = '<h2 class="vh">指令回看</h2><p style="opacity:.6;padding:24px">'
-      + 'No AI prompts found in the last 7 days.</p>';
+      + '近 7 天没有抓到发给 AI 的指令。</p>';
     return;
   }
   var html = esc(md)
