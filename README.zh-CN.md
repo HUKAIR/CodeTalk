@@ -31,7 +31,7 @@
 
 ## Pipeline / 管道
 
-CodeTalk 是一条本地证据管道。它读取 git 历史和 AI 编码会话文件，容错解析，把会话对齐到 commit，把脱敏后的证据存进本地 SQLite 缓存，再暴露 `ask`、`blame`、`search`、`review`、`drift`、`graph`、`prompts` 和 `adr` 这些确定性工具。LLM 综合是可选的，位于证据层之后。
+CodeTalk 是一条本地证据管道。它读取 git 历史和 AI 编码会话文件，容错解析，把会话对齐到 commit，把脱敏后的证据存进本地 SQLite 缓存，再暴露 `ask`、`blame`、`search`、`review`、`drift`、`graph`、`prompts` 和 `adr-export` 这些确定性工具。LLM 综合是可选的，位于证据层之后。
 
 ![CodeTalk pipeline](docs/images/codetalk-pipeline.png)
 

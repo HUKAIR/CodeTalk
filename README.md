@@ -36,7 +36,7 @@ CodeTalk grounds "why" in real commit history — verbatim citations you can cli
 CodeTalk is a local evidence pipeline. It reads git history and AI coding
 session files, parses them defensively, aligns sessions to commits, stores
 redacted evidence in a local SQLite cache, then exposes deterministic tools for
-`ask`, `blame`, `search`, `review`, `drift`, `graph`, `prompts`, and `adr`.
+`ask`, `blame`, `search`, `review`, `drift`, `graph`, `prompts`, and `adr-export`.
 LLM synthesis is optional and sits behind the evidence layer.
 
 ![CodeTalk pipeline](docs/images/codetalk-pipeline.png)
