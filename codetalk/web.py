@@ -77,10 +77,7 @@ def console_view(project: Optional[str] = None):
     经 /capsule、/reviewed 写回 cache.db。复用 console._build_html。"""
     html, _name, err = console._build_html(_project(project), serve=True, chat=True)
     if err:
-        return HTMLResponse(
-            "<body style='background:#0d0d0f;color:#e8e8ea;font-family:sans-serif;"
-            f"padding:24px'>控制台暂不可用:{redact_secrets(str(err))}</body>",
-            status_code=400)
+        return _err_page("控制台", "Console", err)
     return HTMLResponse(redact_secrets(html))
 
 
@@ -89,17 +86,15 @@ def tunnel_view(project: Optional[str] = None):
     """接已设计好的「时光轴」(线性时间线 + 气球 hover)。serve=True → 胶囊可回写。"""
     html, _name, err = tunnel._build_html(_project(project), serve=True)
     if err:
-        return HTMLResponse(
-            "<body style='background:#0d0d0f;color:#e8e8ea;font-family:sans-serif;"
-            f"padding:24px'>时光轴暂不可用:{redact_secrets(str(err))}</body>",
-            status_code=400)
+        return _err_page("时光轴", "Timeline", err)
     return HTMLResponse(redact_secrets(html))
 
 
-def _err_page(kind, err):
+def _err_page(zh, en, err):
+    """双语错误页(服务端无法读 localStorage,故 zh + en 并列)。出口脱敏。"""
     return HTMLResponse(
         "<body style='background:#0d0d0f;color:#e8e8ea;font-family:sans-serif;"
-        f"padding:24px'>{kind}暂不可用:{redact_secrets(str(err))}</body>",
+        f"padding:24px'>{zh}暂不可用 · {en} unavailable:{redact_secrets(str(err))}</body>",
         status_code=400)
 
 
@@ -108,7 +103,7 @@ def graph_view(project: Optional[str] = None):
     """富交互决策影响图 DAG(零 LLM);与 CLI `codetalk graph` 同一渲染,浏览器内可达。"""
     html, err = render_graph_html(_project(project))
     if err:
-        return _err_page("决策图", err)
+        return _err_page("决策图", "Decision graph", err)
     return HTMLResponse(redact_secrets(html))
 
 
@@ -117,7 +112,7 @@ def course_view(project: Optional[str] = None):
     """演进课程(项目怎么长成的);无 key 时自动降级为零-LLM 朴素章节,不崩。"""
     html, err = course.render_course_html(_project(project))
     if err:
-        return _err_page("演进课程", err)
+        return _err_page("演进课程", "Course", err)
     return HTMLResponse(redact_secrets(html))
 
 
