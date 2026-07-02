@@ -6,6 +6,34 @@ This project follows a small, source-backed changelog style: each entry should
 describe user-visible behavior and point to the release, PR, or commit that
 made it verifiable.
 
+## Unreleased
+
+### Added
+
+- Browser-reachable rich views: `/graph` (decision-impact DAG) and `/course`
+  (evolution course) web routes, alongside the existing `/console` and `/tunnel`.
+- `diff ▾` on web chat citations opens the real `git show` in-browser via a new
+  read-only `/api/commit/<sha>` endpoint (zero-LLM, redacted, strict SHA check).
+- Console full-repo full-text search panel wired to `/api/search` (FTS).
+- Bilingual zh/en toggle across all web views (persisted locally; defaults to the
+  browser language) plus bilingual server-side error pages.
+- Shareable interactive A/B trust demo page: `trust_ab_demo.py --html`.
+- `grounding_hitrate.py` now reports the "real grounding" north-star input levers
+  (breadth = verbatim/breadcrumb coverage, depth = session anchors), excluding
+  LLM-generated narratives.
+- `codetalk --version`; CI test matrix on Python 3.11 / 3.12 / 3.13.
+
+### Fixed
+
+- Grounding integrity: `ask` no longer emits LLM-self-reported citation SHAs that
+  aren't in the retrieved evidence.
+- Non-UTF-8 repositories no longer crash the pipeline (git output decoded with
+  replacement).
+- Web/chat degrade gracefully when the LLM call fails instead of 500/broken stream.
+- Directory names are HTML-escaped in all rendered views (XSS); the A/B demo page
+  escapes `</` to prevent `</script>` breakout.
+- `self` report labels capsule fill rate as a guardrail (not the north star).
+
 ## 0.1.0 - 2026-07-01
 
 ### Added
