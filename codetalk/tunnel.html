@@ -107,14 +107,87 @@
   .empty { color: var(--faint); font-size: 13px; font-style: italic; }
   footer { max-width: 780px; margin: 0 auto; padding: 0 24px 60px;
     color: var(--faint); font-size: 12px; font-family: var(--mono); }
+  #langbtn { font: inherit; font-size: 11px; color: var(--dim);
+    background: var(--card2); border: 1px solid var(--line);
+    padding: 2px 8px; margin-left: 8px; cursor: pointer; letter-spacing: .04em; }
+  #langbtn:hover { border-color: var(--accent); color: var(--ink); }
 </style></head><body>
 <header>
-  <span><span class="b">CodeTalk</span> // 时光轴 · $project</span>
-  <span>LOCAL-FIRST · $generated</span>
+  <span><span class="b">CodeTalk</span> // <span data-i18n="header_timeline">时光轴</span> · $project</span>
+  <span>LOCAL-FIRST · $generated
+    <button id="langbtn" type="button" aria-label="switch language">EN</button></span>
 </header>
 <main id="app"></main>
 <footer id="foot"></footer>
 <script>
+// ---- i18n:zh/en 字典 + 切换(零外联,复用 localStorage;数据仍不出本机)----
+var I18N = {
+  zh: {
+    title_suffix: "时光轴", header_timeline: "时光轴",
+    ago_today: "今天", ago_days_suffix: " 天前",
+    tag_due: "待验证", tag_notdue: "未到期",
+    empty_commits: "还没有任何 commit。",
+    intro_p1: "从", intro_recent: "最近",
+    intro_p2: "往下,是这个项目一步步长成现在的样子。共 ",
+    intro_p3: " 枚 commit · 已叙事 ", intro_p4: " · 待验证的担心 ",
+    intro_p5: " 处。点任意一条展开它当时的决策与推导。",
+    badge_decisions: " 决策", badge_toverify: " 待验证", badge_capsules: " 胶囊",
+    prev_unnarrated: "尚未叙事 — 终端跑 codetalk digest",
+    lbl_what: "改了什么 — What", lbl_why: "为什么 — Why",
+    lbl_decisions: "关键决策 — Decisions", lbl_open: "待验证 — Open",
+    lbl_capsule: "时间胶囊 — Capsule",
+    body_unnarrated: "这枚 commit 尚未被叙事。回终端跑 codetalk digest。",
+    btn_overthought: "想多了", btn_resolved: "已解决", btn_worried: "还在担心",
+    due_recorded: "已记录:", due_reanswer: "改答 ↺",
+    due_head_p1: "■ 到期待验证的预测 — ", due_head_p2: " 枚",
+    due_worried: "你担心:", q_open: "「", q_close: "」",
+    due_readonly: "只读 · 跑 codetalk tunnel --serve 可回写答案",
+    writeback_fail: "写回失败,请重试",
+    foot_p1: "已读 ", foot_p2: " 段叙事",
+    foot_serve: " · serve 模式:回答即时写回 cache.db", foot_readonly: " · 只读模式"
+  },
+  en: {
+    title_suffix: "Timeline", header_timeline: "Timeline",
+    ago_today: "today", ago_days_suffix: " days ago",
+    tag_due: "Due", tag_notdue: "Not yet due",
+    empty_commits: "No commits yet.",
+    intro_p1: "From ", intro_recent: "most recent",
+    intro_p2: " down, watch this project grow into what it is today. ",
+    intro_p3: " commits · ", intro_p4: " narrated · ",
+    intro_p5: " open concerns to verify. Click any entry to expand its decisions and reasoning at the time.",
+    badge_decisions: " decisions", badge_toverify: " to verify", badge_capsules: " capsules",
+    prev_unnarrated: "Not narrated yet — run codetalk digest in the terminal",
+    lbl_what: "What", lbl_why: "Why",
+    lbl_decisions: "Decisions", lbl_open: "Open",
+    lbl_capsule: "Capsule",
+    body_unnarrated: "This commit hasn't been narrated yet. Run codetalk digest in the terminal.",
+    btn_overthought: "Overthought it", btn_resolved: "Resolved", btn_worried: "Still worried",
+    due_recorded: "Recorded: ", due_reanswer: "Change answer ↺",
+    due_head_p1: "■ Predictions due for verification — ", due_head_p2: "",
+    due_worried: " you worried: ", q_open: "“", q_close: "”",
+    due_readonly: "Read-only · run codetalk tunnel --serve to write answers back",
+    writeback_fail: "Write-back failed, please retry",
+    foot_p1: "Read ", foot_p2: " narratives",
+    foot_serve: " · serve mode: answers written back to cache.db instantly", foot_readonly: " · read-only mode"
+  }
+};
+var LANG = (function(){ try { var s = localStorage.getItem("codetalk.lang");
+  if (s === "zh" || s === "en") return s;
+  return (navigator.language || "").slice(0,2).toLowerCase() === "zh" ? "zh" : "en";
+} catch(e){ return "zh"; } })();
+function t(k){ return (I18N[LANG] && I18N[LANG][k] != null) ? I18N[LANG][k] : I18N.zh[k]; }
+var PROJECT = "$project";
+function applyLang(){
+  document.documentElement.lang = LANG;
+  document.title = PROJECT + " — " + t("title_suffix");
+  document.querySelectorAll("[data-i18n]").forEach(function(el){ el.textContent = t(el.getAttribute("data-i18n")); });
+  var lb = document.getElementById("langbtn"); if (lb) lb.textContent = LANG === "zh" ? "EN" : "中文";
+  if (window.onLangChange) window.onLangChange();     // 让动态内容(时间轴/胶囊)重渲染
+}
+function toggleLang(){ LANG = LANG === "zh" ? "en" : "zh";
+  try { localStorage.setItem("codetalk.lang", LANG); } catch(e){}
+  applyLang(); }
+
 var DATA = $data;          // _payload:最新在前
 var SERVE = $serve;        // --serve:回答/回看写回 cache;file:// 只读
 var VKEY = "codetalk.visited.$project";
@@ -145,23 +218,24 @@ function onActivate(el, fn){
 var visited = store();
 
 function agoText(n){
-  return n === 0 ? "今天" : n + " 天前";
+  return n === 0 ? t("ago_today") : n + t("ago_days_suffix");
 }
 function capTag(cap){
   if (cap.outcome) return '<span class="tag done">✓ ' + esc(cap.outcome) + '</span>';
-  if (cap.opened) return '<span class="tag due">待验证</span>';
-  return '<span class="tag">未到期</span>';
+  if (cap.opened) return '<span class="tag due">' + t("tag_due") + '</span>';
+  return '<span class="tag">' + t("tag_notdue") + '</span>';
 }
 
 // ---- 主体:按天分组的线性时间轴 ----
 function renderTimeline(){
   var app = document.getElementById("app");
-  if (!DATA.length){ app.innerHTML = '<p class="empty">还没有任何 commit。</p>'; return; }
+  if (!DATA.length){ app.innerHTML = '<p class="empty">' + esc(t("empty_commits")) + '</p>'; return; }
   var narrated = DATA.filter(function(c){ return c.what; }).length;
   var openRisks = DATA.reduce(function(a, c){ return a + c.risks.length; }, 0);
-  var html = '<p class="intro">从<b>最近</b>往下,是这个项目一步步长成现在的样子。'
-    + '共 <b>' + DATA.length + '</b> 枚 commit · 已叙事 <b>' + narrated + '</b> · '
-    + '待验证的担心 <b>' + openRisks + '</b> 处。点任意一条展开它当时的决策与推导。</p>';
+  var html = '<p class="intro">' + esc(t("intro_p1")) + '<b>' + esc(t("intro_recent")) + '</b>'
+    + esc(t("intro_p2")) + '<b>' + DATA.length + '</b>' + esc(t("intro_p3"))
+    + '<b>' + narrated + '</b>' + esc(t("intro_p4"))
+    + '<b>' + openRisks + '</b>' + esc(t("intro_p5")) + '</p>';
   html += dueCapsulesHtml();
   var lastDay = null;
   DATA.forEach(function(c, i){
@@ -182,10 +256,10 @@ function renderTimeline(){
 
 function rowHtml(c, i){
   var cls = "row" + (visited[c.sha] ? " read" : "") + (c.risks.length ? " risky" : "");
-  var badges = '<span class="d">' + c.decisions.length + ' 决策</span>'
-    + (c.risks.length ? ' · <span class="r">' + c.risks.length + ' 待验证</span>' : "")
-    + ((c.capsules || []).length ? ' · <span class="c">' + c.capsules.length + ' 胶囊</span>' : "");
-  var prev = c.what || "尚未叙事 — 终端跑 codetalk digest";
+  var badges = '<span class="d">' + c.decisions.length + esc(t("badge_decisions")) + '</span>'
+    + (c.risks.length ? ' · <span class="r">' + c.risks.length + esc(t("badge_toverify")) + '</span>' : "")
+    + ((c.capsules || []).length ? ' · <span class="c">' + c.capsules.length + esc(t("badge_capsules")) + '</span>' : "");
+  var prev = c.what || t("prev_unnarrated");
   return '<div class="' + cls + '" id="r' + i + '">'
     + '<div class="head" id="h' + i + '" role="button" tabindex="0"'
     + ' aria-expanded="false" aria-controls="b' + i + '"><div class="top">'
@@ -198,26 +272,26 @@ function rowHtml(c, i){
 
 function bodyHtml(c){
   var h = "";
-  if (c.what) h += '<div class="lbl">改了什么 — What</div><p>' + esc(c.what) + '</p>';
-  if (c.why) h += '<div class="lbl">为什么 — Why</div><p>' + esc(c.why) + '</p>';
+  if (c.what) h += '<div class="lbl">' + esc(t("lbl_what")) + '</div><p>' + esc(c.what) + '</p>';
+  if (c.why) h += '<div class="lbl">' + esc(t("lbl_why")) + '</div><p>' + esc(c.why) + '</p>';
   if (c.decisions.length){
-    h += '<div class="lbl">关键决策 — Decisions</div><ol>';
+    h += '<div class="lbl">' + esc(t("lbl_decisions")) + '</div><ol>';
     c.decisions.forEach(function(d){ h += '<li>' + esc(d) + '</li>'; });
     h += '</ol>';
   }
   if (c.risks.length){
-    h += '<div class="lbl">待验证 — Open</div><ol class="risks">';
+    h += '<div class="lbl">' + esc(t("lbl_open")) + '</div><ol class="risks">';
     c.risks.forEach(function(r){ h += '<li>' + esc(r) + '</li>'; });
     h += '</ol>';
   }
   if ((c.capsules || []).length){
-    h += '<div class="lbl">时间胶囊 — Capsule</div>';
+    h += '<div class="lbl">' + esc(t("lbl_capsule")) + '</div>';
     c.capsules.forEach(function(cap){
       h += '<div class="cap">' + capTag(cap) + esc(cap.risk) + '</div>';
     });
   }
   if (!c.what && !c.why)
-    h += '<p class="empty">这枚 commit 尚未被叙事。回终端跑 codetalk digest。</p>';
+    h += '<p class="empty">' + esc(t("body_unnarrated")) + '</p>';
   return h;
 }
 
@@ -248,27 +322,28 @@ function dueCaps(){
 }
 function dueBtnsHtml(k){
   var h = '<div class="btns">';
-  ["想多了", "已解决", "还在担心"].forEach(function(label){
-    h += '<button class="btn" data-k="' + k + '" data-out="' + label + '"'
-      + (SERVE ? "" : " disabled") + '>' + label + '</button>';
+  [t("btn_overthought"), t("btn_resolved"), t("btn_worried")].forEach(function(label){
+    h += '<button class="btn" data-k="' + k + '" data-out="' + esc(label) + '"'
+      + (SERVE ? "" : " disabled") + '>' + esc(label) + '</button>';
   });
   return h + '</div>';
 }
 function dueDoneHtml(out){
-  return '<span class="ago">已记录:</span>'
+  return '<span class="ago">' + esc(t("due_recorded")) + '</span>'
     + '<span style="color:var(--ok)">' + esc(out) + '</span>'
-    + ' <span class="reanswer" role="button" tabindex="0">改答 ↺</span>';
+    + ' <span class="reanswer" role="button" tabindex="0">' + esc(t("due_reanswer")) + '</span>';
 }
 function dueCapsulesHtml(){
   var due = dueCaps();
   if (!due.length) return "";
-  var h = '<div class="due"><h4>■ 到期待验证的预测 — ' + due.length + ' 枚</h4>';
+  var h = '<div class="due"><h4>' + esc(t("due_head_p1")) + due.length + esc(t("due_head_p2")) + '</h4>';
   due.forEach(function(d, k){
     h += '<div class="q" data-k="' + k + '"><span class="ago">'
-      + agoText(d.host.days_ago) + '你担心:</span>「' + esc(d.cap.risk) + '」'
+      + esc(agoText(d.host.days_ago)) + esc(t("due_worried")) + '</span>'
+      + esc(t("q_open")) + esc(d.cap.risk) + esc(t("q_close"))
       + '<div class="ans" id="due-ans-' + k + '">' + dueBtnsHtml(k) + '</div></div>';
   });
-  if (!SERVE) h += '<div class="ro">只读 · 跑 codetalk tunnel --serve 可回写答案</div>';
+  if (!SERVE) h += '<div class="ro">' + esc(t("due_readonly")) + '</div>';
   h += '</div>';
   return h;
 }
@@ -293,7 +368,7 @@ function answerDue(k, due, out){
   post("/capsule", { capsule_id: d.cap.id, outcome: out }).then(function(ok){
     if (ok){ d.cap.outcome = out; ans.innerHTML = dueDoneHtml(out); wireDueAns(k, due); }
     else ans.insertAdjacentHTML("beforeend",
-      '<div class="ro" style="color:var(--warn)">写回失败,请重试</div>');
+      '<div class="ro" style="color:var(--warn)">' + esc(t("writeback_fail")) + '</div>');
   });
 }
 function wireDueButtons(){
@@ -305,11 +380,15 @@ function wireDueButtons(){
 function renderFooter(){
   var read = DATA.filter(function(c){ return visited[c.sha]; }).length;
   document.getElementById("foot").textContent =
-    "已读 " + read + "/" + DATA.length + " 段叙事"
-    + (SERVE ? " · serve 模式:回答即时写回 cache.db" : " · 只读模式");
+    t("foot_p1") + read + "/" + DATA.length + t("foot_p2")
+    + (SERVE ? t("foot_serve") : t("foot_readonly"));
 }
 
-renderTimeline();
+// 语言切换:静态元素由 applyLang 换,动态时间轴/胶囊经 onLangChange 重渲染
+window.onLangChange = renderTimeline;
+var _lb = document.getElementById("langbtn");
+if (_lb) _lb.addEventListener("click", toggleLang);
+applyLang();
 document.addEventListener("keydown", function(e){     // j/k 在 commit 行头间移焦点
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   var tag = e.target && e.target.tagName;

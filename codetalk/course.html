@@ -27,6 +27,10 @@
     justify-content: space-between; padding: 12px 22px; font-size: 11px;
     letter-spacing: .1em; text-transform: uppercase; color: var(--g2); }
   header .t { color: var(--g1); }
+  #langbtn { background: transparent; color: var(--g2); border: 1px solid var(--g4);
+    font-family: var(--px); font-size: 10px; letter-spacing: .1em;
+    text-transform: uppercase; padding: 3px 8px; margin-left: 12px; cursor: pointer; }
+  #langbtn:hover { color: var(--ink); border-color: var(--g2); }
   .wrap { max-width: 1080px; margin: 0 auto; display: grid;
     grid-template-columns: 220px 1fr; gap: 40px; padding: 40px 24px 120px; }
   nav { position: sticky; top: 70px; align-self: start; font-size: 12.5px; }
@@ -96,6 +100,8 @@
   details.bdh > summary::-webkit-details-marker { display: none; }
   details.bdh > summary::before { content: "💬 展开大白话 ▸ "; }
   details.bdh[open] > summary::before { content: "💬 大白话 ▾ "; }
+  html[lang="en"] details.bdh > summary::before { content: "💬 Show plain-English ▸ "; }
+  html[lang="en"] details.bdh[open] > summary::before { content: "💬 Plain-English ▾ "; }
   details.bdh .body { color: var(--g1); font-size: 14px; line-height: 1.8;
     padding: 6px 0 2px; }
   /* 潜在风险 / 未闭环(已有叙事数据,可折叠)*/
@@ -113,11 +119,12 @@
 </style></head><body>
 <div id="bar"></div>
 <header>
-  <span><span class="t">CodeTalk</span>//演进课程 · $project</span>
-  <span>这个项目怎么长成的 · $generated</span>
+  <span><span class="t">CodeTalk</span>//<span data-i18n="course_label">演进课程</span> · <span id="proj">$project</span></span>
+  <span><span data-i18n="grew">这个项目怎么长成的</span> · <span id="gen">$generated</span>
+    <button id="langbtn" type="button" aria-label="switch language">EN</button></span>
 </header>
 <div class="wrap">
-  <nav><div class="lbl">章节 · Chapters</div><div id="toc"></div></nav>
+  <nav><div class="lbl" data-i18n="chapters_lbl">章节 · Chapters</div><div id="toc"></div></nav>
   <main id="main"></main>
 </div>
 <footer id="foot"></footer>
@@ -126,63 +133,117 @@ var DATA = $data;
 function esc(s){ return String(s == null ? "" : s)
   .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
-var main = document.getElementById("main"), toc = document.getElementById("toc");
-if (DATA.degraded){
-  var d = document.createElement("div");
-  d.className = "degraded";
-  d.innerHTML = "<b>未智能编排</b> · 未设置 API key 或调用失败,本课程按时间顺序"
-    + "朴素分章、无测验。设置 key 后重跑可得完整课程。";
-  document.querySelector(".wrap").insertBefore(d, document.querySelector("nav"));
-}
-
-(DATA.chapters || []).forEach(function(ch, ci){
-  var sec = document.createElement("section");
-  sec.className = "ch"; sec.id = "ch" + ci;
-  var html = '<div class="num">第 ' + (ci + 1) + ' 章 / 共 '
-    + DATA.chapters.length + '</div><h2>' + esc(ch.title) + '</h2>';
-  if (ch.intro)  // 当时的决定:原分析直接显示(保留)
-    html += '<div class="intro"><span class="k">当时的决定 — Decision</span>'
-      + esc(ch.intro) + '</div>';
-  if (ch.plain)  // 大白话:另加的可展开层,不藏原分析
-    html += '<details class="bdh"><summary></summary><div class="body">'
-      + esc(ch.plain) + '</div></details>';
-  (ch.blocks || []).forEach(function(b){
-    var badge = b.type ? '<span class="badge ' + esc(b.type) + '">'
-      + esc(b.type) + '</span>' : '';
-    html += '<div class="pair"><div class="ph">' + badge + '<b>' + esc(b.sha)
-      + '</b> · ' + esc(b.subject) + '</div><div class="cols"><pre>'
-      + (b.diff ? esc(b.diff) : '(diff 不可用)')
-      + '</pre><div class="say"><div class="e">'  // 代码讲解直接显示(保留)
-      + esc(b.what || '尚未叙事 — 跑 codetalk digest')
-      + '</div></div></div></div>';
-  });
-  var risks = ch.risks || [], loops = ch.open_loops || [];
-  if (risks.length || loops.length){
-    html += '<details class="lapse"><summary>潜在风险 / 未闭环</summary><ul>';
-    risks.forEach(function(r){ html += '<li>' + esc(r) + '</li>'; });
-    loops.forEach(function(l){ html += '<li class="loop">' + esc(l) + '</li>'; });
-    html += '</ul></details>';
+// ---- i18n:zh/en 字典 + 切换(零外联,复用 localStorage;数据仍不出本机)----
+// 注意:{n}/{m}/{g} 是占位符,由 JS 用 .replace 填;此文件走 Template.substitute,正文勿引入裸美元符
+var I18N = {
+  zh: {
+    course_label: "演进课程", grew: "这个项目怎么长成的", chapters_lbl: "章节 · Chapters",
+    degraded_head: "未智能编排",
+    degraded_body: "未设置 API key 或调用失败,本课程按时间顺序朴素分章、无测验。设置 key 后重跑可得完整课程。",
+    ch_num: "第 {n} 章 / 共 {m}", decision_k: "当时的决定 — Decision",
+    diff_na: "(diff 不可用)", no_narrative: "尚未叙事 — 跑 codetalk digest",
+    risks_summary: "潜在风险 / 未闭环", quiz_h: "场景测验 — Quiz {n}", hint_prefix: "提示:",
+    footer: "Local-first · 数据未离开这台机器 · {n} 章 · 生成 {g}"
+  },
+  en: {
+    course_label: "Evolution Course", grew: "How this project grew", chapters_lbl: "Chapters",
+    degraded_head: "No smart orchestration",
+    degraded_body: "No API key set or the call failed; this course is split into chapters by time only, with no quizzes. Set a key and re-run for the full course.",
+    ch_num: "Chapter {n} / {m}", decision_k: "The decision then — Decision",
+    diff_na: "(diff unavailable)", no_narrative: "Not yet narrated — run codetalk digest",
+    risks_summary: "Potential risks / open loops", quiz_h: "Scenario quiz — Quiz {n}", hint_prefix: "Hint: ",
+    footer: "Local-first · data never left this machine · {n} chapters · generated {g}"
   }
-  (ch.quiz || []).forEach(function(qz, qi){
-    var opts = qz.options || [];
-    // quiz answer 越界校验:LLM 给错索引时钳到范围,避免该题永远答不对
-    var ans = Number.isInteger(qz.answer) ? qz.answer : 0;
-    if (ans < 0 || ans >= opts.length) ans = 0;
-    html += '<div class="quiz" data-ans="' + ans + '"><div class="qh">场景测验 — Quiz '
-      + (qi + 1) + '</div><p class="q">' + esc(qz.q) + '</p>';
-    opts.forEach(function(o, oi){
-      html += '<button class="opt" data-i="' + oi + '">' + esc(o) + '</button>';
+};
+var LANG = (function(){ try { var s = localStorage.getItem("codetalk.lang");
+  if (s === "zh" || s === "en") return s;
+  return (navigator.language || "").slice(0,2).toLowerCase() === "zh" ? "zh" : "en";
+} catch(e){ return "zh"; } })();
+function t(k){ return (I18N[LANG] && I18N[LANG][k] != null) ? I18N[LANG][k] : I18N.zh[k]; }
+
+var main = document.getElementById("main"), toc = document.getElementById("toc");
+var PROJECT = (document.getElementById("proj") || {}).textContent || "";
+var GENERATED = (document.getElementById("gen") || {}).textContent || "";
+var secs = [], tocLinks = [];
+
+function renderCourse(){
+  var old = document.querySelector(".wrap .degraded"); if (old) old.remove();
+  main.innerHTML = ""; toc.innerHTML = "";
+  if (DATA.degraded){
+    var d = document.createElement("div");
+    d.className = "degraded";
+    d.innerHTML = "<b>" + esc(t("degraded_head")) + "</b> · " + esc(t("degraded_body"));
+    document.querySelector(".wrap").insertBefore(d, document.querySelector("nav"));
+  }
+  (DATA.chapters || []).forEach(function(ch, ci){
+    var sec = document.createElement("section");
+    sec.className = "ch"; sec.id = "ch" + ci;
+    var html = '<div class="num">'
+      + esc(t("ch_num").replace("{n}", ci + 1).replace("{m}", DATA.chapters.length))
+      + '</div><h2>' + esc(ch.title) + '</h2>';
+    if (ch.intro)  // 当时的决定:原分析直接显示(保留)
+      html += '<div class="intro"><span class="k">' + esc(t("decision_k")) + '</span>'
+        + esc(ch.intro) + '</div>';
+    if (ch.plain)  // 大白话:另加的可展开层,不藏原分析
+      html += '<details class="bdh"><summary></summary><div class="body">'
+        + esc(ch.plain) + '</div></details>';
+    (ch.blocks || []).forEach(function(b){
+      var badge = b.type ? '<span class="badge ' + esc(b.type) + '">'
+        + esc(b.type) + '</span>' : '';
+      html += '<div class="pair"><div class="ph">' + badge + '<b>' + esc(b.sha)
+        + '</b> · ' + esc(b.subject) + '</div><div class="cols"><pre>'
+        + (b.diff ? esc(b.diff) : esc(t("diff_na")))
+        + '</pre><div class="say"><div class="e">'  // 代码讲解直接显示(保留)
+        + esc(b.what || t("no_narrative"))
+        + '</div></div></div></div>';
     });
-    html += '<div class="hint">提示:' + esc(qz.hint) + '</div></div>';
+    var risks = ch.risks || [], loops = ch.open_loops || [];
+    if (risks.length || loops.length){
+      html += '<details class="lapse"><summary>' + esc(t("risks_summary")) + '</summary><ul>';
+      risks.forEach(function(r){ html += '<li>' + esc(r) + '</li>'; });
+      loops.forEach(function(l){ html += '<li class="loop">' + esc(l) + '</li>'; });
+      html += '</ul></details>';
+    }
+    (ch.quiz || []).forEach(function(qz, qi){
+      var opts = qz.options || [];
+      // quiz answer 越界校验:LLM 给错索引时钳到范围,避免该题永远答不对
+      var ans = Number.isInteger(qz.answer) ? qz.answer : 0;
+      if (ans < 0 || ans >= opts.length) ans = 0;
+      html += '<div class="quiz" data-ans="' + ans + '"><div class="qh">'
+        + esc(t("quiz_h").replace("{n}", qi + 1))
+        + '</div><p class="q">' + esc(qz.q) + '</p>';
+      opts.forEach(function(o, oi){
+        html += '<button class="opt" data-i="' + oi + '">' + esc(o) + '</button>';
+      });
+      html += '<div class="hint">' + esc(t("hint_prefix")) + esc(qz.hint) + '</div></div>';
+    });
+    sec.innerHTML = html;
+    main.appendChild(sec);
+    var a = document.createElement("a");
+    a.href = "#ch" + ci; a.id = "toc" + ci;
+    a.innerHTML = '<span class="n">' + (ci + 1 < 10 ? "0" : "") + (ci + 1)
+      + '</span>' + esc(ch.title);
+    toc.appendChild(a);
   });
-  sec.innerHTML = html;
-  main.appendChild(sec);
-  var a = document.createElement("a");
-  a.href = "#ch" + ci; a.id = "toc" + ci;
-  a.innerHTML = '<span class="n">' + (ci + 1 < 10 ? "0" : "") + (ci + 1)
-    + '</span>' + esc(ch.title);
-  toc.appendChild(a);
-});
+  secs = [].slice.call(main.children);
+  tocLinks = [].slice.call(toc.children);
+}
+function renderFooter(){
+  document.getElementById("foot").textContent =
+    t("footer").replace("{n}", (DATA.chapters || []).length).replace("{g}", GENERATED);
+}
+function applyLang(){
+  document.documentElement.lang = LANG;
+  document.title = PROJECT + " — " + t("course_label");
+  document.querySelectorAll("[data-i18n]").forEach(function(el){
+    el.textContent = t(el.getAttribute("data-i18n")); });
+  var lb = document.getElementById("langbtn"); if (lb) lb.textContent = LANG === "zh" ? "EN" : "中文";
+  renderCourse(); renderFooter();
+  if (window.onLangChange) window.onLangChange();  // 重渲染后刷新滚动进度/TOC 高亮
+}
+function toggleLang(){ LANG = LANG === "zh" ? "en" : "zh";
+  try { localStorage.setItem("codetalk.lang", LANG); } catch(e){}
+  applyLang(); }
 
 // 测验交互:点选项判对错,错给提示;答对锁定
 main.addEventListener("click", function(e){
@@ -199,9 +260,7 @@ main.addEventListener("click", function(e){
   }
 });
 
-// 进度条 + 目录高亮
-var tocLinks = [].slice.call(toc.children);
-var secs = [].slice.call(main.children);
+// 进度条 + 目录高亮(secs/tocLinks 由 renderCourse 填,语言切换重渲染后仍指向最新)
 function onScroll(){
   var h = document.documentElement;
   var p = h.scrollTop / (h.scrollHeight - h.clientHeight || 1);
@@ -210,7 +269,7 @@ function onScroll(){
   secs.forEach(function(s, i){ if (s.getBoundingClientRect().top < 120) cur = i; });
   tocLinks.forEach(function(a, i){ a.classList.toggle("on", i === cur); });
 }
-addEventListener("scroll", onScroll, { passive: true }); onScroll();
+addEventListener("scroll", onScroll, { passive: true });
 document.addEventListener("keydown", function(e){     // j/k 跳下一/上一章(不抢方向键滚动)
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   var tag = e.target && e.target.tagName;
@@ -223,8 +282,11 @@ document.addEventListener("keydown", function(e){     // j/k 跳下一/上一章
     secs[nx].scrollIntoView({ behavior: "smooth", block: "start" }); }
 });
 
-document.getElementById("foot").textContent =
-  "Local-first · 数据未离开这台机器 · " + (DATA.chapters || []).length
-  + " 章 · 生成 $generated";
+// 语言切换:静态元素 + 章节/测验/页脚由 applyLang→renderCourse/renderFooter 换,
+// 重渲染后经 onLangChange 刷新滚动进度条 + TOC 高亮
+window.onLangChange = onScroll;
+var _lb = document.getElementById("langbtn");
+if (_lb) _lb.addEventListener("click", toggleLang);
+applyLang();
 </script>
 </body></html>
