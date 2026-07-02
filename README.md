@@ -19,7 +19,7 @@ CodeTalk grounds "why" in real commit history — verbatim citations you can cli
 ### Why this matters
 
 - **Trust is collapsing.** 46% of developers actively distrust AI output; only 3% highly trust it. *(Stack Overflow 2025, N=33,244)*
-- **AI "explanations" are fabricated.** We blind-tested 5 real commits: AI inferred "why" from diffs alone — **5/5 missed the real decisions, 2/5 completely wrong.** *(This repo, reproducible: `python3 scripts/blind_test.py . 5`)*
+- **AI "explanations" are fabricated.** We blind-tested 5 real commits: AI inferred "why" from diffs alone — **5/5 missed the real decisions, 2/5 completely wrong.** *(This repo, reproducible: `python3 scripts/blind_test.py . 5`)* — or run the shareable A/B blind test on your own repo and judge for yourself: `python3 scripts/trust_ab_demo.py . 5` (real records vs diff-only inference, side by side, reveal at the end).
 - **Your chat history is fragile.** Multiple bug reports across Cursor, Claude Code, and Copilot describe conversations silently vanishing — data still on disk, UI can't surface it. One confirmed Cursor case (~175 agent chats hidden while intact on disk) is written up in `docs/moat-real-records-vs-inference.md`.
 
 ### How CodeTalk is different

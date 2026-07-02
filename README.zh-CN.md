@@ -17,7 +17,7 @@
 ### 为什么重要
 
 - **信任正在崩塌。** 46% 开发者不信 AI 输出，仅 3% 高度信任。*(SO 2025, N=33,244)*
-- **AI「解释」是编造的。** 本仓 5 commit 盲测：纯 diff 反推 5/5 漏真实决策、2/5 完全弄错。*(可复跑: `python3 scripts/blind_test.py . 5`)*
+- **AI「解释」是编造的。** 本仓 5 commit 盲测：纯 diff 反推 5/5 漏真实决策、2/5 完全弄错。*(可复跑: `python3 scripts/blind_test.py . 5`)* —— 也可在你自己的仓跑可分享的 A/B 盲测,自己判断:`python3 scripts/trust_ab_demo.py . 5`(真实记录 vs 纯 diff 反推,并排呈现,末尾揭晓)。
 - **你的对话历史很脆弱。** Cursor / Claude Code / Copilot 均有 bug 报告:对话静默消失——数据还在磁盘,UI 接不回。一个已核实的 Cursor 案例(~175 条 agent 对话在磁盘完好却从 UI 消失)写在 `docs/moat-real-records-vs-inference.md`。
 
 ### CodeTalk 有什么不同
