@@ -143,6 +143,27 @@ def build_graph_json(project_path, cache):
     return json.dumps(data, ensure_ascii=False), None
 
 
+def _graph_template(project, data):
+    """决策影响图数据 → 单文件 HTML 字符串(模板替换,目录名转义防注入)。"""
+    today = datetime.now(timezone.utc).astimezone().date()
+    template = Template((Path(__file__).parent / "graph.html")
+                        .read_text(encoding="utf-8"))
+    return template.substitute(project=html.escape(project, quote=True),
+                               data=inline_json(data),
+                               generated=f"{today:%Y.%m.%d}")
+
+
+def render_graph_html(project_path):
+    """装配决策影响图 HTML 字符串(不写盘,供 web /graph 路由复用)。→ (html|None, err)。"""
+    pp = Path(project_path).resolve()
+    cache = Cache(CACHE_DB_PATH)
+    data, _hit, err = _graph_data(pp, pp.name, cache)
+    cache.close()
+    if err:
+        return None, err
+    return _graph_template(pp.name, data), None
+
+
 def build_graph(project_path, vault=None, canvas=False):
     """→ (output_path, error_or_None)。无 git 历史→空图 exit 0(不报错)。
     canvas=True 时额外写 <project>-graph.canvas(Obsidian JSON Canvas)。"""
@@ -156,13 +177,7 @@ def build_graph(project_path, vault=None, canvas=False):
     cache.close()
     if err:
         return None, err
-    today = datetime.now(timezone.utc).astimezone().date()
-    template = Template((Path(__file__).parent / "graph.html")
-                        .read_text(encoding="utf-8"))
-    html_text = template.substitute(
-        project=html.escape(project, quote=True),  # 目录名转义防 HTML/JS 注入
-        data=inline_json(data),
-        generated=f"{today:%Y.%m.%d}")
+    html_text = _graph_template(project, data)
     vault_dir = Path(cfg["vault_path"]).expanduser()
     vault_dir.mkdir(parents=True, exist_ok=True)
     out = vault_dir / (project + "-graph.html")

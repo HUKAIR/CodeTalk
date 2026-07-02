@@ -109,8 +109,8 @@ def _chapter_blocks(chapter, project_path, narr_by_short, subj_by_short):
     return blocks
 
 
-def build_course(project_path, no_llm=False):
-    """Build the course HTML; returns (output_path, error_or_None)."""
+def render_course_html(project_path, no_llm=False):
+    """装配演进课程 HTML 字符串(不写盘,供 web /course 路由复用)。→ (html|None, err)。"""
     cfg = load_config()
     if no_llm:
         cfg["no_llm"] = True              # 硬关 LLM → _make_chapters 的 LLMClient 抛错 → 朴素降级
@@ -159,11 +159,7 @@ def build_course(project_path, no_llm=False):
         project=html.escape(project, quote=True),  # 目录名转义防 HTML/JS 注入
         data=inline_json(redact_data(data)),  # 编码前脱敏:fresh subject 不走 cache 脱敏
         generated=f"{today:%Y.%m.%d}")
-    html_text = redact_secrets(html_text)  # 隐私红线:落盘前对整页再兜底脱敏
-    vault = Path(cfg["vault_path"]).expanduser()
-    vault.mkdir(parents=True, exist_ok=True)
-    out = vault / f"{project}-course.html"
-    out.write_text(html_text, encoding="utf-8")
+    html_text = redact_secrets(html_text)  # 隐私红线:出页前对整页再兜底脱敏
     from . import report  # 记一行用量(章数 / 是否降级 / LLM token 省额),写失败不拖垮主流程
     report.append_usage({
         "command": "course", "project": str(project_path),
@@ -173,6 +169,20 @@ def build_course(project_path, no_llm=False):
         "tokens_out": llm_stats.get("output_tokens", 0),
         "cache_hit_tokens": llm_stats.get("cache_hit_tokens", 0),
     })
+    return html_text, None
+
+
+def build_course(project_path, no_llm=False):
+    """Build the course HTML file; returns (output_path, error_or_None)."""
+    html_text, err = render_course_html(project_path, no_llm)
+    if err:
+        return None, err
+    cfg = load_config()
+    project = Path(project_path).resolve().name
+    vault = Path(cfg["vault_path"]).expanduser()
+    vault.mkdir(parents=True, exist_ok=True)
+    out = vault / f"{project}-course.html"
+    out.write_text(html_text, encoding="utf-8")
     return out, None
 
 

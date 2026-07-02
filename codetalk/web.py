@@ -24,10 +24,10 @@ from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 from .webserve import inline_json
-from . import chat, console, filetree, tunnel
+from . import chat, console, course, filetree, tunnel
 from .cache import Cache
 from .config import CACHE_DB_PATH, load_config, redact_data, redact_secrets
-from .graph import build_graph_json
+from .graph import build_graph_json, render_graph_html
 from .llm import LLMClient, LLMError
 from .report import _OUTCOMES
 from .search import topic_search
@@ -92,6 +92,31 @@ def tunnel_view(project: Optional[str] = None):
             "<body style='background:#0d0d0f;color:#e8e8ea;font-family:sans-serif;"
             f"padding:24px'>时光轴暂不可用:{redact_secrets(str(err))}</body>",
             status_code=400)
+    return HTMLResponse(redact_secrets(html))
+
+
+def _err_page(kind, err):
+    return HTMLResponse(
+        "<body style='background:#0d0d0f;color:#e8e8ea;font-family:sans-serif;"
+        f"padding:24px'>{kind}暂不可用:{redact_secrets(str(err))}</body>",
+        status_code=400)
+
+
+@app.get("/graph")
+def graph_view(project: Optional[str] = None):
+    """富交互决策影响图 DAG(零 LLM);与 CLI `codetalk graph` 同一渲染,浏览器内可达。"""
+    html, err = render_graph_html(_project(project))
+    if err:
+        return _err_page("决策图", err)
+    return HTMLResponse(redact_secrets(html))
+
+
+@app.get("/course")
+def course_view(project: Optional[str] = None):
+    """演进课程(项目怎么长成的);无 key 时自动降级为零-LLM 朴素章节,不崩。"""
+    html, err = course.render_course_html(_project(project))
+    if err:
+        return _err_page("演进课程", err)
     return HTMLResponse(redact_secrets(html))
 
 
