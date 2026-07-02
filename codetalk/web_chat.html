@@ -296,7 +296,7 @@ function renderDone(body, ev, acc){
   body.parentNode.appendChild(panel);
   body.querySelectorAll("mark.vb").forEach(function(m){  // <mark> 点击 → 滚到并高亮对应 chip
     m.addEventListener("click", function(){
-      var el = document.querySelector('[data-cite="' + CSS.escape(m.getAttribute("data-cite")) + '"]');
+      var el = document.querySelector('.cite[data-cite="' + CSS.escape(m.getAttribute("data-cite")) + '"]');
       if (el){ el.scrollIntoView({ block: "center" });
         el.classList.add("cite-hot");
         setTimeout(function(){ el.classList.remove("cite-hot"); }, 1200); }

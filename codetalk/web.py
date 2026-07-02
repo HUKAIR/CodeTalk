@@ -13,6 +13,7 @@ import datetime
 import json
 import os
 import re
+import sys
 import webbrowser
 from pathlib import Path
 from string import Template
@@ -282,4 +283,9 @@ def serve(project=".", port=8000, no_open=False, no_llm=False):
     # 此时仍靠 _local_request_guard 拒绝非 loopback Host,配合 `-p 127.0.0.1:8000:8000`
     # 端口映射,数据不出宿主机。非容器场景保持 127.0.0.1,行为不变。
     host = os.environ.get("CODETALK_WEB_HOST", "127.0.0.1")
+    if host not in ("127.0.0.1", "localhost", "::1"):
+        # 非 loopback 监听时,_local_request_guard 只剩可伪造的 Host 头兜底:务必只配
+        # `-p 127.0.0.1:8000:8000`(仅发布到宿主 loopback),别把端口暴露到 LAN。
+        print(f"⚠ CODETALK_WEB_HOST={host}(非 loopback)。仅用于容器 + `-p 127.0.0.1:{port}:{port}`;"
+              "切勿把端口暴露到 LAN——此时 Host 头校验可被伪造绕过。", file=sys.stderr)
     uvicorn.run(app, host=host, port=port)

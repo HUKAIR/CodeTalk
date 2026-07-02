@@ -378,7 +378,7 @@ var I18N = {
     searching: "检索中…", no_result: "无结果", search_fail: "检索失败(后端没起来?)",
     today: "今天", days_ago: "天前",
     out_overthought: "想多了", out_resolved: "已解决", out_worried: "还在担心",
-    recorded: "已记录:", reanswer: "改答 ↺",
+    recorded: "已记录:", reanswer: "改答 ↺", writeback_fail: "写回失败,请重试",
     readonly_hint: "只读 · 跑 console --serve 可回写",
     last_decision_label: "上次的决定 · ",
     no_digest_yet: "还没有日报。",
@@ -448,7 +448,7 @@ var I18N = {
     searching: "Searching…", no_result: "No results", search_fail: "Search failed (backend not running?)",
     today: "today", days_ago: "days ago",
     out_overthought: "Overthought it", out_resolved: "Resolved", out_worried: "Still worried",
-    recorded: "Recorded: ", reanswer: "Change answer ↺",
+    recorded: "Recorded: ", reanswer: "Change answer ↺", writeback_fail: "Write-back failed, please retry",
     readonly_hint: "Read-only · run console --serve to write back",
     last_decision_label: "Last decision · ",
     no_digest_yet: "No digest yet.",
@@ -568,11 +568,11 @@ function loadView(){ try { return localStorage.getItem(VVKEY); } catch (e) { ret
 var TLQ = "";   // 时光轴搜索过滤词(已小写;空=不过滤)
 
 // ---- 主题(初始偏好已在 head 解析;此处设值 + 同步图标 + 接线)----
-function setTheme(t){
-  document.documentElement.setAttribute("data-theme", t);
-  try { localStorage.setItem("codetalk.theme", t); } catch (e) {}
+function setTheme(theme){                 // 参数不叫 t:t() 是 i18n 翻译器,勿遮蔽
+  document.documentElement.setAttribute("data-theme", theme);
+  try { localStorage.setItem("codetalk.theme", theme); } catch (e) {}
   var b = document.getElementById("themebtn");
-  if (b) b.textContent = t === "light" ? "🌙" : "☀";
+  if (b) b.textContent = theme === "light" ? "🌙" : "☀";
 }
 function initTheme(){
   var b = document.getElementById("themebtn");
@@ -645,7 +645,7 @@ function answerCapsule(capId, outcome, k){
   post("/capsule", {capsule_id:capId, outcome:outcome}).then(function(ok){
     if (ok){ ans.innerHTML = capDoneHtml(outcome); wireCapAns(k); }
     else ans.insertAdjacentHTML("beforeend",
-      '<div class="ro" style="color:var(--warn)">写回失败,请重试</div>');
+      '<div class="ro" style="color:var(--warn)">' + esc(t("writeback_fail")) + '</div>');
   });
 }
 function actRow(go, q, sub){   // 首页动作行:用户问句 + 一句话作用 + 去处(复用 .jump 键盘可达)
@@ -883,10 +883,10 @@ function renderGraph(){
       + '</div></div>';
   });
   document.getElementById("v-graph").innerHTML = h;
-  decs.forEach(function(n, i){ var t = document.getElementById("gt"+i);
-    onActivate(t, function(){
+  decs.forEach(function(n, i){ var el = document.getElementById("gt"+i);  // 不叫 t(i18n 翻译器)
+    onActivate(el, function(){
       var open = document.getElementById("gd"+i).classList.toggle("open");
-      t.setAttribute("aria-expanded", open ? "true" : "false"); });
+      el.setAttribute("aria-expanded", open ? "true" : "false"); });
     if (CHAT){ var ab = document.getElementById("gdown"+i).querySelector(".askbtn");
       if (ab) ab.addEventListener("click", function(){ openChatWith(n.id, n.text); }); }
   });
@@ -1006,7 +1006,7 @@ function renderPrompts(){
     .replace(/^### (.+)$$/gm, '<h4>$$1</h4>')
     .replace(/^## (.+)$$/gm, '<h3 style="margin-top:20px">$$1</h3>')
     .replace(/^# (.+)$$/gm, '<h2 class="vh">$$1</h2>')
-    .replace(/^- (.+)$$/gm, '<div style="padding:2px 0 2px 16px;border-left:2px solid var(--border)">$$1</div>')
+    .replace(/^- (.+)$$/gm, '<div style="padding:2px 0 2px 16px;border-left:2px solid var(--line)">$$1</div>')
     .replace(/^ {2}&gt; (.+)$$/gm, '<div style="padding:2px 0 2px 24px;opacity:.7;font-style:italic">$$1</div>')
     .replace(/^ {2}\*\*AI responded:\*\*$$/gm, '<div style="padding:4px 0 2px 16px;font-weight:600;font-size:12px;opacity:.5">AI responded:</div>')
     .replace(/→ (.+)$$/gm, '<div style="padding:2px 0 2px 16px;opacity:.8">→ $$1</div>')
@@ -1136,7 +1136,7 @@ applyLang();
     if (tag === "INPUT" || tag === "TEXTAREA" || (e.target && e.target.isContentEditable)) return;
     if (e.key === "/") { var qf = document.getElementById("q");
       if (qf) { e.preventDefault(); qf.focus(); } return; }
-    var i = "12345".indexOf(e.key);
+    var i = "123456".indexOf(e.key);      // 6 个视图(含指令回看),数字键 1-6 全覆盖
     if (i >= 0 && i < VIEWS.length) { e.preventDefault(); location.hash = VIEWS[i][0]; }
   });
   var qel = document.getElementById("q");        // 搜索框:实时过滤时光轴

@@ -166,7 +166,7 @@ class TestConsoleNavDeepLink(unittest.TestCase):
         self.assertIn("validView", self.html)           # 恢复前校验合法视图
 
     def test_keyboard_view_switch_guarded(self):
-        self.assertIn('"12345"', self.html)             # 数字键 1-5 切视图
+        self.assertIn('"123456"', self.html)            # 数字键 1-6 切全部 6 个视图
         self.assertIn("TEXTAREA", self.html)            # 输入/文本域内不劫持
 
     def test_no_longer_hardcodes_overview_start(self):

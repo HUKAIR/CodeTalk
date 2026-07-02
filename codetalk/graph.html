@@ -103,7 +103,7 @@ var NW = 150, NH = 26, GAPX = 64, GAPY = 44, PAD = 30;
 var svg = document.getElementById('svg'), panel = document.getElementById('panel');
 var VB = null;            // 当前 viewBox {x,y,w,h};FULL = 整图尺寸
 var FULL = {w: 0, h: 0};
-function esc(t){ return (t || '').replace(/[&<>]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]; }); }
+function esc(s){ return (s || '').replace(/[&<>]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]; }); }
 function render(){
   var nodes = DATA.nodes, edges = DATA.edges;
   if(!nodes.length){ document.getElementById('empty').hidden = false; document.getElementById('controls').hidden = true; return; }

@@ -176,6 +176,11 @@ var LANG = (function(){ try { var s = localStorage.getItem("codetalk.lang");
   return (navigator.language || "").slice(0,2).toLowerCase() === "zh" ? "zh" : "en";
 } catch(e){ return "zh"; } })();
 function t(k){ return (I18N[LANG] && I18N[LANG][k] != null) ? I18N[LANG][k] : I18N.zh[k]; }
+var OUTCOMES = [["btn_overthought","想多了"],["btn_resolved","已解决"],["btn_worried","还在担心"]];
+function outLabel(canon){                 // 规范中文 outcome → 当前语言显示;未知则原样
+  for (var i = 0; i < OUTCOMES.length; i++) if (OUTCOMES[i][1] === canon) return t(OUTCOMES[i][0]);
+  return canon;
+}
 var PROJECT = "$project";
 function applyLang(){
   document.documentElement.lang = LANG;
@@ -221,7 +226,7 @@ function agoText(n){
   return n === 0 ? t("ago_today") : n + t("ago_days_suffix");
 }
 function capTag(cap){
-  if (cap.outcome) return '<span class="tag done">✓ ' + esc(cap.outcome) + '</span>';
+  if (cap.outcome) return '<span class="tag done">✓ ' + esc(outLabel(cap.outcome)) + '</span>';
   if (cap.opened) return '<span class="tag due">' + t("tag_due") + '</span>';
   return '<span class="tag">' + t("tag_notdue") + '</span>';
 }
@@ -322,15 +327,15 @@ function dueCaps(){
 }
 function dueBtnsHtml(k){
   var h = '<div class="btns">';
-  [t("btn_overthought"), t("btn_resolved"), t("btn_worried")].forEach(function(label){
-    h += '<button class="btn" data-k="' + k + '" data-out="' + esc(label) + '"'
-      + (SERVE ? "" : " disabled") + '>' + esc(label) + '</button>';
+  OUTCOMES.forEach(function(o){            // data-out 恒为规范中文(稳定写回键),标签按语言译
+    h += '<button class="btn" data-k="' + k + '" data-out="' + esc(o[1]) + '"'
+      + (SERVE ? "" : " disabled") + '>' + esc(t(o[0])) + '</button>';
   });
   return h + '</div>';
 }
 function dueDoneHtml(out){
   return '<span class="ago">' + esc(t("due_recorded")) + '</span>'
-    + '<span style="color:var(--ok)">' + esc(out) + '</span>'
+    + '<span style="color:var(--ok)">' + esc(outLabel(out)) + '</span>'
     + ' <span class="reanswer" role="button" tabindex="0">' + esc(t("due_reanswer")) + '</span>';
 }
 function dueCapsulesHtml(){
