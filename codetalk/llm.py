@@ -62,10 +62,10 @@ class LLMClient:
         cache_prefix:跨多次调用稳定的项目上下文(CLAUDE.md/README),作缓存前缀——
         anthropic 走第二个带 cache_control 的 system 块,openai-compat 拼进 system 消息
         让 deepseek 自动前缀缓存命中,避免每 commit 重传背景。"""
-        sys = (system or SYSTEM_PROMPT) + f"\n所有输出字段用{self.output_lang}书写。"
+        sys_prompt = (system or SYSTEM_PROMPT) + f"\n所有输出字段用{self.output_lang}书写。"
         if self.provider == "anthropic":
-            return self._anthropic(user_prompt, schema, max_tokens, sys, cache_prefix)
-        return self._openai_compat(user_prompt, schema, max_tokens, sys, cache_prefix)
+            return self._anthropic(user_prompt, schema, max_tokens, sys_prompt, cache_prefix)
+        return self._openai_compat(user_prompt, schema, max_tokens, sys_prompt, cache_prefix)
 
     def chat(self, messages, max_tokens=MAX_OUTPUT_TOKENS):
         """多轮自由文本对话补全(非 JSON):接地材料已由调用方拼进 messages 并脱敏。

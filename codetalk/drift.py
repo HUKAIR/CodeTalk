@@ -13,7 +13,6 @@ from pathlib import Path
 
 from . import gitlog, sessions
 from .align import _relative_files, align
-from .config import load_config
 from .digest import _since_to_dt
 
 
@@ -74,7 +73,6 @@ def drift_json(project, since="7 days ago"):
 
 
 def drift_cmd(args):
-    cfg = load_config()                          # noqa: F841 — 统一入口惯例(后续可读 sources)
     pp = Path(args.project).resolve()
     commits, err = gitlog.collect_commit_files(pp)   # 全史:让会话写入能对上其真实提交,不被 --since 截断误判
     if err:

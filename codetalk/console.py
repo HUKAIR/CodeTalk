@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from string import Template
 
-from . import brief, filetree, gitlog as gl, graph, self_report, sessions, tunnel
+from . import brief, filetree, graph, self_report, sessions, tunnel
 from .align import align
 from .digest import _since_to_dt
 from .prompts_view import build_prompts_view

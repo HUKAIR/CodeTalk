@@ -170,8 +170,8 @@ class Cache(CapsuleMixin):
             except (ValueError, AttributeError):
                 continue
         # 滤掉 LLM 的「材料不足」填充与空白项,简报不堆噪声墙
-        return [l for l in dict.fromkeys(loops)
-                if str(l).strip() and not str(l).strip().startswith("材料不足")]
+        return [loop for loop in dict.fromkeys(loops)
+                if str(loop).strip() and not str(loop).strip().startswith("材料不足")]
 
     def latest_daily(self, project):
         """最近一天的概览+决定(供开工简报『你上次停在哪』)。"""

@@ -52,7 +52,8 @@ def _retrieve(project_path, file, start, end, cache, since=None):
         narrative = cache.get_narrative(sha) or {}
         decs, risks, rejected = merge_breadcrumbs(narrative, project_path, sha)
         for ev in narrative.get("evidence") or []:    # 原话锚点,按 (session_id, ts) 去重
-            key_ev = (sid, ev.get("ts")) if (sid := ev.get("session_id")) else str(ev)
+            sid = ev.get("session_id")
+            key_ev = (sid, ev.get("ts")) if sid else str(ev)
             if key_ev not in _seen_ev:
                 _seen_ev.add(key_ev)
                 evidence.append(ev)

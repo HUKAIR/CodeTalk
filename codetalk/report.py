@@ -25,11 +25,11 @@ def _drop_filler(items):
 def _on_this_day_block(entries):
     """头部回流:把过去同一天的概览首句端到面前。两条都无则整块省略。"""
     rows = []
-    for label, (date, overview) in entries.items():
+    for label, (day, overview) in entries.items():   # day 而非 date:不遮蔽模块级 date 类
         first = (overview or "").split("。")[0].strip("。 \n")
         if not first:  # 跨时间读到旧行 overview 为空/NULL → 跳过,不崩
             continue
-        rows.append(f"> 📮 **{label}** · {date}:「{first}。」")
+        rows.append(f"> 📮 **{label}** · {day}:「{first}。」")
     return ("\n".join(rows) + "\n") if rows else ""
 
 

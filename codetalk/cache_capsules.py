@@ -1,7 +1,7 @@
 """时间胶囊读写(从 cache.py 抽出,给主模块留 <300 行余量)。
 
 CapsuleMixin 混入 Cache,依赖 self.conn(sqlite 连接)。risk 密封 → 到期开启,
-闭合预测-验证环。全部方法与抽出前逐字一致,仅换了容身模块。
+闭合预测-验证环。从 cache.py 抽出以给主模块留 <300 行余量。
 """
 from .config import redact_secrets
 

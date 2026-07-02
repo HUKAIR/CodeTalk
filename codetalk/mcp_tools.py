@@ -3,7 +3,6 @@
 TOOLS 列表 + call_tool dispatch + target/project 解析 + content helpers。
 mcp_server.py 只留 JSON-RPC serve loop + run()。
 """
-import json
 import logging
 from pathlib import Path
 

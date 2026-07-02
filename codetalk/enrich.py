@@ -1,7 +1,6 @@
 """Per-commit narrative enrichment, SHA-keyed and never recomputed."""
 import fnmatch
 import hashlib
-import json
 import logging
 import os
 import re

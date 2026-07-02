@@ -49,6 +49,7 @@ def answer(cache, llm, project_path, question, *, target=None, conv_id="c1",
     llm=None(无 key / no_llm)或材料空 → degraded=True,LLM 不被调用。"""
     ev = retrieval.assemble(cache, project_path, question, target=target)
     history = history or _history(cache, conv_id)   # 多轮:前几轮作上下文(非事实依据)
+    # turn_id 后缀 :0=用户轮、:1=助手轮(见下方 assistant 落库);conv_id:seq 定位一轮问答
     conversation.save_turn(cache, f"{conv_id}:{turn_seq:03d}:0", conv_id,
                            str(project_path), now, "user", question)
     if llm is None or not ev["hits"]:           # no_llm / 材料空 → 零-LLM 降级,不调 LLM
@@ -80,6 +81,7 @@ def answer_stream(cache, llm, project_path, question, *, target=None, conv_id="c
     no_llm/材料空 → 单块零-LLM 罗列 + done,绝不调 LLM(I-2)。"""
     ev = retrieval.assemble(cache, project_path, question, target=target)
     history = history or _history(cache, conv_id)   # 多轮:前几轮作上下文(非事实依据)
+    # turn_id 后缀 :0=用户轮、:1=助手轮(见下方 assistant 落库);conv_id:seq 定位一轮问答
     conversation.save_turn(cache, f"{conv_id}:{turn_seq:03d}:0", conv_id,
                            str(project_path), now, "user", question)
     pieces = []
