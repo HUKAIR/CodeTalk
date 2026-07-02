@@ -23,11 +23,25 @@ class TestGroundingHitrate(unittest.TestCase):
         self.assertEqual(m["narrated"], 2)          # a,b 有叙事
         self.assertEqual(m["breadcrumb"], 1)        # c 有 Vibe-Decision
         self.assertEqual(m["evidence"], 1)          # b 有 evidence
-        self.assertEqual(m["grounded"], 3)          # a,b,c 可接地;d 不可
+        self.assertEqual(m["grounded"], 3)          # a,b,c 可接地(含 LLM 叙事);d 不可
         self.assertEqual(m["coverage_pct"], 75.0)
+        # 真实接地率(北极星):只算逐字/面包屑,排除 a 的纯 LLM why → 仅 b,c
+        self.assertEqual(m["real_grounded"], 2)     # b(evidence)+ c(面包屑);a 纯叙事不算
+        self.assertEqual(m["real_pct"], 50.0)
+
+    def test_llm_narrative_alone_not_real_grounded(self):
+        c = Cache(":memory:")
+        c.put_narrative("a" * 40, "/p", "m",
+                        {"why": "LLM 猜的 why", "decisions": ["LLM 决策"]})
+        m = measure(c, [{"sha": "a" * 40, "body": "chore: x"}])
+        c.close()
+        self.assertEqual(m["grounded"], 1)          # 覆盖上限含它
+        self.assertEqual(m["real_grounded"], 0)     # 但真实接地率排除纯 LLM 叙事
 
     def test_empty_repo(self):
-        self.assertEqual(measure(Cache(":memory:"), [])["coverage_pct"], 0.0)
+        m = measure(Cache(":memory:"), [])
+        self.assertEqual(m["coverage_pct"], 0.0)
+        self.assertEqual(m["real_pct"], 0.0)
 
 
 if __name__ == "__main__":
