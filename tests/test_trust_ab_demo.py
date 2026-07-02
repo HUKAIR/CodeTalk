@@ -45,5 +45,31 @@ class TestLlmGuessDegrade(unittest.TestCase):
         self.assertIsNone(_llm_guess(object(), ""))
 
 
+class TestEmitHtml(unittest.TestCase):
+    def test_emits_valid_redacted_page(self):
+        import tempfile
+        from unittest import mock
+        import scripts.trust_ab_demo as d
+        cache = Cache(":memory:")
+        sha = "a" * 40
+        cache.put_narrative(sha, "P", "m",
+                            {"why": "key sk-abcdef0123456789ABCDEF leaked",
+                             "decisions": ["用显式循环"]})
+        sample = [{"sha": sha, "subject": "feat: x", "date": "2026-07-02",
+                   "body": "Vibe-Decision: 保留退避"}]
+        out = Path(tempfile.mkdtemp()) / "ab.html"
+        with mock.patch.object(d, "_llm_guess", return_value="AI 猜:兼容"), \
+             mock.patch.object(d, "commit_diff", return_value="+code"):
+            n = d._emit_html(Path("."), sample, cache, object(), str(out))
+        html = out.read_text(encoding="utf-8")
+        self.assertEqual(n, 1)
+        self.assertTrue(html.startswith("<!doctype html>"))
+        self.assertNotIn("$data", html)                 # 占位已消费
+        self.assertNotIn("$project", html)
+        self.assertNotIn("sk-abcdef0123456789ABCDEF", html)   # 出口脱敏
+        self.assertIn("[REDACTED]", html)
+        self.assertIn('"real"', html)                   # A/B 数据已注入
+
+
 if __name__ == "__main__":
     unittest.main()

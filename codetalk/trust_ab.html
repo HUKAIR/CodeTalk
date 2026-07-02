@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CodeTalk · $project</title>
+<style>
+  :root{--bg:#0d0d0f;--fg:#e8e8ea;--dim:#8b8b92;--faint:#5a5a62;--line:#26262b;
+    --card:#16161a;--card2:#1c1c22;--accent:#5b9cff;--ok:#57b87a;--warn:#e0a44a;
+    --mono:"SF Mono",ui-monospace,Menlo,monospace;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"PingFang SC","Microsoft YaHei",serif}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 var(--serif)}
+  header{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;
+    justify-content:space-between;align-items:center;gap:12px}
+  header b{letter-spacing:.12em}
+  .sub{color:var(--dim);font-size:13px;font-family:var(--mono);margin-top:4px}
+  #langbtn{background:none;border:1px solid var(--line);color:var(--dim);
+    font-family:var(--mono);font-size:12px;padding:4px 9px;cursor:pointer;border-radius:4px}
+  #langbtn:hover{border-color:var(--accent)}
+  main{max-width:820px;margin:0 auto;padding:24px 20px 80px}
+  .lead{font-size:19px;line-height:1.5;margin:8px 0 6px}
+  .lead-sub{color:var(--dim);font-size:14px;border-left:3px solid var(--accent);
+    padding-left:12px;margin:0 0 26px}
+  .item{border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:0 0 18px;
+    background:var(--card)}
+  .subj{font-family:var(--mono);font-size:12px;color:var(--dim);margin:0 0 12px;
+    word-break:break-word}
+  .subj .sha{color:var(--accent)}
+  .pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:620px){.pair{grid-template-columns:1fr}}
+  .src{background:var(--card2);border:1px solid var(--line);border-radius:9px;padding:12px 14px}
+  .src h4{margin:0 0 8px;font-family:var(--mono);font-size:12px;color:var(--faint);
+    letter-spacing:.08em}
+  .src pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:13px;
+    line-height:1.55;color:var(--fg);font-family:var(--serif)}
+  .choose{display:flex;gap:10px;margin-top:12px}
+  .choose button{flex:1;background:none;border:1px solid var(--line);color:var(--fg);
+    font:inherit;font-size:14px;padding:8px;border-radius:8px;cursor:pointer}
+  .choose button:hover{border-color:var(--accent)}
+  .choose button.pick{border-color:var(--accent);background:rgba(91,156,255,.12)}
+  .reveal{margin-top:12px;font-family:var(--mono);font-size:12.5px;display:none}
+  .reveal.show{display:block}
+  .reveal .real{color:var(--ok)}
+  .reveal .other{color:var(--dim)}
+  #tally{position:sticky;bottom:0;background:var(--bg);border-top:1px solid var(--line);
+    padding:14px 20px;text-align:center}
+  #tally button{background:var(--accent);color:#fff;border:0;border-radius:8px;
+    padding:9px 20px;font:inherit;cursor:pointer}
+  #tally button:disabled{opacity:.5;cursor:not-allowed}
+  #score{font-size:16px;margin:0 0 10px;display:none}
+  #score.show{display:block}
+  .pitch{color:var(--dim);font-size:13px;margin-top:8px}
+</style></head><body>
+<header>
+  <span><b>CodeTalk</b> <span class="sub" data-i18n="tagline">真实记录 vs AI 从 diff 反推 · 零 LLM · SHA 可验证</span></span>
+  <button id="langbtn" type="button" aria-label="switch language">EN</button>
+</header>
+<main>
+  <p class="lead" data-i18n="lead">同一段代码,两个「为什么」。一个是逐字真实记录,一个是 AI 只看 diff 反推的。你更信哪个?</p>
+  <p class="lead-sub" data-i18n="lead_sub">每条先选 A 或 B(别偷看),全选完点「看真相」——看看你几次选中了真实记录。</p>
+  <div id="items"></div>
+</main>
+<div id="tally">
+  <p id="score"></p>
+  <button id="revealbtn" type="button" data-i18n="reveal_btn" disabled>看真相</button>
+  <p class="pitch" data-i18n="pitch">真实记录 = CodeTalk 零-LLM 逐字引 commit/会话,点 SHA 可核验;另一侧 = AI 只凭 diff 反推(未给 commit message)。</p>
+</div>
+<script>
+var DATA = $data;
+var I18N = {
+  zh: { tagline:"真实记录 vs AI 从 diff 反推 · 零 LLM · SHA 可验证",
+    lead:"同一段代码,两个「为什么」。一个是逐字真实记录,一个是 AI 只看 diff 反推的。你更信哪个?",
+    lead_sub:"每条先选 A 或 B(别偷看),全选完点「看真相」——看看你几次选中了真实记录。",
+    reveal_btn:"看真相", trust_a:"信 A", trust_b:"信 B", src:"来源",
+    real_tag:"← 真实记录(CodeTalk 逐字)", other_tag:"← AI 从 diff 反推",
+    score:"你在 {n} 条里,{x} 次选中了真实记录。",
+    pitch:"真实记录 = CodeTalk 零-LLM 逐字引 commit/会话,点 SHA 可核验;另一侧 = AI 只凭 diff 反推(未给 commit message)。" },
+  en: { tagline:"real records vs AI inference from diff · zero-LLM · SHA-verifiable",
+    lead:"Same code, two “whys”. One is a verbatim real record; the other is AI inferring from the diff alone. Which do you trust?",
+    lead_sub:"Pick A or B for each (no peeking), then hit “Reveal” — see how often you trusted the real record.",
+    reveal_btn:"Reveal", trust_a:"Trust A", trust_b:"Trust B", src:"Source",
+    real_tag:"← real record (CodeTalk, verbatim)", other_tag:"← AI inference from diff",
+    score:"You trusted the real record {x} of {n} times.",
+    pitch:"Real record = CodeTalk zero-LLM verbatim citation of the commit/session, SHA-verifiable; the other = AI inferring from the diff alone (no commit message given)." }
+};
+var LANG = (function(){ try { var s = localStorage.getItem("codetalk.lang");
+  if (s === "zh" || s === "en") return s;
+  return (navigator.language || "").slice(0,2).toLowerCase() === "zh" ? "zh" : "en";
+} catch(e){ return "zh"; } })();
+function t(k){ return (I18N[LANG] && I18N[LANG][k] != null) ? I18N[LANG][k] : I18N.zh[k]; }
+function esc(s){ return String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+var picks = {};              // idx -> "a"|"b"
+function render(){
+  var box = document.getElementById("items"), items = DATA.items || [];
+  box.innerHTML = items.map(function(it, i){
+    return '<div class="item"><p class="subj"><span class="sha">['+esc(it.sha)+']</span> '
+      + esc(it.date) + ' ' + esc(it.subject) + '</p>'
+      + '<div class="pair">'
+      + '<div class="src" data-side="a"><h4>' + t("src") + ' A</h4><pre>'+esc(it.a)+'</pre></div>'
+      + '<div class="src" data-side="b"><h4>' + t("src") + ' B</h4><pre>'+esc(it.b)+'</pre></div>'
+      + '</div>'
+      + '<div class="choose"><button data-i="'+i+'" data-p="a">'+t("trust_a")+'</button>'
+      + '<button data-i="'+i+'" data-p="b">'+t("trust_b")+'</button></div>'
+      + '<div class="reveal" data-i="'+i+'"></div></div>';
+  }).join("");
+  box.querySelectorAll(".choose button").forEach(function(b){
+    b.addEventListener("click", function(){
+      var i = b.getAttribute("data-i");
+      picks[i] = b.getAttribute("data-p");
+      b.parentNode.querySelectorAll("button").forEach(function(x){ x.classList.remove("pick"); });
+      b.classList.add("pick");
+      document.getElementById("revealbtn").disabled =
+        Object.keys(picks).length < items.length;
+    });
+  });
+}
+function reveal(){
+  var items = DATA.items || [], correct = 0;
+  items.forEach(function(it, i){
+    if (picks[i] === it.real) correct++;
+    var r = document.querySelector('.reveal[data-i="'+i+'"]');
+    var realUp = it.real.toUpperCase(), otherUp = (it.real === "a" ? "B" : "A");
+    r.innerHTML = '<span class="real">' + realUp + ' ' + t("real_tag") + '</span> · '
+      + '<span class="other">' + otherUp + ' ' + t("other_tag") + '</span>';
+    r.classList.add("show");
+  });
+  var sc = document.getElementById("score");
+  sc.textContent = t("score").replace("{n}", items.length).replace("{x}", correct);
+  sc.classList.add("show");
+  document.getElementById("revealbtn").disabled = true;
+}
+function applyLang(){
+  document.documentElement.lang = LANG;
+  document.querySelectorAll("[data-i18n]").forEach(function(el){ el.textContent = t(el.getAttribute("data-i18n")); });
+  var lb = document.getElementById("langbtn"); if (lb) lb.textContent = LANG === "zh" ? "EN" : "中文";
+  render();                  // 重渲染(按钮文案/来源标签随语言)
+}
+document.getElementById("langbtn").addEventListener("click", function(){
+  LANG = LANG === "zh" ? "en" : "zh";
+  try { localStorage.setItem("codetalk.lang", LANG); } catch(e){}
+  picks = {}; applyLang(); document.getElementById("revealbtn").disabled = true;
+  var sc = document.getElementById("score"); sc.classList.remove("show");
+});
+document.getElementById("revealbtn").addEventListener("click", reveal);
+applyLang();
+</script>
+</body></html>

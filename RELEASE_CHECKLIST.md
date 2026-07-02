@@ -7,7 +7,7 @@ Use this checklist before a public CodeTalk release.
 - `python3 -m unittest discover -s tests`
 - `python3 -m scripts.scan_secrets`
 - `python3 -m scripts.scan_secrets --history`
-- `python3 -m scripts.check_static_no_external codetalk/web_chat.html codetalk/console.html codetalk/tunnel.html codetalk/course.html codetalk/graph.html`
+- `python3 -m scripts.check_static_no_external codetalk/web_chat.html codetalk/console.html codetalk/tunnel.html codetalk/course.html codetalk/graph.html codetalk/trust_ab.html`
 - `python3 -m scripts.build_mcpb`
 - `python3 -m pip install -e . --no-deps --dry-run --no-build-isolation`
 - `git diff --check`

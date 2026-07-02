@@ -5,9 +5,11 @@
 
 用法:python3 scripts/trust_ab_demo.py [项目] [N]
 """
+import json
 import random
 import sys
 from pathlib import Path
+from string import Template
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from codetalk.cache import Cache                               # noqa: E402
@@ -57,7 +59,31 @@ def _llm_guess(llm, diff_text):
         return None
 
 
-def main(project=".", n=DEFAULT_N):
+def _emit_html(pp, sample, cache, llm, out_path):
+    """把 A/B 对照渲染成可交互、可分享的单页 HTML(零外链,出口脱敏)。→ 命中条数。"""
+    items = []
+    for c in sample:
+        guess = _llm_guess(llm, commit_diff(pp, c["sha"]))
+        if not guess:                        # 无 diff/反推失败 → 跳过,不摆空 A/B
+            continue
+        real = "\n".join(_real_record(cache, c["sha"], c.get("body", "")))
+        coin = random.random() > 0.5         # 随机哪侧是真,避免位置泄露
+        date = (c["date"].isoformat()[:10] if hasattr(c.get("date"), "isoformat")
+                else str(c.get("date", ""))[:10])
+        items.append({"sha": c["sha"][:7], "date": date,
+                      "subject": c.get("subject", ""),
+                      "a": real if coin else guess, "b": guess if coin else real,
+                      "real": "a" if coin else "b"})
+    data = redact_data({"items": items})     # 结构叶子脱敏(dumps 前)
+    tpl = Path(__file__).resolve().parent.parent / "codetalk" / "trust_ab.html"
+    html = Template(tpl.read_text(encoding="utf-8")).substitute(
+        project=redact_secrets(pp.name),
+        data=json.dumps(data, ensure_ascii=False))
+    Path(out_path).write_text(redact_secrets(html), encoding="utf-8")  # 整页再兜底脱敏
+    return len(items)
+
+
+def main(project=".", n=DEFAULT_N, html_path=None):
     pp = Path(project).resolve()
     commits, err = collect_commit_files(pp)
     if err:
@@ -84,6 +110,17 @@ def main(project=".", n=DEFAULT_N):
     except LLMError:
         llm = None
         print("(No LLM key — showing real records only, no AI comparison)\n")
+
+    if html_path:                            # 可分享的交互式 A/B 页(需 LLM 生成对照侧)
+        if llm is None:
+            print("--html needs an LLM key (A/B needs both sides). Set a key first.",
+                  file=sys.stderr)
+            cache.close()
+            return 1
+        count = _emit_html(pp, sample, cache, llm, html_path)
+        cache.close()
+        print(f"Wrote {count} commits → {html_path}")
+        return 0
 
     # 无 key:没有对照的一侧,盲测不成立(否则一侧写死 "(no LLM)" 直接暴露哪个是真)。
     # 降级为纯展示真实记录,不摆 A/B 架子。
@@ -143,6 +180,11 @@ def main(project=".", n=DEFAULT_N):
 
 if __name__ == "__main__":
     args = sys.argv[1:]
+    html_path = None
+    if "--html" in args:                     # --html <path>:输出可分享的交互式对照页
+        i = args.index("--html")
+        html_path = args[i + 1] if i + 1 < len(args) else "codetalk-trust-ab.html"
+        args = args[:i] + args[i + 2:]
     project = args[0] if args else "."
     n = int(args[1]) if len(args) > 1 else DEFAULT_N
-    sys.exit(main(project, n))
+    sys.exit(main(project, n, html_path))
