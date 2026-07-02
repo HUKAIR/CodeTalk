@@ -14,6 +14,7 @@ import json
 import logging
 import sys
 
+from . import __version__
 from .cache import Cache
 from .config import CACHE_DB_PATH, load_config
 from .llm import LLMClient, LLMError
@@ -21,7 +22,7 @@ from .mcp_tools import TOOLS, call_tool
 
 log = logging.getLogger("codetalk")
 
-SERVER_VERSION = "0.1.0"
+SERVER_VERSION = __version__        # 单一真源:包版本(pyproject),避免手工同步漂移
 PROTOCOL_VERSION = "2025-11-25"
 
 

@@ -2,6 +2,7 @@
 import argparse
 import logging
 
+from . import __version__
 from . import commands
 from . import commands_view as cv
 from .adr_export import adr_export_cmd  # 命令逻辑在 adr_export.py(commands.py 守 <300)
@@ -18,6 +19,8 @@ def _proj(p):  # 折叠各子命令重复的 --project
 def _build_parser():
     parser = argparse.ArgumentParser(
         prog="codetalk", description="本地优先的代码决策溯源:git+会话 → 可核验 why")
+    parser.add_argument("--version", action="version",
+                        version=f"codetalk {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
     _proj(sub.add_parser("doctor", help="首跑诊断:证据覆盖/会话源/下一步建议(零 LLM)"))
     dig = _proj(sub.add_parser("digest", help="生成开发日报"))
