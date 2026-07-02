@@ -70,6 +70,24 @@ class TestEmitHtml(unittest.TestCase):
         self.assertIn("[REDACTED]", html)
         self.assertIn('"real"', html)                   # A/B 数据已注入
 
+    def test_script_breakout_escaped(self):
+        """恶意 commit subject 含 </script> 不得突破脚本块(XSS);inline_json 转义 "</"。"""
+        import tempfile
+        from unittest import mock
+        import scripts.trust_ab_demo as d
+        cache = Cache(":memory:")
+        sha = "a" * 40
+        cache.put_narrative(sha, "P", "m", {"decisions": ["ok"]})
+        sample = [{"sha": sha, "date": "2026-07-02", "body": "Vibe-Decision: x",
+                   "subject": "feat: pwn </script><img src=x onerror=alert(1)> end"}]
+        out = Path(tempfile.mkdtemp()) / "ab.html"
+        with mock.patch.object(d, "_llm_guess", return_value="guess"), \
+             mock.patch.object(d, "commit_diff", return_value="+c"):
+            d._emit_html(Path("."), sample, cache, object(), str(out))
+        html = out.read_text(encoding="utf-8")
+        self.assertNotIn("</script><img", html)         # 裸 </script> 突破被挡
+        self.assertIn("<\\/script>", html)              # 已转义为 <\/script>
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -5,7 +5,6 @@
 
 用法:python3 scripts/trust_ab_demo.py [项目] [N]
 """
-import json
 import random
 import sys
 from pathlib import Path
@@ -18,6 +17,7 @@ from codetalk.config import (CACHE_DB_PATH, load_config,  # noqa: E402
 from codetalk.gitlog import (collect_commit_files, commit_diff,  # noqa: E402
                               parse_breadcrumbs, parse_rejected)
 from codetalk.llm import LLMClient, LLMError                    # noqa: E402
+from codetalk.webserve import inline_json                        # noqa: E402
 
 DEFAULT_N = 5
 
@@ -78,7 +78,7 @@ def _emit_html(pp, sample, cache, llm, out_path):
     tpl = Path(__file__).resolve().parent.parent / "codetalk" / "trust_ab.html"
     html = Template(tpl.read_text(encoding="utf-8")).substitute(
         project=redact_secrets(pp.name),
-        data=json.dumps(data, ensure_ascii=False))
+        data=inline_json(data))          # inline_json 转义 "</" 防 </script> 突破(与其余 5 渲染器一致)
     Path(out_path).write_text(redact_secrets(html), encoding="utf-8")  # 整页再兜底脱敏
     return len(items)
 
