@@ -28,6 +28,7 @@ class TestGroundingHitrate(unittest.TestCase):
         # 真实接地率(北极星):只算逐字/面包屑,排除 a 的纯 LLM why → 仅 b,c
         self.assertEqual(m["real_grounded"], 2)     # b(evidence)+ c(面包屑);a 纯叙事不算
         self.assertEqual(m["real_pct"], 50.0)
+        self.assertEqual(m["depth_pct"], 25.0)      # 输入杠杆 depth:仅 b 有逐字锚点 = 1/4
 
     def test_llm_narrative_alone_not_real_grounded(self):
         c = Cache(":memory:")

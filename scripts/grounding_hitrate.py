@@ -42,7 +42,8 @@ def measure(cache, commits):
         if why or decs or has_bc or ev:        # 再并上 LLM 叙事 = 较松覆盖上限
             m["grounded"] += 1
     t = m["total"] or 1
-    m["real_pct"] = round(100 * m["real_grounded"] / t, 1)
+    m["real_pct"] = round(100 * m["real_grounded"] / t, 1)     # 输入杠杆 breadth
+    m["depth_pct"] = round(100 * m["evidence"] / t, 1)         # 输入杠杆 depth:有逐字会话锚点
     m["coverage_pct"] = round(100 * m["grounded"] / t, 1)
     m["narrated_pct"] = round(100 * m["narrated"] / t, 1)
     return m
@@ -62,10 +63,14 @@ def main(project="."):
     print(f"有 Vibe-* 面包屑:       {m['breadcrumb']}")
     print(f"有 evidence 原话锚点:   {m['evidence']}")
     print(f"有叙事(含 LLM 生成):  {m['narrated']} ({m['narrated_pct']}%)")
-    print(f"\n**★ 真实接地率(北极星 · 逐字/面包屑,可点验证,排除 LLM 叙事):"
+    print(f"\n**★ 真实接地率(输入杠杆 breadth · 逐字/面包屑,可点验证,排除 LLM 叙事):"
           f"{m['real_grounded']}/{m['total']} = {m['real_pct']}%**")
+    print(f"  输入杠杆 depth(有逐字会话原话锚点):"
+          f"{m['evidence']}/{m['total']} = {m['depth_pct']}%")
     print(f"  接地覆盖上限(较松,含 LLM 叙事,不当对外可信度):"
           f"{m['grounded']}/{m['total']} = {m['coverage_pct']}%")
+    print("\n  北极星(价值 OUTPUT)= 防事故拦截,见 docs/discovery/interceptions.md(dogfood);"
+          "\n  上面两条是可自测的输入杠杆(Amplitude breadth/depth),efficiency/frequency 待补/零遥测不可测。")
     return 0
 
 
