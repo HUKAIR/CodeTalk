@@ -72,6 +72,10 @@ codetalk blame codetalk/cache.py
 
 对每个带决策记录行的 commit，你会看到：**为什么**、**做了哪些决定**、**否决了哪些替代方案**——全部逐字取自 commit 记录，零 LLM。没有记录行的 commit 只显示其 subject。一条命令就是全部卖点。
 
+`codetalk console --serve` 提供同样的接地能力，做成本地、可点击下钻的网页视图(下图是 CodeTalk 对自身仓库的 dogfood 截图):
+
+![CodeTalk console 截图](docs/images/codetalk-console-screenshot.png)
+
 ## 用到你自己的仓 / On your own repo
 
 ```bash

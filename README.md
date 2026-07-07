@@ -85,6 +85,10 @@ codetalk blame codetalk/cache.py
 
 For every commit that carries decision notes, you'll see: the **why**, the **decisions made**, the **alternatives rejected** — verbatim from the commit record, zero LLM. Commits without notes show their subject only. That's the whole pitch in one command.
 
+`codetalk console --serve` gives the same grounding as a local, click-to-drill web view (this screenshot is CodeTalk dogfooding itself):
+
+![CodeTalk console screenshot](docs/images/codetalk-console-screenshot.png)
+
 ## On your own repo
 
 ```bash
@@ -236,8 +240,8 @@ To switch models: change the top-level `provider` to any of the above and set th
 When you make a key technical tradeoff, leave a line in the commit message body:
 
 ```
-Vibe-Decision: 用 urllib 不引第三方——M0 禁三方依赖
-Vibe-Watch:    先这么扛,并发安全待验证
+Vibe-Decision: Used urllib instead of a third-party lib — M0 forbids third-party deps
+Vibe-Watch:    Living with this for now; concurrency safety still unverified
 ```
 
 `digest` folds `Vibe-Decision` into that commit's decisions and `Vibe-Watch` into its risks (sealed into a verifiable capsule on due date); `ask` uses them to ground its answers, and `graph` uses them to connect decision-impact edges. You already write code with AI — let it leave a trail while it's at it. Matched exactly at line start, case-sensitive.
