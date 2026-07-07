@@ -5,7 +5,7 @@
 
 ## 什么算一次「拦截」(可证伪判据,人判)
 全部满足才算,缺一不算:
-1. **接地先发**:`vibetrace review` / `blame` / `ask` 在改动落地前打出了某条逐字
+1. **接地先发**:`codetalk review` / `blame` / `ask` 在改动落地前打出了某条逐字
    `Vibe-Rejected`(或 `Vibe-Decision`)的真实 why + SHA;
 2. **命中重引入**:当前改动确实在把那条「曾放弃的方案」重新引入(同文件/同概念);
 3. **改向**:你因此撤回 / 改方案 / 标记已知——即真避免了一次踩坑。
@@ -18,8 +18,8 @@
 ```
 ### YYYY-MM-DD
 - 丢失的 why:<曾否决/曾决定的原话> (`<sha7>`)
-- 哪条命令 surface:vibetrace review / blame / ask
-- 本要做的错事:<没有 vibetrace 的话你正要重引入什么>
+- 哪条命令 surface:codetalk review / blame / ask
+- 本要做的错事:<没有 codetalk 的话你正要重引入什么>
 - 实际避免的后果:<省下的返工 / 拦下的事故>
 ```
 
