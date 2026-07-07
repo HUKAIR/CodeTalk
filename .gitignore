@@ -24,9 +24,8 @@ docs/**/*.html
 vscode-codetalk/node_modules/
 *.vsix
 # 内部战略/设计文档不入公开仓(2026-07-01 翻公开前 filter-repo 抹除历史;本地保留供 skill/briefing)
-# 仅放行用户面 + 方法学:护城河对照卡(README 引用)、interceptions(产品产物)
+# 仅放行:interceptions(产品产物;护城河对照卡已移到 docs/moat-real-records-vs-inference.md,不在此目录)
 docs/discovery/
-!docs/discovery/2026-06-29-护城河对照卡-真实记录vs反推.md
 !docs/discovery/interceptions.md
 docs/superpowers/
 /ROADMAP.md
