@@ -67,6 +67,9 @@ to reproduce the conclusion.
 - Added full-history secret scanning, all six static-page checks, MCP bundle
   creation, Python sdist/wheel build, isolated wheel launch, VSIX packaging, and
   artifact uploads.
+- Limited workflow token permissions to read-only, disabled persisted checkout
+  credentials, and pinned official actions to full immutable Node 24 release
+  SHAs. Release gates install the core package rather than the Web extra.
 - Pinned the VS Code packager to `@vscode/vsce` 3.9.2.
 - Updated Python metadata to the SPDX `AGPL-3.0-or-later` license expression and
   explicit Python 3.11-3.14 classifiers.

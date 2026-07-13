@@ -93,7 +93,21 @@ class TestReleaseAutomation(unittest.TestCase):
         self.assertIn("python -m build", workflow)
         self.assertIn("python -P -m codetalk --version", workflow)
         self.assertIn("npm run package", workflow)
-        self.assertIn("actions/upload-artifact@v4", workflow)
+        self.assertIn("permissions:\n  contents: read", workflow)
+        self.assertEqual(workflow.count("persist-credentials: false"), 3)
+        self.assertIn(
+            "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0",
+            workflow)
+        self.assertIn(
+            "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0",
+            workflow)
+        self.assertIn(
+            "actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0",
+            workflow)
+        self.assertIn(
+            "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1",
+            workflow)
+        self.assertNotRegex(workflow, r"uses: actions/[^@\s]+@v\d")
 
     def test_extension_packager_is_pinned(self):
         package = (ROOT / "vscode-codetalk" / "package.json").read_text(

@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   python:
     runs-on: ubuntu-latest
@@ -11,8 +14,10 @@ jobs:
       matrix:
         python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install package
@@ -23,14 +28,15 @@ jobs:
   release-gates:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.14"
-      - name: Install package and build frontend dependencies
-        run: python -m pip install -e ".[web]" build
+      - name: Install core package and build tooling
+        run: python -m pip install -e . build
       - name: Scan repository history for secrets
         run: python -m scripts.scan_secrets --history
       - name: Verify static pages have no external dependencies
@@ -46,7 +52,7 @@ jobs:
         run: |
           python -m pip install --force-reinstall --no-deps dist/*.whl
           python -P -m codetalk --version
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: codetalk-python-and-mcp
           path: |
@@ -59,8 +65,10 @@ jobs:
       run:
         working-directory: vscode-codetalk
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: "24"
           cache: npm
@@ -79,7 +87,7 @@ jobs:
         run: npm run package
       - name: Verify VSIX archive
         run: unzip -t vscode-codetalk-0.2.0.vsix
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: codetalk-vsix
           path: vscode-codetalk/vscode-codetalk-0.2.0.vsix

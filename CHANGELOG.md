@@ -47,6 +47,8 @@ made it verifiable.
   zero egress.
 - Web tests install Starlette's `httpx2` test-client dependency through a
   dedicated `test` extra, without adding it to Web runtime or core dependencies.
+- CI uses read-only token permissions, does not persist checkout credentials,
+  and pins official GitHub Actions to immutable Node 24 release SHAs.
 
 ## 0.1.0 - 2026-07-01
 
