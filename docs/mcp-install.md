@@ -1,8 +1,9 @@
-# CodeTalk MCP 一键装 + 验证指南
+# CodeTalk MCP 构建、安装与验证指南
 
 把 CodeTalk 的零-LLM 接地能力(`ask`/`blame`/`graph`/`search`/`drift`/`prompts`/`adr`)装进 Claude Desktop /
 Claude Code / Cursor 等 MCP 客户端,在 agent 工作流里直接问「这段代码当初为什么这么写」。
-全程 **stdio 同机直连、数据不出本机**。
+MCP transport 使用同机 stdio。只有显式启用 LLM 并调用 `ask` 综合时,脱敏后的接地材料
+才会发给所配置的模型 provider;设置 `CODETALK_NO_LLM=1` 可保证零出网。
 
 > 各步骤下方斜体「预期界面」描述你装好后应看到什么;可选截图素材规范见
 > [`docs/images/README.md`](images/README.md)。
@@ -25,11 +26,12 @@ python3 -m scripts.build_mcpb        # → 生成 codetalk.mcpb
 ## 2.(推荐)命令行自检,先确认包本身没问题
 
 ```bash
-rm -rf /tmp/vt && mkdir -p /tmp/vt && unzip -q codetalk.mcpb -d /tmp/vt/x
+vt="$(mktemp -d "${TMPDIR:-/tmp}/codetalk-mcp.XXXXXX")"
+unzip -q codetalk.mcpb -d "$vt"
 printf '%s\n' \
  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25"}}' \
  '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
- | PYTHONPATH=/tmp/vt/x/server python3 -P -m codetalk mcp-serve --project ~/Github/CodeTalk
+ | PYTHONPATH="$vt/server" python3 -P -m codetalk mcp-serve --project ~/Github/CodeTalk
 ```
 
 **通过标准**:输出两行 JSON —— 第一行含 `"serverInfo":{"name":"codetalk"}`,第二行含 7 个
@@ -154,7 +156,7 @@ MCP 是在 agent 对话里用 CodeTalk;如果你想在编辑器里**直接看到
 
 ```bash
 cd vscode-codetalk && npm install && npm run build
-npx @vscode/vsce package --no-dependencies
+npm run package
 cursor --install-extension vscode-codetalk-0.2.0.vsix
 ```
 

@@ -19,9 +19,9 @@ made it verifiable.
   browser language) plus bilingual server-side error pages.
 - Shareable interactive A/B trust demo page: `trust_ab_demo.py --html`.
 - `grounding_hitrate.py` now reports the "real grounding" north-star input levers
-  (breadth = verbatim/breadcrumb coverage, depth = session anchors), excluding
+  (breadth = verbatim decision-note coverage, depth = session anchors), excluding
   LLM-generated narratives.
-- `codetalk --version`; CI test matrix on Python 3.11 / 3.12 / 3.13.
+- `codetalk --version`; CI test matrix on Python 3.11 through 3.14.
 
 ### Fixed
 
@@ -33,13 +33,25 @@ made it verifiable.
 - Directory names are HTML-escaped in all rendered views (XSS); the A/B demo page
   escapes `</` to prevent `</script>` breakout.
 - `self` report labels capsule fill rate as a guardrail (not the north star).
+- Docker builds copy an explicit runtime allowlist, so ignored local files such
+  as `.mcp.json`, caches, and private notes cannot enter the image accidentally.
+- Decision-note coverage consistently counts `Vibe-Decision`, `Vibe-Rejected`,
+  and `Vibe-Watch` records from non-merge commits.
+- Local LLM endpoints are trusted only when the parsed hostname is exactly
+  `localhost`, `127.0.0.1`, or `::1`; a `local` config label and lookalike
+  hostnames can no longer bypass API-key requirements.
+- The console full-repo search drawer now respects its `hidden` state, so it no
+  longer covers the main view on first load or after closing.
+- Web startup and UI copy now describe the product as local-first and disclose
+  that model calls follow configuration instead of promising unconditional
+  zero egress.
 
 ## 0.1.0 - 2026-07-01
 
 ### Added
 
 - Initial local-first `codetalk` CLI for decision provenance from git history,
-  decision breadcrumbs, and optional enriched session context.
+  commit decision notes, and optional enriched session context.
 - Zero-LLM deterministic tools for `blame`, `search`, `graph`, `drift`,
   `prompts`, and ADR export.
 - MCP bundle build path via `python3 -m scripts.build_mcpb`, exposing seven
@@ -57,7 +69,7 @@ made it verifiable.
 - VS Code extension packaging now syncs the repository AGPL license before
   `vsce` packaging.
 - `codetalk doctor` provides a zero-LLM first-run diagnostic for git coverage,
-  decision breadcrumbs, local session availability, LLM readiness, and the next
+  decision notes, local session availability, LLM readiness, and the next
   command to try.
 
 ### Fixed
@@ -83,6 +95,6 @@ made it verifiable.
   currently reports no matching distribution.
 - Official VSIX packaging has been run locally; the package includes
   `extension/LICENSE.txt`.
-- The GitHub repository URL must be made publicly reachable before promoting
-  clone-based install instructions.
+- The GitHub repository is public, but no GitHub Release or PyPI distribution has
+  been published; source checkout remains the only supported install path.
 - Demo media and Marketplace assets are not yet included.

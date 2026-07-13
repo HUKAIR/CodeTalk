@@ -307,6 +307,7 @@
     max-height: 70vh; display: flex; flex-direction: column; z-index: 40;
     background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
     box-shadow: 0 8px 40px rgba(0,0,0,.5); }
+  #ftres[hidden] { display: none; }
   #ftres .ch { display: flex; justify-content: space-between; align-items: center;
     padding: 10px 14px; border-bottom: 1px solid var(--line); font-family: var(--mono);
     font-size: 12px; color: var(--mut); }
@@ -339,7 +340,7 @@
 </main>
 <button id="chatfab" hidden>💬 <span data-i18n="chatfab">接地追问</span></button>
 <div id="chatdock" role="dialog" data-i18n-aria="chat_dialog" aria-label="接地对话">
-  <div class="ch"><span data-i18n="chat_header">接地对话 · 数据不出本机</span>
+  <div class="ch"><span data-i18n="chat_header">接地对话 · 本地优先 · 模型调用按配置</span>
     <button id="chatclose" data-i18n-aria="close" aria-label="关闭">✕</button></div>
   <div id="chatlog"></div>
   <form id="chatform"><textarea id="chatq" rows="2" data-i18n-ph="chatq_ph"
@@ -370,7 +371,7 @@ var I18N = {
     view_overview: "开工概览", view_timeline: "时光轴", view_graph: "决策图",
     view_debt: "理解债", view_filetree: "文件树", view_prompts: "指令回看",
     chatfab: "接地追问", chat_dialog: "接地对话",
-    chat_header: "接地对话 · 数据不出本机", close: "关闭",
+    chat_header: "接地对话 · 本地优先 · 模型调用按配置", close: "关闭",
     chatq_ph: "问这段代码当初为什么这么写…", ask: "问",
     ft_result_aria: "全库检索结果",
     ft_header: "全库检索 · 零 LLM(Enter 搜全仓,不止已加载)",
@@ -386,7 +387,7 @@ var I18N = {
     ran_ok_pre: "✓ 今天已跑过 ", ran_ok_post: " · 记录是新的",
     ran_due_pre: "今天还没跑 ", ran_due_mid: " · 上次 ",
     ran_due_post: " —— 去终端跑一下,把今天和 AI 的协作沉淀下来",
-    tile_pending: "待验证胶囊", tile_coverage: "面包屑覆盖", tile_debt: "TOP 理解债",
+    tile_pending: "待验证胶囊", tile_coverage: "决策记录覆盖", tile_debt: "TOP 理解债",
     pending_pre: "到期待验证的预测 · ", pending_post: " 枚",
     you_worried: "你曾担心:", worried_open: "「", worried_close: "」",
     debt_top3: "理解债 top 3", see_all: "看全部 →",
@@ -409,7 +410,7 @@ var I18N = {
     w_decisions: " 决策", w_risks_badge: " 待验证", w_capsules: " 胶囊",
     graph_head: "决策图 — 每个决策牵动了下游哪些改动(点开)",
     no_decisions: "还没有决策节点(留 Vibe-Decision 或跑 digest 后出现)。",
-    kind_breadcrumb: "面包屑", kind_narrative: "叙事",
+    kind_breadcrumb: "决策记录", kind_narrative: "叙事",
     affects_pre: "影响 ", affects_post: " 处 ▾", no_downstream: "无下游",
     ask_decision: "接地追问这个决策 →",
     debt_head: "理解债 — AI 改得多、你回看少的模块",
@@ -440,7 +441,7 @@ var I18N = {
     view_overview: "Overview", view_timeline: "Timeline", view_graph: "Decision graph",
     view_debt: "Comprehension debt", view_filetree: "File tree", view_prompts: "Prompt replay",
     chatfab: "Grounded follow-up", chat_dialog: "Grounded chat",
-    chat_header: "Grounded chat · data stays local", close: "Close",
+    chat_header: "Grounded chat · local-first · model calls follow config", close: "Close",
     chatq_ph: "Ask why this code was written this way…", ask: "Ask",
     ft_result_aria: "Full-repo search results",
     ft_header: "Full-repo search · zero LLM (Enter searches the whole repo, not just loaded)",
@@ -456,7 +457,7 @@ var I18N = {
     ran_ok_pre: "✓ Ran ", ran_ok_post: " today · records are fresh",
     ran_due_pre: "Haven't run ", ran_due_mid: " today · last run ",
     ran_due_post: " — run it in your terminal to capture today's work with AI",
-    tile_pending: "Pending capsules", tile_coverage: "Breadcrumb coverage", tile_debt: "Top debt",
+    tile_pending: "Pending capsules", tile_coverage: "Decision-note coverage", tile_debt: "Top debt",
     pending_pre: "Predictions due to verify · ", pending_post: "",
     you_worried: " you were worried: ", worried_open: "“", worried_close: "”",
     debt_top3: "Comprehension debt · top 3", see_all: "See all →",
@@ -479,7 +480,7 @@ var I18N = {
     w_decisions: " decisions", w_risks_badge: " to verify", w_capsules: " capsules",
     graph_head: "Decision graph — the downstream changes each decision pulled (click to expand)",
     no_decisions: "No decision nodes yet (leave a Vibe-Decision, or run digest).",
-    kind_breadcrumb: "breadcrumb", kind_narrative: "narrative",
+    kind_breadcrumb: "decision note", kind_narrative: "narrative",
     affects_pre: "affects ", affects_post: " ▾", no_downstream: "No downstream",
     ask_decision: "Grounded follow-up on this decision →",
     debt_head: "Comprehension debt — modules AI changed a lot but you reviewed little",

@@ -37,17 +37,20 @@ npm run build
 - Keep modules under 300 lines. If a change would exceed that, split the work or
   discuss the design first.
 
-## Commit Breadcrumbs
+## Decision Notes
 
 Commit bodies should capture important technical decisions:
 
 ```text
-Vibe-Decision: <one-sentence decision, with rejected alternative if useful>
+Vibe-Decision: <one-sentence decision and rationale>
+Vibe-Rejected: <one-sentence alternative and why it was rejected>
 Vibe-Watch: <one-sentence uncertainty to verify later>
 ```
 
-These exact prefixes are part of the product. CodeTalk reads them back to answer
-"why was this code written this way?" with grounded evidence.
+These three exact, case-sensitive prefixes are part of the product. They record
+what was chosen, what was deliberately not chosen, and what still needs to be
+verified. CodeTalk reads them back to answer "why was this code written this
+way?" with grounded evidence.
 
 ## Pull Request Checklist
 

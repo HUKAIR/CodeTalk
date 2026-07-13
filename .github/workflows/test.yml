@@ -9,20 +9,49 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.11", "3.12", "3.13"]   # 覆盖 requires-python >=3.11 全支持面
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0          # full history: --history secret scan needs every commit
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install package
         run: python -m pip install -e ".[web]"
-      - name: Scan repository files for secrets
-        run: python -m scripts.scan_secrets --history
       - name: Run tests
         run: python -m unittest discover -s tests
+
+  release-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - name: Install package and build frontend dependencies
+        run: python -m pip install -e ".[web]" build
+      - name: Scan repository history for secrets
+        run: python -m scripts.scan_secrets --history
+      - name: Verify static pages have no external dependencies
+        run: >-
+          python -m scripts.check_static_no_external
+          codetalk/web_chat.html codetalk/console.html codetalk/tunnel.html
+          codetalk/course.html codetalk/graph.html codetalk/trust_ab.html
+      - name: Build MCP bundle
+        run: python -m scripts.build_mcpb
+      - name: Build Python distributions
+        run: python -m build
+      - name: Smoke-test built wheel
+        run: |
+          python -m pip install --force-reinstall --no-deps dist/*.whl
+          python -P -m codetalk --version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: codetalk-python-and-mcp
+          path: |
+            dist/*
+            codetalk.mcpb
 
   vscode-extension:
     runs-on: ubuntu-latest
@@ -33,7 +62,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: npm
           cache-dependency-path: vscode-codetalk/package-lock.json
       - name: Install dependencies
@@ -46,3 +75,11 @@ jobs:
         run: npm run typecheck
       - name: Build
         run: npm run build
+      - name: Package VSIX
+        run: npm run package
+      - name: Verify VSIX archive
+        run: unzip -t vscode-codetalk-0.2.0.vsix
+      - uses: actions/upload-artifact@v4
+        with:
+          name: codetalk-vsix
+          path: vscode-codetalk/vscode-codetalk-0.2.0.vsix

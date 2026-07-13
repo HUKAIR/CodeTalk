@@ -192,6 +192,9 @@ class TestConsoleSearch(unittest.TestCase):
         self.assertIn('"/"', self.html)          # / 键聚焦搜索
         self.assertIn("Escape", self.html)       # Esc 清空
 
+    def test_full_repo_results_respect_hidden_attribute(self):
+        self.assertIn("#ftres[hidden] { display: none; }", self.html)
+
 
 class TestConsoleFilterChips(unittest.TestCase):
     """时光轴快捷过滤 chip:带决策 / 有待验证 / 有胶囊,与搜索 AND 组合,Esc 清空全部。"""

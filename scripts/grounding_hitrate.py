@@ -1,8 +1,8 @@
 """接地命中率自证(零 LLM):度量本仓有多少 commit 能被确定性接地回答『当初为什么这么写』。
 
 两个口径,严格区分:
-- **真实接地率(北极星候选)** = commit 正文含 Vibe-Decision/Vibe-Rejected 面包屑,或有
-  evidence 逐字原话锚点 的占比。**只算逐字/面包屑,排除 enrich 的 LLM 生成叙事**——因为
+- **真实接地率(北极星候选)** = commit 正文含任一 Vibe-* 决策记录,或有
+  evidence 逐字原话锚点 的占比。**只算逐字记录,排除 enrich 的 LLM 生成叙事**——因为
   LLM 叙事可能编造,那正是护城河立论所在。这是"可点验证的真实来源"的诚实覆盖。
 - **接地覆盖上限(较松)** = 上者再并上 narrative 的 LLM why/decisions。回答 ROADMAP open Q
   『接地命中率上限』,但含可幻觉成分,不宜当对外可信度或北极星。
@@ -15,19 +15,18 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from codetalk.cache import Cache                                  # noqa: E402
 from codetalk.config import CACHE_DB_PATH                         # noqa: E402
-from codetalk.gitlog import collect_commit_files, parse_breadcrumbs  # noqa: E402
+from codetalk.gitlog import collect_commit_files, has_decision_notes  # noqa: E402
 
 
 def measure(cache, commits):
     """commits: [{sha, body, ...}]。→ 接地覆盖指标 dict(零 LLM)。
-    real_grounded = 逐字/面包屑接地(Vibe-* 面包屑 或 evidence 原话锚点),排除 LLM 叙事——北极星口径。
+    real_grounded = 逐字接地(Vibe-* 决策记录或 evidence 原话锚点),排除 LLM 叙事——北极星口径。
     grounded = real_grounded 再并上 narrative 的 LLM why/decisions,含可幻觉成分,是较松的覆盖上限。"""
     m = {"total": len(commits), "narrated": 0, "breadcrumb": 0,
          "evidence": 0, "grounded": 0, "real_grounded": 0}
     for c in commits:
         n = cache.get_narrative(c["sha"]) or {}
-        decs_bc, _ = parse_breadcrumbs(c.get("body", "") or "")
-        has_bc = bool(decs_bc)
+        has_bc = has_decision_notes(c.get("body", "") or "")
         why = (n.get("why") or "").strip()
         decs = n.get("decisions") or []
         ev = n.get("evidence") or []
@@ -37,7 +36,7 @@ def measure(cache, commits):
             m["breadcrumb"] += 1
         if ev:
             m["evidence"] += 1
-        if has_bc or ev:                       # 逐字/面包屑 = 真实接地(可点验证,非 LLM 生成)
+        if has_bc or ev:                       # 逐字记录 = 真实接地(可点验证,非 LLM 生成)
             m["real_grounded"] += 1
         if why or decs or has_bc or ev:        # 再并上 LLM 叙事 = 较松覆盖上限
             m["grounded"] += 1
@@ -59,11 +58,11 @@ def main(project="."):
     m = measure(cache, commits)
     cache.close()
     print(f"# 接地命中率自证 · {pp.name}(零 LLM)\n")
-    print(f"commit 总数:           {m['total']}")
-    print(f"有 Vibe-* 面包屑:       {m['breadcrumb']}")
+    print(f"非合并 commit 总数:    {m['total']}")
+    print(f"有 Vibe-* 决策记录:     {m['breadcrumb']}")
     print(f"有 evidence 原话锚点:   {m['evidence']}")
     print(f"有叙事(含 LLM 生成):  {m['narrated']} ({m['narrated_pct']}%)")
-    print(f"\n**★ 真实接地率(输入杠杆 breadth · 逐字/面包屑,可点验证,排除 LLM 叙事):"
+    print(f"\n**★ 真实接地率(输入杠杆 breadth · 逐字决策记录,可点验证,排除 LLM 叙事):"
           f"{m['real_grounded']}/{m['total']} = {m['real_pct']}%**")
     print(f"  输入杠杆 depth(有逐字会话原话锚点):"
           f"{m['evidence']}/{m['total']} = {m['depth_pct']}%")

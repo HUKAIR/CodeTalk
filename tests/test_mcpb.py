@@ -56,7 +56,7 @@ class TestReleaseMetadata(unittest.TestCase):
         data = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
         project = data["project"]
         self.assertEqual(project["name"], "codetalk")
-        self.assertEqual(project["license"]["text"], "AGPL-3.0-or-later")
+        self.assertEqual(project["license"], "AGPL-3.0-or-later")
         self.assertEqual(project["scripts"]["codetalk"], "codetalk.cli:main")
         self.assertIn("Repository", project["urls"])
         self.assertIn("code-provenance", project["keywords"])

@@ -12,7 +12,7 @@
 
 **AI writes your code. Three months later, nobody knows why it was written that way.**
 
-CodeTalk grounds "why" in real commit history — verbatim citations you can click and verify, not AI confabulation. Zero-LLM, local-only, pure stdlib.
+CodeTalk grounds "why" in real commit history — verbatim citations you can click and verify, not AI confabulation. The core is zero-LLM, local-first, and pure stdlib; optional model synthesis is explicit and redacted.
 
 ---
 
@@ -43,17 +43,19 @@ LLM synthesis is optional and sits behind the evidence layer.
 
 ### What These Terms Mean
 
-- **Decision notes** (called breadcrumbs internally) are two optional lines in a
-  git commit message: `Vibe-Decision: ...` for the reason behind a change, and
-  `Vibe-Watch: ...` for a risk to check later. They are stored in git, can be
-  written by a person, a git hook, or an AI coding agent, and CodeTalk reads them
-  in `blame`, `ask`, `graph`, and `digest`.
+- **Decision notes** (called breadcrumbs internally) are three optional line
+  types in a git commit message: `Vibe-Decision: ...` records what was chosen
+  and why, `Vibe-Rejected: ...` records a seriously considered alternative and
+  why it was rejected, and `Vibe-Watch: ...` records a risk to check later.
+  They stay in git and can be written by a person, a git hook, or an AI coding
+  agent. `blame`, `ask`, and `review` surface all three; `digest` consumes
+  decisions and watches, while `graph` uses decisions as graph nodes.
 - **`enrich`** is optional backfill for old commits. It asks an LLM to read a
   commit plus nearby local session snippets, then stores a redacted narrative in
   `~/.codetalk/cache.db` under that commit SHA. Use it when old commits do not
   already have decision notes.
 - **Grounding evidence** is the material CodeTalk can cite: commit messages,
-  `Vibe-Decision` / `Vibe-Watch` lines, and local session transcript excerpts.
+  all three `Vibe-*` decision-note types, and local session transcript excerpts.
   If there is no evidence, CodeTalk should fall back to listing what it found,
   not inventing an answer.
 - **Zero-LLM / zero egress** means CodeTalk only does local deterministic lookup.
@@ -67,15 +69,15 @@ LLM synthesis is optional and sits behind the evidence layer.
   deserve a reread because they changed recently, carried risks, or have not
   been reviewed.
 
-> **Honest boundaries:** Blind test is N=5, this repo only, human-judged — not a population claim. Coverage depends on decision notes + `enrich`: a fresh clone of this repo reproduces **~59% real grounding (114/194 commits — verbatim breadcrumbs + session anchors only, excluding LLM-generated narratives, measured 2026-07-02)** — run `python3 scripts/grounding_hitrate.py .` for the live number (it stars the real-grounding rate; the LLM-narrative-inclusive upper bound is printed below it and is *not* used as a trust claim). After a full `codetalk enrich` backfill the looser coverage reaches ~100%. A separate 605-commit repo **without** enrich starts at 0.3%, reaching ~100% after `codetalk enrich`. Without enrich or decision notes, blame shows commit subjects only — similar to `git log`. Run `grounding_hitrate.py` on your own repo to measure. CodeTalk finds "what was actually said and decided", not "whether the code is correct" — source records themselves may be wrong. Coverage numbers are reproducible with `grounding_hitrate.py` on any repo; blind-test method: `python3 scripts/blind_test.py`; moat comparison write-up: `docs/moat-real-records-vs-inference.md`.
+> **Honest boundaries:** Blind test is N=5, this repo only, human-judged — not a population claim. Coverage depends on decision notes + `enrich`. Run `python3 scripts/grounding_hitrate.py .` for the live non-merge commit count and real-grounding rate; the number is intentionally not frozen here because every new decision-note commit changes it. After a full `codetalk enrich` backfill, the looser narrative-inclusive coverage can approach 100%, but that upper bound is *not* used as a trust claim. A separate 605-commit repo without enrich started at 0.3% and approached 100% after enrich. Without enrich or decision notes, blame shows commit subjects only — similar to `git log`. CodeTalk finds "what was actually said and decided", not "whether the code is correct" — source records themselves may be wrong. Blind-test method: `python3 scripts/blind_test.py`; moat comparison: `docs/moat-real-records-vs-inference.md`.
 
 ## See it work in 30 seconds
 
 ```bash
 git clone https://github.com/HUKAIR/CodeTalk && cd CodeTalk && pip install -e .
 
-# This repo uses CodeTalk on itself — most commits carry decision notes
-# (Vibe-Decision / Vibe-Watch lines in the commit message; 101/183 so far).
+# This repo uses CodeTalk on itself — many non-merge commits carry Vibe-* notes.
+# Run doctor for the current count rather than relying on a frozen README number.
 # No API key, no config, no enrich:
 codetalk doctor
 
@@ -117,9 +119,9 @@ pip install -e ".[anthropic]"    # Optional: only needed for the anthropic provi
 
 Requires Python ≥ 3.11. After installing you get the `codetalk` command (equivalent to `python3 -m codetalk`).
 
-## One-click MCP install (.mcpb)
+## Build and install the MCP bundle (.mcpb)
 
-Expose the zero-LLM grounding capability to MCP clients such as Claude Code / Cursor / Codex, so you can ask "why was this code written this way" right inside your agent workflow. CodeTalk is pure standard library with zero third-party dependencies, so it packs into a single `.mcpb` (a zip of `manifest.json` + source), giving you a **one-click install and a single build that covers every client**. It runs on the `python3` you already have installed and **does not bundle an interpreter**:
+Expose the zero-LLM grounding capability to MCP clients such as Claude Code / Cursor / Codex, so you can ask "why was this code written this way" inside your agent workflow. CodeTalk's core is pure standard library, so it packs into one `.mcpb` containing the manifest and source. The built file is drag-to-install; until a downloadable GitHub Release exists, a source checkout must build it once. It uses the installed `python3` and **does not bundle an interpreter**:
 
 ```bash
 python3 -m scripts.build_mcpb     # produces codetalk.mcpb
@@ -148,7 +150,7 @@ Foldable decision CodeLens + hover cards — see **why** a line was written that
 ```bash
 cd vscode-codetalk
 npm install && npm run build                        # build
-npx @vscode/vsce package --no-dependencies          # package the .vsix
+npm run package                                      # package the .vsix
 ```
 
 Install (pick one):
@@ -168,9 +170,9 @@ After installing, run Cmd+Shift+P → **Reload Window**, then open a project tha
 
 > Detailed install + troubleshooting + configuration: **[`vscode-codetalk/README.md`](vscode-codetalk/README.md)**.
 
-## codetalk web — self-hosted grounded conversation (new)
+## codetalk web — self-hosted grounded conversation
 
-A local-first interactive web page: hold a multi-turn discussion with an LLM about "why was this code written this way", but on every turn it **first runs a zero-LLM retrieval over your project's real records** (commit narratives / decision notes / verbatim session transcripts), feeds that real evidence to the model, and puts **side-by-side verifiable citations** next to the answer. The discussion itself is redacted before being stored, feeding back into future `ask` / `search`. **Self-hosted = your data stays on your own machine; we sell software, not a service.**
+A local-first interactive web page: hold a multi-turn discussion with an LLM about "why was this code written this way", but on every turn it **first runs a zero-LLM retrieval over your project's real records** (commit narratives / decision notes / verbatim session transcripts), feeds that real evidence to the model, and puts **side-by-side verifiable citations** next to the answer. The discussion itself is redacted before being stored, feeding back into future `ask` / `search`. It is software you run, not a hosted service.
 
 ```bash
 pip install -e ".[web]"                            # optional web extra (FastAPI/uvicorn; CLI/MCP stay pure stdlib)
@@ -182,7 +184,6 @@ codetalk web --project /path/to/repo --no-llm     # zero egress: falls back to a
 - **All views are browser-reachable**: besides `/` (chat), the server serves `/console` (unified console), `/tunnel` (timeline), `/graph` (decision-impact DAG), and `/course` (evolution course) — the same rich views the CLI writes as static files. A header **EN / 中文** toggle switches the whole UI language (persisted locally; defaults to the browser language).
 - **Privacy red lines**: by default it only binds `127.0.0.1`, never phones home (except the LLM call), redacts before going out to the network and before persisting, and the frontend has zero external links (CSP `connect-src 'self'`; static artifacts are guarded by `scripts/check_static_no_external.py`); the backend rejects non-loopback Host and cross-Origin requests, preventing other web pages from using localhost to trigger local retrieval / LLM calls.
 - **Self-host for customers**: single-image Docker (see `Dockerfile`: `docker build -t codetalk .` → `docker run`).
-- The first frontend release is a zero-build single-file vanilla-JS; React/Vite comes only if the chat UX truly needs it (streaming already exists; message management later if required).
 
 ## Configuration
 
@@ -209,14 +210,14 @@ codetalk init        # write a config template to ~/.codetalk/config.json (auto 
     "grok":      {"base_url": "https://api.x.ai/v1", "api_key": ""},
     "gemini":    {"base_url": "https://generativelanguage.googleapis.com/v1beta/openai", "api_key": ""},
     "anthropic": {"api_key": ""},
-    "ollama":    {"base_url": "http://localhost:11434/v1", "api_key": "ollama", "local": true}
+    "ollama":    {"base_url": "http://localhost:11434/v1", "api_key": "ollama"}
   }
 }
 ```
 
 To switch models: change the top-level `provider` to any of the above and set the matching `model` (e.g. kimi→`kimi-k2-0905-preview`, glm→`glm-4.6`, grok→`grok-4`, gemini→`gemini-2.5-pro`, doubao→endpoint ID or `doubao-seed-1-6`). The API key can also come from the environment variable `<PROVIDER>_API_KEY` (e.g. `DEEPSEEK_API_KEY` / `KIMI_API_KEY` / `GLM_API_KEY` / `GROK_API_KEY` / `GEMINI_API_KEY` / `DOUBAO_API_KEY` / `ANTHROPIC_API_KEY`). Except for anthropic, which goes through the official SDK (json_schema structured output + prompt caching), everything else uses the OpenAI-compatible protocol (stdlib urllib, zero extra dependencies; DeepSeek context caching kicks in automatically).
 
-**Zero-egress local inference**: set `provider` to `ollama` (or any OpenAI-compatible endpoint that is `local: true` / points at `localhost` or `127.0.0.1`, such as LM Studio / llama.cpp / vLLM), and the synthesis runs on your own machine — **even that single network exception, the "LLM call", stays off the network** (no key needed locally). Local 32B-class code models are already closing in on the cloud for generation-style tasks; position them as "local polishing/explanation after grounding", while agentic / complex synthesis is still better on the cloud. Together with `--no-llm` (never call an LLM at all), this forms a two-tier privacy gradient.
+**Zero-egress local inference**: set `provider` to `ollama`, or configure an OpenAI-compatible endpoint whose parsed hostname is exactly `localhost`, `127.0.0.1`, or `::1` (for example LM Studio / llama.cpp / vLLM). CodeTalk does not trust a `local` label or a hostname that merely contains `localhost`. Synthesis then runs on your machine, so the LLM call stays off the network. Together with `--no-llm` (never call an LLM at all), this forms a two-tier privacy gradient.
 
 ## Commands
 
@@ -228,10 +229,10 @@ To switch models: change the top-level `provider` to any of the above and set th
 | `graph` | **Decision-impact graph**: which decision drove which later changes (timeline DAG, **zero LLM**; `--canvas` exports an Obsidian Canvas) | `codetalk graph --canvas` |
 | `course` | **Evolution course**: how the project grew into what it is, step by step (chaptered + plain-language + scenario quizzes, single-file HTML) | `codetalk course` |
 | `ask` | **Ask about a piece of code**, with answers wired to project memory (narratives + decision notes), citing real commits | `codetalk ask codetalk/llm.py:72-78 "why written this way"` |
-| `console` | **Unified console (web entry)**: kickoff overview / timeline / decision graph / understanding debt — four views on one page, overview-first with click-to-drill, no more full-page dumps (**zero LLM**; `--serve` writes capsules back) | `codetalk console --serve` |
+| `console` | **Unified console (web entry)**: overview / timeline / decision graph / understanding debt / file tree / prompt replay — six views on one page (**zero LLM**; `--serve` writes capsules back) | `codetalk console --serve` |
 | `tunnel` | **Timeline**: a linear commit timeline, newest on top, grouped by day, click to read the narrative (`--serve` writes capsule answers back instantly) | `codetalk tunnel` |
-| `install-hook` | Install a git hook: when hand-writing a commit, prompt in the editor to leave `Vibe-Decision`/`Vibe-Watch` decision notes | `codetalk install-hook` |
-| `install-agent-seed` | Plant the decision-capture convention into the project `CLAUDE.md` + `AGENTS.md`, so an **AI coding agent** (Claude / others) automatically leaves decision notes on commit (**capture-at-write-time > inferring from the diff afterward**) | `codetalk install-agent-seed` |
+| `install-hook` | Install a git hook that prompts for all three `Vibe-*` decision-note types when hand-writing a commit | `codetalk install-hook` |
+| `install-agent-seed` | Append the decision-note convention to `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.cursor/rules/codetalk.mdc`, and `.github/copilot-instructions.md` (idempotent; existing content is preserved) | `codetalk install-agent-seed` |
 
 `digest` output: `<vault>/YYYY-MM-DD-<project>.md` — a-year-ago-today / a-month-ago-today reflowed → today's overview (letter style) + today's decisions → due time capsules (to backfill) → per-commit narratives → an open-loop summary → run stats. Time capsules seal each risk for 21 days and, when due, bring it back in front of you in the daily report, closing the "predict → verify" loop.
 
@@ -241,12 +242,13 @@ When you make a key technical tradeoff, leave a line in the commit message body:
 
 ```
 Vibe-Decision: Used urllib instead of a third-party lib — M0 forbids third-party deps
+Vibe-Rejected: Added another HTTP library — it would break the zero-dependency core
 Vibe-Watch:    Living with this for now; concurrency safety still unverified
 ```
 
-`digest` folds `Vibe-Decision` into that commit's decisions and `Vibe-Watch` into its risks (sealed into a verifiable capsule on due date); `ask` uses them to ground its answers, and `graph` uses them to connect decision-impact edges. You already write code with AI — let it leave a trail while it's at it. Matched exactly at line start, case-sensitive.
+`Vibe-Decision` records the chosen path, `Vibe-Rejected` preserves a considered alternative and why it lost, and `Vibe-Watch` records a risk that can return as a verification capsule. `ask`, `blame`, and `review` surface these lines with their commit SHA; `graph` uses decisions to connect impact edges. Prefixes match exactly at line start and are case-sensitive.
 
-Committers who hand-write commits (without `-m`) can run `codetalk install-hook` once to install the `prepare-commit-msg` hook, and the editor will auto-prompt these two lines — fill them in and they stay in the commit message; leave them blank and git strips them. Git hooks aren't version-controlled with the repo, so **install once per clone**.
+Committers who hand-write commits (without `-m`) can run `codetalk install-hook` once to install the `prepare-commit-msg` hook. The editor prompts all three lines; completed lines stay in the commit message, while blank commented lines are stripped by git. Git hooks aren't version-controlled, so **install once per clone**.
 
 ## Cache & privacy
 
@@ -279,6 +281,7 @@ The core CLI/MCP surface stays on standard library + anthropic SDK (optional); L
 
 ## Release & contributing
 
+- Release readiness review: [`docs/release-readiness-review.md`](docs/release-readiness-review.md)
 - Pre-release checks: [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md)
 - Change log: [`CHANGELOG.md`](CHANGELOG.md)
 - Contribution constraints: [`CONTRIBUTING.md`](CONTRIBUTING.md)

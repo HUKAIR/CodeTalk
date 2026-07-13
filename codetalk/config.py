@@ -43,8 +43,8 @@ DEFAULTS = {
         "grok": {"base_url": "https://api.x.ai/v1", "api_key": ""},               # xAI model: grok-4
         "gemini": {"base_url": "https://generativelanguage.googleapis.com/v1beta/openai", "api_key": ""},  # model: gemini-2.5-pro
         "anthropic": {"api_key": ""},                                            # 官方 SDK,model: claude-opus-4-8
-        # 本地推理(零-egress):Ollama/LM Studio/llama.cpp 等 OpenAI 兼容端点,无需 key
-        "ollama": {"base_url": "http://localhost:11434/v1", "api_key": "ollama", "local": True},
+        # 本地推理(零-egress):只认精确 loopback URL;local 标签不能覆盖远端地址
+        "ollama": {"base_url": "http://localhost:11434/v1", "api_key": "ollama"},
     },
 }
 

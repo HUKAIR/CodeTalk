@@ -74,7 +74,7 @@ def index(project: Optional[str] = None):
 
 @app.get("/console")
 def console_view(project: Optional[str] = None):
-    """接已设计好的「统一控制台」(四视图单页)。serve=True → 页面可答胶囊/标回看,
+    """接已设计好的「统一控制台」(六视图单页)。serve=True → 页面可答胶囊/标回看,
     经 /capsule、/reviewed 写回 cache.db。复用 console._build_html。"""
     html, _name, err = console._build_html(_project(project), serve=True, chat=True)
     if err:
@@ -273,7 +273,7 @@ def serve(project=".", port=8000, no_open=False, no_llm=False):
     if no_llm:
         os.environ["CODETALK_NO_LLM"] = "1"
     url = f"http://127.0.0.1:{port}/"
-    print(f"codetalk web:{url}(接地对话 POST /api/chat;数据不出本机,Ctrl+C 停)")
+    print(f"codetalk web:{url}(接地对话 POST /api/chat;本地优先,模型调用按配置;Ctrl+C 停)")
     if not no_open:
         try:
             webbrowser.open(url)

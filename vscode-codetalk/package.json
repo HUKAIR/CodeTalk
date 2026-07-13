@@ -34,6 +34,7 @@
   "devDependencies": {
     "@types/node": "^18.19.0",
     "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "3.9.2",
     "esbuild": "^0.25.0",
     "typescript": "^5.4.0"
   },
@@ -42,6 +43,6 @@
     "typecheck": "tsc --noEmit",
     "watch": "node esbuild.mjs --watch",
     "prepackage": "node sync-license.mjs",
-    "package": "npx @vscode/vsce package --no-dependencies"
+    "package": "vsce package --no-dependencies"
   }
 }

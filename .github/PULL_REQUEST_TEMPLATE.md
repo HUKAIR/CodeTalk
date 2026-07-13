@@ -13,7 +13,7 @@
 - [ ] Cache, privacy, or LLM behavior changed
 - [ ] Not release-facing
 
-## Decision Breadcrumbs
+## Decision Notes
 
 Add `Vibe-Decision:` / `Vibe-Watch:` lines to the commit body when the change
 contains a durable technical choice.

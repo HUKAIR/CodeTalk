@@ -10,10 +10,11 @@ Security fixes target the latest `main` branch until formal releases are cut.
 
 ## Reporting a Vulnerability
 
-Please report security issues privately before opening a public issue. If GitHub
-private vulnerability reporting is enabled for the repository, use that flow.
-Otherwise, contact the repository owner through GitHub with a minimal, non-public
-reproduction.
+Please report security issues privately before opening a public issue. Open the
+[CodeTalk Security Advisories](https://github.com/HUKAIR/CodeTalk/security/advisories)
+page and select **Report a vulnerability**. GitHub Private Vulnerability
+Reporting is enabled for this repository, so the report and follow-up discussion
+remain private to the reporter and repository maintainers.
 
 Include:
 
@@ -54,7 +55,7 @@ Release gate commands:
 ```bash
 python3 -m scripts.scan_secrets
 python3 -m scripts.scan_secrets --history
-python3 -m scripts.check_static_no_external codetalk/web_chat.html codetalk/console.html codetalk/tunnel.html codetalk/course.html codetalk/graph.html
+python3 -m scripts.check_static_no_external codetalk/web_chat.html codetalk/console.html codetalk/tunnel.html codetalk/course.html codetalk/graph.html codetalk/trust_ab.html
 HOME=/private/tmp/codetalk-test-home PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests
 git diff --check
 ```

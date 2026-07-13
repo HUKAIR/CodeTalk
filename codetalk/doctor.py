@@ -91,8 +91,8 @@ def build_doctor_report(project):
     lines = [
         f"# CodeTalk Doctor · {pp.name}",
         "",
-        f"- Git: {stats['total']} commits, {len(tracked)} tracked files",
-        f"- Evidence: {evidence} ({stats['rich']}/{stats['total']} commits with breadcrumbs, "
+        f"- Git: {stats['total']} non-merge commits, {len(tracked)} tracked files",
+        f"- Evidence: {evidence} ({stats['rich']}/{stats['total']} non-merge commits with decision notes, "
         f"{stats['decisions']} decisions, {stats['watches']} watches, "
         f"{stats['rejected']} rejected)",
         f"- Sessions: {_session_summary(pp)}",
@@ -106,9 +106,9 @@ def build_doctor_report(project):
         lines.append(f"1. 先让未来提交留痕: codetalk install-agent-seed --project {project_q}")
     if stats["rich"]:
         lines.append(f"2. 查是否有 AI 写了但没提交: codetalk drift --project {project_q}")
-        lines.append(f"3. 让后续提交自动带决策面包屑: codetalk install-agent-seed --project {project_q}")
+        lines.append(f"3. 让后续提交自动带决策记录: codetalk install-agent-seed --project {project_q}")
     else:
-        lines.append(f"2. 让后续提交自动带决策面包屑: codetalk install-agent-seed --project {project_q}")
+        lines.append(f"2. 让后续提交自动带决策记录: codetalk install-agent-seed --project {project_q}")
         lines.append(f"3. 需要历史全量叙事时: codetalk enrich --project {project_q}")
     return "\n".join(lines), None
 

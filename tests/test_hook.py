@@ -26,6 +26,7 @@ class TestInstallHook(unittest.TestCase):
         self.assertTrue(hook.exists())
         self.assertTrue(hook.stat().st_mode & 0o111)        # 可执行
         self.assertIn("Vibe-Decision:", hook.read_text())
+        self.assertIn("Vibe-Rejected:", hook.read_text())
 
     def test_no_clobber_without_force(self):
         h = Path(self.dir) / ".git" / "hooks" / "prepare-commit-msg"

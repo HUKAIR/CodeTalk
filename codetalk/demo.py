@@ -66,7 +66,7 @@ def run_demo():
         print("这就是护城河:对手(Cursor/Copilot)只能从当前 diff 反推「为什么」,")
         print("而这些 why-NOT(为何没用 round、为何退款给 0 分)diff 里根本不存在。")
         print("\n下一步:在你自己的仓跑 `codetalk blame <文件>`;")
-        print("没有面包屑?`codetalk install-agent-seed .` 让 AI 提交时自动留 why。")
+        print("没有决策记录?`codetalk install-agent-seed .` 让 AI 提交时自动留 why。")
         return 0
     finally:
         shutil.rmtree(d, ignore_errors=True)

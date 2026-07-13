@@ -48,15 +48,15 @@ Use this checklist before a public CodeTalk release.
 
 - Confirm `git log --all --name-only` contains no private strategy docs or
   secrets before flipping (only intentionally-public files should be in history).
-- Flip visibility: `gh repo edit HUKAIR/CodeTalk --visibility public`, then
-  confirm public from a logged-out or clean environment.
+- Confirm `https://github.com/HUKAIR/CodeTalk` is reachable from a logged-out or
+  clean environment.
 - If a hosted provider reports additional secret alerts, revoke affected keys
   before promoting the repository.
 - Decide whether the launch promise is clone/editable install or PyPI install.
 - If claiming PyPI install, publish and verify `pip install codetalk`.
 - Generate the shareable A/B trust demo for the announcement:
   `python3 scripts/trust_ab_demo.py . 5 --html demo.html` (needs an LLM key).
-- Verify one-click MCP install works: build `codetalk.mcpb` and confirm
+- Verify MCP bundle install works: build `codetalk.mcpb` and confirm
   `initialize` + `tools/list` from a clean MCP client.
 - Add at least one short demo recording or screenshot for the README or docs.
 - Confirm LICENSE, SECURITY, CONTRIBUTING, CHANGELOG, and issue templates are

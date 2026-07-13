@@ -23,13 +23,16 @@ spec.md ─┐                              ┌─ blame: which spec did this li
          └─ adr-export: which decisions came out of this spec round?
 ```
 
-All three answers are **zero-LLM, verbatim, SHA-anchored** — point at the actual spec line / plan paragraph / commit message that grounds the answer.
+`blame` and `adr-export` are zero-LLM and SHA-anchored. `ask` uses the same
+verbatim evidence deterministically with `--no-llm` or without a provider key;
+when LLM synthesis is enabled, its answer remains bounded by cited evidence but
+is not itself a verbatim record.
 
 ## Concrete workflow
 
 ### 1. Author phase — capture spec → decision linkage
 
-When the spec gets refined, the agent leaves breadcrumbs in commits:
+When the spec gets refined, the agent leaves decision notes in commits:
 
 ```
 feat(auth): add JWT refresh rotation
@@ -47,7 +50,9 @@ If you use Claude Code, Cursor, or Copilot:
 codetalk install-agent-seed --project .
 ```
 
-drops the breadcrumb instruction into `CLAUDE.md`, `.cursorrules`, `.github/copilot-instructions.md` etc. The agent leaves them automatically.
+drops the decision-note instruction into `CLAUDE.md`, `.cursorrules`,
+`.cursor/rules/codetalk.mdc`, `.github/copilot-instructions.md`, and `AGENTS.md`.
+The append is idempotent; the agent can then leave these records automatically.
 
 ### 2. Review phase — ground code-review questions in the spec
 
@@ -80,7 +85,7 @@ CodeLens above the block shows `▸ abc1234 · 决策(2) 风险(1)`. Click to ex
 When a spec round closes:
 
 ```bash
-# Generate a Madr ADR from the real decisions made under §3.2
+# Generate a MADR ADR from the real decisions made under §3.2
 codetalk adr-export src/auth/refresh.ts --format madr > docs/adr/0042-refresh-rotation.md
 
 # Or emit a CycloneDX 1.5 BOM for AIBOM ecosystem ingestion
@@ -99,7 +104,7 @@ If your AI agent (Claude Code, Cursor, Codex) talks to CodeTalk over MCP, it can
   "mcpServers": {
     "CodeTalk": {
       "command": "python3",
-      "args": ["-m", "CodeTalk", "mcp-serve", "--project", "/abs/path/to/repo"]
+      "args": ["-m", "codetalk", "mcp-serve", "--project", "/abs/path/to/repo"]
     }
   }
 }
@@ -118,9 +123,14 @@ If your team is already in the Spec Kit / Kiro / OpenSpec / BMAD / Antigravity u
 ## Honest boundaries
 
 - CodeTalk doesn't generate specs. It only captures decisions made under existing specs.
-- The spec ↔ commit link is a breadcrumb convention (`Vibe-Decision`), not enforced by tooling. If the agent skips it, CodeTalk falls back to LLM enrichment of the commit message (which can still hallucinate — that's why we don't claim it as the deterministic path).
+- The spec ↔ commit link is a decision-note convention (`Vibe-Decision`,
+  `Vibe-Rejected`, and `Vibe-Watch`), not enforced by tooling. If the agent skips
+  it, CodeTalk can use optional LLM enrichment of the commit message, which can
+  still hallucinate; that is why enrichment is not the deterministic path.
 - The CycloneDX export covers base schema only — not `modelCard` / `formulation` / AI-specific sections, because CodeTalk tracks code decisions, not model artifacts. Don't claim AIBOM conformance you don't have.
-- Coverage depends on `codetalk enrich` having run. On a fresh repo with no breadcrumbs and no enrich, blame ≈ `git log`. See [README honest boundaries](../README.md).
+- Coverage depends on decision notes or `codetalk enrich` having run. On a fresh
+  repo with neither, blame is close to `git log`. See
+  [README honest boundaries](../README.md).
 
 ## Related reading
 

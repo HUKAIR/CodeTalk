@@ -34,7 +34,7 @@ class TestDoctor(unittest.TestCase):
         self.addCleanup(tmp.cleanup)
         report, err = doctor.build_doctor_report(repo)
         self.assertIsNone(err)
-        self.assertIn("Evidence: rich (1/1 commits with breadcrumbs", report)
+        self.assertIn("Evidence: rich (1/1 non-merge commits with decision notes", report)
         self.assertIn("codetalk blame a.py --project", report)
         self.assertIn("codetalk drift --project", report)
 
@@ -43,7 +43,7 @@ class TestDoctor(unittest.TestCase):
         self.addCleanup(tmp.cleanup)
         report, err = doctor.build_doctor_report(repo)
         self.assertIsNone(err)
-        self.assertIn("Evidence: cold-start (0/1 commits with breadcrumbs", report)
+        self.assertIn("Evidence: cold-start (0/1 non-merge commits with decision notes", report)
         self.assertIn("codetalk enrich --project", report)
 
     def test_demo_file_prefers_groundable_signal_over_churn(self):

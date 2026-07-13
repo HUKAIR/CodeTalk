@@ -17,19 +17,30 @@ def _cfg(provider, providers_extra=None, no_llm=False):
 
 class TestLocalProvider(unittest.TestCase):
     def test_ollama_default_constructs_without_key(self):
-        llm = LLMClient(_cfg("ollama"))                 # DEFAULTS 已含 ollama(local=True)
+        llm = LLMClient(_cfg("ollama"))                 # 默认 URL 的主机名是 localhost
         self.assertTrue(llm.local)
         self.assertEqual(llm.base_url, "http://localhost:11434/v1")
 
-    def test_explicit_local_flag_empty_key_ok(self):
-        llm = LLMClient(_cfg("loc", {"loc": {"base_url": "http://host:9/v1",
+    def test_explicit_local_flag_cannot_override_remote_host(self):
+        with self.assertRaises(LLMError):
+            LLMClient(_cfg("loc", {"loc": {"base_url": "https://api.example/v1",
                                              "api_key": "", "local": True}}))
-        self.assertTrue(llm.local)                      # 显式 local 标记,空 key 不报错
 
     def test_localhost_base_url_implies_local(self):
         llm = LLMClient(_cfg("c", {"c": {"base_url": "http://127.0.0.1:8080/v1",
                                          "api_key": ""}}))
         self.assertTrue(llm.local)                      # 本机 base_url 即判 local
+
+    def test_ipv6_loopback_implies_local(self):
+        llm = LLMClient(_cfg("c", {"c": {"base_url": "http://[::1]:8080/v1",
+                                         "api_key": ""}}))
+        self.assertTrue(llm.local)
+
+    def test_localhost_text_inside_remote_hostname_is_not_local(self):
+        with self.assertRaises(LLMError):
+            LLMClient(_cfg("trap", {"trap": {
+                "base_url": "https://localhost.evil.example/v1",
+                "api_key": ""}}))
 
     def test_cloud_empty_key_still_raises(self):
         with self.assertRaises(LLMError):               # 非 local + 空 key → 照旧报错

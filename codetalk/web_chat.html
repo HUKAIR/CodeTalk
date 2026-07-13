@@ -54,7 +54,7 @@
 .st-M{color:#e3b341}.st-A{color:#3fb950}.st-D{color:#f85149}
 .st-R{color:#a371f7}.st-C{color:#a371f7}.st-U{color:#f85149}
 </style></head><body>
-<header><span><b>CodeTalk</b> // <span data-i18n="tagline">接地对话 · 数据不出本机</span></span>
+<header><span><b>CodeTalk</b> // <span data-i18n="tagline">接地对话 · 本地优先 · 模型调用按配置</span></span>
   <span><a href="/console" data-i18n="nav_console">控制台</a> &nbsp; <a href="/tunnel" data-i18n="nav_tunnel">时光轴</a> &nbsp; <a href="/graph" data-i18n="nav_graph">决策图</a> &nbsp; <a href="/course" data-i18n="nav_course">演进课程</a>
   &nbsp; <button id="langbtn" type="button" class="copybtn" aria-label="switch language">EN</button></span></header>
 <main>
@@ -70,10 +70,10 @@
   </form>
 </main>
 <script>
-// ---- i18n:zh/en 字典 + 切换(零外联,复用 localStorage;数据仍不出本机)----
+// ---- i18n:zh/en 字典 + 切换(静态字典零外联,复用 localStorage)----
 var I18N = {
   zh: {
-    title: "CodeTalk · 接地对话", tagline: "接地对话 · 数据不出本机",
+    title: "CodeTalk · 接地对话", tagline: "接地对话 · 本地优先 · 模型调用按配置",
     nav_console: "控制台", nav_tunnel: "时光轴", nav_graph: "决策图", nav_course: "演进课程",
     files_btn: "文件 ▸", send: "问", you: "你", searching: "…接地检索中",
     hint: "问「这段代码当初为什么这么写」——答案接地到真实 commit / 决策 / 会话原话;无 key 或 --no-llm 时降级为零-LLM 接地罗列(不出网)。",
@@ -91,7 +91,7 @@ var I18N = {
       "codetalk/llm.py:43-56 当初为什么这么设计?"]
   },
   en: {
-    title: "CodeTalk · Grounded chat", tagline: "Grounded chat · data stays local",
+    title: "CodeTalk · Grounded chat", tagline: "Grounded chat · local-first · model calls follow config",
     nav_console: "Console", nav_tunnel: "Timeline", nav_graph: "Graph", nav_course: "Course",
     files_btn: "Files ▸", send: "Ask", you: "You", searching: "…grounding retrieval",
     hint: "Ask \"why was this code written this way\" — answers are grounded in real commits / decisions / session transcripts; without a key or with --no-llm it degrades to a zero-LLM evidence list (no egress).",

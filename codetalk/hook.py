@@ -1,4 +1,4 @@
-"""安装 prepare-commit-msg git 钩子:人手写 commit 时提示留决策面包屑。
+"""安装 prepare-commit-msg git 钩子:人手写 commit 时提示留决策记录。
 补「自动留痕」对人类提交者的覆盖缺口——纯本地、零依赖。"""
 import subprocess
 from pathlib import Path
@@ -6,7 +6,7 @@ from pathlib import Path
 # 只在交互编辑器场景($2 为空)提示;-m / merge / squash / amend 跳过。
 # 注释行(#)默认被 git 剥除——不填就不污染;grep 守幂等,不重复追加。
 HOOK = """#!/bin/sh
-# codetalk prepare-commit-msg:手写 commit 时提示留决策面包屑
+# codetalk prepare-commit-msg:手写 commit 时提示留决策记录
 msg="$1"; src="$2"
 [ -n "$src" ] && exit 0
 grep -q "Vibe-Decision:" "$msg" && exit 0
@@ -14,6 +14,7 @@ cat >> "$msg" <<'HINT'
 
 # codetalk:关键技术取舍?去掉 # 并填一行(让 ask / graph 更准):
 # Vibe-Decision:
+# Vibe-Rejected:
 # Vibe-Watch:
 HINT
 """

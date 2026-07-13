@@ -5,7 +5,8 @@ from pathlib import Path
 
 from . import debt as debt_mod
 from .config import redact_secrets
-from .gitlog import collect_commit_files, commit_body, parse_breadcrumbs
+from .gitlog import (collect_commit_files, commit_body, has_decision_notes,
+                     parse_breadcrumbs)
 
 
 def _debt_block(board):
@@ -27,14 +28,14 @@ def _debt_block(board):
 
 
 def _breadcrumb_coverage(project_path, n=20):
-    """最近 n 个 commit 有几个带 Vibe-Decision/Watch 面包屑(零 LLM)。
-    返回 (带面包屑数, 统计 commit 数);无 git 历史返回 None。"""
+    """最近 n 个 commit 有几个带 Vibe-* 决策记录(零 LLM)。
+    返回 (带决策记录数, 统计 commit 数);无 git 历史返回 None。"""
     commits, err = collect_commit_files(project_path)
     if err or not commits:
         return None
     recent = commits[-n:]
     got = sum(1 for c in recent          # body 已随批量 git log 取回,不再逐 commit git show
-              if any(parse_breadcrumbs(c.get("body", ""))))
+              if has_decision_notes(c.get("body", "")))
     return got, len(recent)
 
 
@@ -79,13 +80,13 @@ def build_brief(cache, project, project_full):
     cov = _breadcrumb_coverage(project_full)
     if cov:
         got, total = cov
-        lines += ["## 决策面包屑", ""]
+        lines += ["## 决策记录", ""]
         if got:
-            lines.append(f"近 {total} 个 commit 有 {got} 个带 Vibe-Decision/Watch"
-                         "——ask/graph 据此更接地。")
+            lines.append(f"近 {total} 个 commit 有 {got} 个带 Vibe-* 决策记录"
+                         "——ask/review 据此更接地,Vibe-Decision 同时进入 graph。")
         else:
-            lines.append(f"近 {total} 个 commit 都没留面包屑。在 CLAUDE.md 加一句"
-                         "「关键取舍留 `Vibe-Decision:`」让 agent 自动留,ask/graph 更准。")
+            lines.append(f"近 {total} 个 commit 都没留决策记录。在 agent 配置文件加一句"
+                         "「关键取舍留 `Vibe-Decision:`」让 agent 自动留,ask/review 更准。")
         lines.append("")
 
     return redact_secrets("\n".join(lines).rstrip() + "\n")

@@ -52,7 +52,7 @@ Only blocks with real decisions/why get CodeLens. Hover works on any line.
 - Python >= 3.11
 - `pip install -e .` in the project root (clone CodeTalk first; PyPI package not yet published)
 - The project has been enriched: `codetalk enrich --project /path/to/repo`
-  (gives CodeTalk commit narratives to display; without this, only `Vibe-Decision` breadcrumbs show)
+  (gives CodeTalk commit narratives to display; without this, only commit decision notes show)
 
 ## Install
 
@@ -63,7 +63,7 @@ npm install
 npm run build
 
 # 2. Package
-npx @vscode/vsce package --no-dependencies
+npm run package
 # -> vscode-codetalk-0.2.0.vsix
 
 # 3. Install (pick your editor)

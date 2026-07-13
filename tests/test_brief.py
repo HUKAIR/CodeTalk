@@ -36,17 +36,20 @@ class TestBreadcrumbCoverage(unittest.TestCase):
         _git(["commit", "-q", "-m", "c1\n\nVibe-Decision: 决策一"], self.dir)
         p.write_text("2\n")
         _git(["add", "."], self.dir)
-        _git(["commit", "-q", "-m", "c2 无面包屑"], self.dir)
+        _git(["commit", "-q", "-m", "c2 无决策记录"], self.dir)
+        p.write_text("3\n")
+        _git(["add", "."], self.dir)
+        _git(["commit", "-q", "-m", "c3\n\nVibe-Rejected: 不采用全局状态"], self.dir)
 
     def tearDown(self):
         shutil.rmtree(self.dir, ignore_errors=True)
 
     def test_coverage_counts(self):
-        self.assertEqual(brief._breadcrumb_coverage(self.dir), (1, 2))
+        self.assertEqual(brief._breadcrumb_coverage(self.dir), (2, 3))
 
     def test_build_brief_has_coverage_section(self):
         out = brief.build_brief(Cache(":memory:"), "P", self.dir)
-        self.assertIn("决策面包屑", out)
+        self.assertIn("决策记录", out)
 
 
 if __name__ == "__main__":

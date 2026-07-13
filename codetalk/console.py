@@ -1,4 +1,4 @@
-"""统一控制台:把开工概览 / 时光轴 / 决策图 / 理解债 汇成一个单文件 web 页。
+"""统一控制台:把概览 / 时光轴 / 决策图 / 理解债 / 文件树 / 指令回看汇成单页。
 
 进页先看概览,顶部导航切视图,每视图概览优先、按需钻取——取代"一整页 dump"。
 全程零 LLM(吃已缓存数据);复用 tunnel._payload / graph._assemble / debt_board / brief。
@@ -63,7 +63,7 @@ def _file_grounding(changed_paths, commits, narratives):
 
 
 def _assemble(project_path, cache):
-    """汇五视图数据为一份 JSON(零 LLM,复用现成件)。→ (data, error_or_None)。
+    """汇六视图数据为一份 JSON(零 LLM,复用现成件)。→ (data, error_or_None)。
     空仓不报错(返回空时光轴);真 git 错误才上报。"""
     pp = Path(project_path).resolve()
     project = pp.name

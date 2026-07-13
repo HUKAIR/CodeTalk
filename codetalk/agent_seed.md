@@ -2,7 +2,7 @@
 ## codetalk 决策捕获(AI coding agent 必读)
 
 每次 `git commit`,在 commit message 正文按下面格式留下这次改动的**关键决策与推导**,
-供 codetalk 长期分析(ask / graph / digest 据此接地,免得日后从 diff 反推)。保持精炼:
+供 codetalk 作为决策记录长期分析(ask / graph / digest 据此接地,免得日后从 diff 反推)。保持精炼:
 每条一行、总共几行即可,别写长文。**行首精确、区分大小写**。
 
 - `Vibe-Decision: <做了什么决定;为什么这么选>` —— 一个关键决策一行,可多条

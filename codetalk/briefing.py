@@ -2,7 +2,7 @@
 
 像 console/tunnel 那样可 --serve 本地起服务 + 自动开浏览器。三块内容:
 ① 变更日志(最近 commit:短 SHA + 日期 + subject)
-② 决策面包屑覆盖(N/M 带 Vibe-Decision/Watch)
+② 决策记录覆盖(N/M 带任一 Vibe-* 行)
 ③ Discovery 发现(已处理问卷清单 + ROADMAP「发现驱动的方向修正」段要点)
 
 容错铁律:无 git / 无 ROADMAP / 无 docs/discovery / 非 git 仓 → 友好降级,绝不抛。
@@ -14,7 +14,7 @@ from datetime import datetime
 from pathlib import Path
 
 from .config import load_config, redact_secrets
-from .gitlog import collect_commit_files, parse_breadcrumbs
+from .gitlog import collect_commit_files, has_decision_notes
 
 CHANGELOG_LIMIT = 20
 DISCOVERY_HEADING = "发现驱动的方向修正"
@@ -55,18 +55,18 @@ def _changelog_section(commits):
 
 
 def _coverage_section(commits):
-    """② 决策面包屑覆盖:最近 CHANGELOG_LIMIT 条里几条带 Vibe-Decision/Watch。"""
+    """② 决策记录覆盖:最近 CHANGELOG_LIMIT 条里几条带任一 Vibe-* 行。"""
     recent = list(reversed(commits))[:CHANGELOG_LIMIT]
     if not recent:
-        return ['<section><h2>决策面包屑覆盖</h2>'
+        return ['<section><h2>决策记录覆盖</h2>'
                 '<p class="empty">暂无提交可统计。</p></section>']
-    got = sum(1 for c in recent if any(parse_breadcrumbs(c.get("body", ""))))
+    got = sum(1 for c in recent if has_decision_notes(c.get("body", "")))
     m = len(recent)
     pct = round(got / m * 100) if m else 0
-    return ['<section><h2>决策面包屑覆盖</h2>',
+    return ['<section><h2>决策记录覆盖</h2>',
             f'<p class="big">{got}/{m}</p>',
             f'<p class="sub">最近 {m} 条提交中有 <strong>{got}</strong> 条'
-            f'带 Vibe-Decision / Vibe-Watch 面包屑({pct}%)。</p></section>']
+            f'带 Vibe-* 决策记录({pct}%)。</p></section>']
 
 
 def _questionnaire_list(project):

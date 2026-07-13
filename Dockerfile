@@ -15,7 +15,10 @@
 #   打开 http://127.0.0.1:8000/   (零出网/无 key:加 -e CODETALK_NO_LLM=1)
 FROM python:3.11-slim
 WORKDIR /app
-COPY . /app
+# Privacy boundary: copy only runtime inputs. Git-ignored local files such as
+# .mcp.json, .codetalk/, or private planning notes must never enter the image.
+COPY pyproject.toml README.md LICENSE /app/
+COPY codetalk /app/codetalk
 RUN pip install --no-cache-dir -e ".[web]"
 ENV CODETALK_WEB_HOST=0.0.0.0
 EXPOSE 8000

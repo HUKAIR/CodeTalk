@@ -1,13 +1,13 @@
 # 护城河对照卡:真实记录 vs 纯 diff 反推
 
-**一句话**:让只看 diff 的 AI 反推「当初为什么这么改」,它会**自信、流畅、却编造或漏掉真正的 why**——尤其「为什么**不**那么做 / 战略取舍 / 预算约束」这类**结构上不在 diff 里**的理由。CodeTalk 引逐字真实记录(commit 面包屑),不推断,所以不会编。
+**一句话**:让只看 diff 的 AI 反推「当初为什么这么改」,它会**自信、流畅、却编造或漏掉真正的 why**——尤其「为什么**不**那么做 / 战略取舍 / 预算约束」这类**结构上不在 diff 里**的理由。CodeTalk 引用逐字真实的 commit 决策记录,不推断,所以不会编。
 
 **这正是「6 分信任天花板」的成因**:用户只信 AI 重解释约 6/10,因为它从 diff 反推会编。对照卡把这件事**可复跑地**摆出来。
 
 ---
 
 ## 方法(公平起见)
-- 取 CodeTalk 带真实 `Vibe-Decision`/`Vibe-Rejected` 面包屑的 commit,把**脱敏后、仅代码段**的 diff(无 message、无注释、无上下文、**已剔文档段**)喂 LLM 反推 why,跟 CodeTalk 零-LLM 引的真实面包屑并排。
+- 取 CodeTalk 带真实 `Vibe-Decision`/`Vibe-Rejected` 决策记录的 commit,把**脱敏后、仅代码段**的 diff(无 message、无注释、无上下文、**已剔文档段**)喂 LLM 反推 why,跟 CodeTalk 零-LLM 引用的真实决策记录并排。
 - 自动挑「泄漏最低」(why 字面不在 diff)的样本,避免拿「diff 已夹带 why」的 commit 反向坑自己。
 - 复跑:`python3 scripts/blind_test.py . 5`。判对错由人(语义需人,脚本不自动打分)。
 

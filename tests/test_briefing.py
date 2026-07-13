@@ -47,8 +47,18 @@ class TestBuildBriefing(unittest.TestCase):
     def test_contains_breadcrumb_coverage_stat(self):
         html, err = briefing._build_briefing(self.d)
         self.assertIsNone(err)
-        # 2 个 commit,1 个带面包屑 → "1/2"
+        # 2 个 commit,1 个带决策记录 → "1/2"
         self.assertIn("1/2", html)
+
+    def test_rejected_only_commit_counts_as_decision_note(self):
+        p = Path(self.d) / "a.py"
+        p.write_text("3\n")
+        _git(["add", "."], self.d)
+        _git(["commit", "-q", "-m", "换方案",
+              "-m", "Vibe-Rejected: 不采用全局状态"], self.d)
+        html, err = briefing._build_briefing(self.d)
+        self.assertIsNone(err)
+        self.assertIn("2/3", html)
 
     def test_renders_roadmap_discovery_points(self):
         roadmap = Path(self.d) / "ROADMAP.md"

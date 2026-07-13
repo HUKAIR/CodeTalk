@@ -104,11 +104,11 @@ def _build_parser():
     grp.add_argument("--vault", help="覆盖输出目录")
     grp.add_argument("--canvas", action="store_true",
                      help="额外导出 Obsidian JSON Canvas(*-graph.canvas)")
-    con = _proj(sub.add_parser("console", help="统一控制台:四视图单页 web(零 LLM)"))
+    con = _proj(sub.add_parser("console", help="统一控制台:六视图单页 web(零 LLM)"))
     con.add_argument("--serve", action="store_true", help="起本地服务,回答写回 cache")
     con.add_argument("--no-open", action="store_true", help="--serve 时不自动开浏览器")
     rep = _proj(sub.add_parser(
-        "report", help="实时汇报:从当前仓状态生成单页 web(变更/面包屑/发现,零 LLM)"))
+        "report", help="实时汇报:从当前仓状态生成单页 web(变更/决策记录/发现,零 LLM)"))
     rep.add_argument("--serve", action="store_true",
                      help="起本地服务并自动开浏览器(否则写静态 HTML)")
     rep.add_argument("--no-open", action="store_true", help="--serve 时不自动开浏览器")
@@ -122,14 +122,14 @@ def _build_parser():
     ini = sub.add_parser("init", help="生成配置模板到 ~/.codetalk/config.json")
     ini.add_argument("--force", action="store_true", help="已存在时覆盖")
     ihk = _proj(sub.add_parser("install-hook",
-                               help="装 git 钩子:手写 commit 时提示留决策面包屑"))
+                               help="装 git 钩子:手写 commit 时提示留决策记录"))
     ihk.add_argument("--force", action="store_true", help="覆盖已有钩子")
     _proj(sub.add_parser(
         "install-agent-seed",
-        help="把决策捕获约定植入项目 CLAUDE.md,让 AI agent 提交时留推导面包屑"))
+        help="把决策捕获约定植入多 agent 配置文件,让提交自动带决策记录"))
     _proj(sub.add_parser(
         "mcp-serve",
-        help="起 MCP server(stdio):把 ask/blame/graph 暴露给 MCP 客户端(零 LLM 接地)"))
+        help="起 MCP server(stdio):暴露 7 个 codetalk_* 工具(零 LLM 接地)"))
     return parser
 
 

@@ -1,11 +1,6 @@
-.git
-__pycache__
-*.pyc
-*.mcpb
-dist
-*.egg-info
-.claude
-.cursor
-.idea
-docs
-tests
+**
+!pyproject.toml
+!README.md
+!LICENSE
+!codetalk/
+!codetalk/**

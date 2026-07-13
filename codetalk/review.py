@@ -37,7 +37,7 @@ def _precision_label(precision, segs):
     **非**判断这条 why 对不对(语义需模型,零-LLM 不判)。"""
     base = _PRECISION.get(precision, precision)
     detail = ("有据" if any(segment_has_why(s) for s in segs)
-              else "仅提交记录(无叙事/面包屑,可先 codetalk enrich)")
+              else "仅提交记录(无叙事/决策记录,可先 codetalk enrich)")
     return f"{_BADGE.get(precision, _BADGE['none'])} 溯源精度:{base} · {detail}"
 
 

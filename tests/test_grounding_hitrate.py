@@ -14,21 +14,23 @@ class TestGroundingHitrate(unittest.TestCase):
         commits = [
             {"sha": "a" * 40, "body": ""},                      # 叙事 why → grounded
             {"sha": "b" * 40, "body": ""},                      # evidence 锚点 → grounded
-            {"sha": "c" * 40, "body": "feat: x\n\nVibe-Decision: 选 X 不选 Y"},  # 仅面包屑 → grounded
+            {"sha": "c" * 40, "body": "feat: x\n\nVibe-Decision: 选 X 不选 Y"},  # 仅决策记录 → grounded
             {"sha": "d" * 40, "body": "chore: 普通提交"},        # 无任何接地源 → 不 grounded
+            {"sha": "e" * 40, "body": "fix: x\n\nVibe-Watch: 并发仍待验证"},
+            {"sha": "f" * 40, "body": "refactor: x\n\nVibe-Rejected: 不引入队列"},
         ]
         m = measure(c, commits)
         c.close()
-        self.assertEqual(m["total"], 4)
+        self.assertEqual(m["total"], 6)
         self.assertEqual(m["narrated"], 2)          # a,b 有叙事
-        self.assertEqual(m["breadcrumb"], 1)        # c 有 Vibe-Decision
+        self.assertEqual(m["breadcrumb"], 3)        # c/e/f 各有一种 Vibe-* 决策记录
         self.assertEqual(m["evidence"], 1)          # b 有 evidence
-        self.assertEqual(m["grounded"], 3)          # a,b,c 可接地(含 LLM 叙事);d 不可
-        self.assertEqual(m["coverage_pct"], 75.0)
-        # 真实接地率(北极星):只算逐字/面包屑,排除 a 的纯 LLM why → 仅 b,c
-        self.assertEqual(m["real_grounded"], 2)     # b(evidence)+ c(面包屑);a 纯叙事不算
-        self.assertEqual(m["real_pct"], 50.0)
-        self.assertEqual(m["depth_pct"], 25.0)      # 输入杠杆 depth:仅 b 有逐字锚点 = 1/4
+        self.assertEqual(m["grounded"], 5)          # a,b,c,e,f 可接地;d 不可
+        self.assertEqual(m["coverage_pct"], 83.3)
+        # 真实接地率:只算逐字/决策记录,排除 a 的纯 LLM why → b,c,e,f
+        self.assertEqual(m["real_grounded"], 4)
+        self.assertEqual(m["real_pct"], 66.7)
+        self.assertEqual(m["depth_pct"], 16.7)      # 输入杠杆 depth:仅 b 有逐字锚点 = 1/6
 
     def test_llm_narrative_alone_not_real_grounded(self):
         c = Cache(":memory:")

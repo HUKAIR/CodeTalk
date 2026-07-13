@@ -9,6 +9,7 @@ import logging
 import time
 import urllib.error
 import urllib.request
+from urllib.parse import urlsplit
 
 from .config import resolve_api_key
 from .prompts import NARRATIVE_SCHEMA, SYSTEM_PROMPT
@@ -37,10 +38,13 @@ class LLMClient:
         self.model = cfg["model"]
         pconf = cfg["providers"].get(self.provider) or {}
         self.base_url = (pconf.get("base_url") or "").rstrip("/")
-        # 本地推理(ollama/LM Studio/llama.cpp,OpenAI 兼容)无需 key:local 标记或本机 base_url。
-        # 数据不出本机由此从「除 LLM 例外」收紧到「连综合也可全本机」(local-first 真兑现,非主卖点)。
-        self.local = (bool(pconf.get("local")) or "localhost" in self.base_url
-                      or "127.0.0.1" in self.base_url)
+        # 本地推理无需 key,但只信 URL 解析后的精确 loopback 主机名。字符串包含或
+        # `local: true` 都不能把远端伪装成本机,避免隐私配置被静默绕过。
+        try:
+            hostname = (urlsplit(self.base_url).hostname or "").lower()
+        except ValueError as exc:
+            raise LLMError(f"{self.provider} base_url 非法:{exc}") from exc
+        self.local = hostname in {"localhost", "127.0.0.1", "::1"}
         self.api_key = resolve_api_key(cfg, self.provider) or (
             "local" if self.local else "")
         self.output_lang = cfg.get("output_lang") or "中文"

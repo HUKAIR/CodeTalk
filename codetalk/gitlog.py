@@ -168,6 +168,12 @@ def parse_rejected(body):
     return rejected
 
 
+def has_decision_notes(body):
+    """Whether a commit body carries any supported Vibe-* decision record."""
+    decisions, watches = parse_breadcrumbs(body)
+    return bool(decisions or watches or parse_rejected(body))
+
+
 def merge_breadcrumbs(narrative, project_path, sha):
     """命中 SHA 的缓存叙事 ∪ commit body 面包屑(去重,叙事在前、面包屑在后)。
     返回 (decisions, risks, rejected);供 ask/blame/search 共用,缓存已折入的面包屑不重复。"""

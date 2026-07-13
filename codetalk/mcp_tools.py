@@ -21,7 +21,7 @@ TOOLS = [
     {"name": "codetalk_ask",
      "description":
          "Grounded code Q&A: answer 'why was this code written this way' using real commit "
-         "narratives and decision breadcrumbs (verbatim citations with SHA). Falls back to "
+         "narratives and decision notes (verbatim citations with SHA). Falls back to "
          "deterministic retrieval when no LLM key is configured.",
      "inputSchema": {"type": "object", "properties": {
          "target": {"type": "string",
