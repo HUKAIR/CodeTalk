@@ -106,9 +106,13 @@ class TestReleaseAutomation(unittest.TestCase):
 
     def test_python_package_metadata_matches_ci_support(self):
         pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        workflow = (ROOT / ".github" / "workflows" / "test.yml").read_text(
+            encoding="utf-8")
         for minor in ("3.11", "3.12", "3.13", "3.14"):
             self.assertIn(f"Programming Language :: Python :: {minor}", pyproject)
         self.assertIn('license = "AGPL-3.0-or-later"', pyproject)
+        self.assertIn('test = ["httpx2>=2.0.0"]', pyproject)
+        self.assertIn('pip install -e ".[web,test]"', workflow)
         self.assertNotIn("License :: OSI Approved", pyproject)
 
 

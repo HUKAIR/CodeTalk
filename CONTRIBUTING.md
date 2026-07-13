@@ -8,7 +8,7 @@ local-first, so contributions should preserve that shape.
 ```bash
 git clone https://github.com/HUKAIR/CodeTalk
 cd CodeTalk
-python3 -m pip install -e ".[web]"
+python3 -m pip install -e ".[web,test]"
 python3 -m unittest discover -s tests
 ```
 

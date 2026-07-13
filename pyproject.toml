@@ -35,6 +35,8 @@ Issues = "https://github.com/HUKAIR/CodeTalk/issues"
 anthropic = ["anthropic>=0.40"]
 # web-app 面(M0 分面修订 2026-06-24):仅 `codetalk web` 需要,不污染核心 stdlib。
 web = ["fastapi>=0.110", "uvicorn>=0.29"]
+# Starlette TestClient 专用;不进入 web 运行依赖或 CLI/MCP 核心面。
+test = ["httpx2>=2.0.0"]
 
 [project.scripts]
 codetalk = "codetalk.cli:main"

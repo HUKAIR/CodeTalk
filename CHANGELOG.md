@@ -45,6 +45,8 @@ made it verifiable.
 - Web startup and UI copy now describe the product as local-first and disclose
   that model calls follow configuration instead of promising unconditional
   zero egress.
+- Web tests install Starlette's `httpx2` test-client dependency through a
+  dedicated `test` extra, without adding it to Web runtime or core dependencies.
 
 ## 0.1.0 - 2026-07-01
 

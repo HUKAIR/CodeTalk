@@ -62,6 +62,8 @@ to reproduce the conclusion.
 ### Release Engineering
 
 - Expanded CI to Python 3.11 through 3.14 and Node.js 24.
+- Separated Starlette's `httpx2` test-client dependency into a test-only extra;
+  it does not enter the Web runtime or stdlib core dependency surfaces.
 - Added full-history secret scanning, all six static-page checks, MCP bundle
   creation, Python sdist/wheel build, isolated wheel launch, VSIX packaging, and
   artifact uploads.
@@ -104,10 +106,9 @@ These are evidence gaps, not hidden implementation claims:
 - Collect at least one external pilot interception. The current blind comparison
   is useful but small (`N=5`, one repository, human judged).
 - Add a short current-product demo recording before a broad launch.
-- Monitor the optional web test stack when dependency versions move. The local
-  development environment emitted a Starlette/httpx compatibility deprecation
-  warning, while tests passed and the clean Docker build resolved and ran the
-  current FastAPI/Starlette packages successfully.
+- Monitor the optional Web test stack when dependency versions move; CI now
+  installs the test client's declared dependency explicitly rather than relying
+  on an older transitive `httpx` installation.
 
 ## Safest Release Path
 
