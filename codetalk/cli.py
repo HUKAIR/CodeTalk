@@ -80,6 +80,8 @@ def _build_parser():
     rev = _proj(sub.add_parser(
         "review", help="review 现场:粘 diff/git diff → 逐改动块的历史决策+真实引用(零 LLM)"))
     rev.add_argument("--diff", help="读 diff 文件(默认 git diff HEAD;或 git diff | codetalk review)")
+    rev.add_argument("--json", action="store_true", dest="as_json",
+                     help="输出结构化决策审查卡(agent/IDE 可读)")
     adr = _proj(sub.add_parser(
         "adr-export", help="把一段代码的真实决策史导出成 MADR/Nygard ADR(零 LLM,逐字引真实 commit)"))
     adr.add_argument("target", help='文件或 文件:起-止,如 codetalk/llm.py:72-78')

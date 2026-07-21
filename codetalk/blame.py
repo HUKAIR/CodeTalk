@@ -11,7 +11,8 @@ from pathlib import Path
 from . import grounding_render as gr
 from .cache import Cache
 from .config import CACHE_DB_PATH, redact_data, redact_secrets
-from .gitlog import commit_meta, file_log, line_log, merge_breadcrumbs, parse_target
+from .gitlog import (commit_body, commit_meta, file_log, line_log,
+                     parse_breadcrumbs, parse_rejected, parse_target)
 
 _parse_target = parse_target          # 与 ask 同口径,搬到 gitlog 共享
 
@@ -42,12 +43,26 @@ def _build_segments(cache, project_path, shas):
     segments = []
     for sha in shas:
         narrative = cache.get_narrative(sha) or {}
-        decs, risks, rejected = merge_breadcrumbs(narrative, project_path, sha)
+        body = commit_body(project_path, sha)
+        authored_decisions, authored_risks = parse_breadcrumbs(body)
+        authored_rejected = parse_rejected(body)
+        generated_decisions = narrative.get("decisions") or []
+        generated_rejected = narrative.get("rejected") or []
+        decs = list(dict.fromkeys(generated_decisions + authored_decisions))
+        risks = list(dict.fromkeys(
+            (narrative.get("risks") or []) + authored_risks))
+        rejected = list(dict.fromkeys(generated_rejected + authored_rejected))
         date_iso, subject = commit_meta(project_path, sha)
         segments.append({
             "sha": sha, "date": date_iso, "subject": subject,
             "why": narrative.get("why") or "",
             "decisions": decs, "risks": risks, "rejected": rejected,
+            "authored_decisions": authored_decisions,
+            "authored_rejected": authored_rejected,
+            "generated_decisions": [d for d in generated_decisions
+                                    if d not in authored_decisions],
+            "generated_rejected": [r for r in generated_rejected
+                                   if r not in authored_rejected],
             "evidence": narrative.get("evidence") or [],  # 旧缓存无键 .get 兼容
             "test_refs": narrative.get("test_refs") or [],
             "pr_refs": narrative.get("pr_refs") or [],

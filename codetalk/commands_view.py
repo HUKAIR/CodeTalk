@@ -1,4 +1,5 @@
 """视图/输出类子命令——从 commands.py 拆出以守 300 行红线。"""
+import json
 import sys
 from pathlib import Path
 
@@ -75,7 +76,7 @@ def blame_cmd(args):
 
 def review_cmd(args):
     """review 现场入口(零 LLM):--diff 文件 / 管道 stdin / 默认 git diff HEAD。"""
-    from .review import review
+    from .review import build_review_cards, review
     diff_text = None
     if getattr(args, "diff", None):
         try:
@@ -83,7 +84,14 @@ def review_cmd(args):
         except OSError as exc:
             return _fail(f"读 diff 文件失败:{exc}")
     elif not sys.stdin.isatty():
-        diff_text = sys.stdin.read()
+        piped = sys.stdin.read()
+        diff_text = piped if piped.strip() else None
+    if getattr(args, "as_json", False):
+        cards, err, meta = build_review_cards(args.project, diff_text)
+        if err:
+            return _fail(err)
+        print(json.dumps({"cards": cards, "meta": meta}, ensure_ascii=False))
+        return 0
     out, err = review(args.project, diff_text)
     if err:
         return _fail(err)

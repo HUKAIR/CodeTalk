@@ -1,17 +1,18 @@
 """codetalk review —— 零-LLM 的 review 现场入口。
 
 把工具从「手输 file:line 的事后考古」变「review/commit 现场粘 diff 即得」:解析统一 diff →
-对每个改动块调既有 blame.collect_graded 罗列真实历史决策 + 原话 + 溯源精度(行级/文件级/无据);
+对每个改动块调既有 blame.collect_graded 恢复真实历史决策 + 溯源精度(行级/文件级/无据);
 无叙事覆盖的块**显式标「无据」而非编造**(诚实暴露接地命中率上限,对抗 AI 反推噪声)。
-唯一新代码是 diff 解析;检索/渲染全复用 blame。零 LLM、不出网、出口脱敏、解析失败降级绝不崩。
+终端和结构化输出共享同一审查卡契约。零 LLM、不出网、出口脱敏、解析失败降级绝不崩。
 """
+import hashlib
 import re
 import subprocess
 from pathlib import Path
 
-from .blame import _format, collect_graded, segment_has_why
+from .blame import collect_graded, segment_has_why
 from .cache import Cache
-from .config import CACHE_DB_PATH, redact_secrets
+from .config import CACHE_DB_PATH, redact_data, redact_secrets
 
 _HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
 
@@ -32,12 +33,26 @@ _BADGE = {"line": "[行级溯源]",
           "none": "[无逐字溯源]"}
 
 
+def _has_decision_evidence(segment):
+    return bool(segment.get("authored_decisions")
+                or segment.get("authored_rejected")
+                or segment.get("evidence")
+                or segment.get("test_refs")
+                or segment.get("pr_refs"))
+
+
 def _precision_label(precision, segs):
     """每块『溯源精度』标注:前置三档徽标 + 确定性准度细节(行级/文件级/无据)+ 有据/仅提交记录。
     **非**判断这条 why 对不对(语义需模型,零-LLM 不判)。"""
     base = _PRECISION.get(precision, precision)
-    detail = ("有据" if any(segment_has_why(s) for s in segs)
-              else "仅提交记录(无叙事/决策记录,可先 codetalk enrich)")
+    if any(_has_decision_evidence(s) for s in segs):
+        detail = "有据(人工决策/可核验来源)"
+    elif any(segment_has_why(s) for s in segs):
+        detail = "仅生成解释(非证据)"
+    elif segs:
+        detail = "仅提交记录(无叙事/决策记录,可先 codetalk enrich)"
+    else:
+        detail = "无历史记录"
     return f"{_BADGE.get(precision, _BADGE['none'])} 溯源精度:{base} · {detail}"
 
 
@@ -73,56 +88,204 @@ def _git_diff(pp):
     return out.stdout, None
 
 
-def _intercept_section(intercepts):
-    """改动块触及『曾被否决的方案』(Vibe-Rejected)→ 顶部拦截清单。确定性把命中的否决项
-    提到眼前;**不**自动判定『同概念重引入』(散文 vs 代码需语义,R6 钉死不做)——由你人判。
-    无命中返回空串(不污染常规 review)。intercepts=[(file,start,end,[rej...])]。"""
-    if not intercepts:
-        return ""
-    lines = ["## ⚠ 拦截检查:改动触及曾否决的方案,逐条确认你不是在重引入", ""]
-    for file, start, end, rejs in intercepts:
-        for r in rejs:
-            lines.append(f"- `{file}:{start}-{end}` 曾放弃:{r}")
-    lines.append("\n确认无误即噪声;若真在重引入,按 docs/discovery/interceptions.md "
-                 "记一条——这就是『真拦下一次理由丢失型踩坑』的硬证据。\n")
-    return "\n".join(lines) + "\n\n"
+def _valid_segments(segments):
+    list_fields = ("decisions", "rejected", "authored_decisions",
+                   "authored_rejected", "generated_decisions",
+                   "generated_rejected", "evidence", "test_refs", "pr_refs")
+    return [segment for segment in segments
+            if isinstance(segment, dict)
+            and isinstance(segment.get("why", ""), str)
+            and all(isinstance(segment.get(field, []), list)
+                    for field in list_fields)]
 
 
-def review(project_path, diff_text=None):
-    """→ (report_text, error)。diff_text=None → 用 git diff HEAD。零 LLM、不出网、落地前脱敏。"""
+def _primary_segment(segments):
+    """Prefer rejected paths, then authored context, with newer records first."""
+    valid = _valid_segments(segments)
+    if not valid:
+        return None
+    return min(enumerate(valid), key=lambda item: (
+        0 if item[1].get("authored_rejected") else
+        1 if item[1].get("authored_decisions") else
+        2 if segment_has_why(item[1]) else 3,
+        -item[0],
+    ))[1]
+
+
+def _card_id(file, start, end, segment):
+    anchor = (segment or {}).get("sha", "no-history")
+    rejected = "\n".join((segment or {}).get("authored_rejected") or [])
+    raw = f"{file}:{start}:{end}:{anchor}:{rejected}"
+    return "review-" + hashlib.sha256(raw.encode()).hexdigest()[:12]
+
+
+def _evidence_record(segment):
+    return {
+        "sha": segment.get("sha", ""),
+        "date": segment.get("date", ""),
+        "subject": segment.get("subject", ""),
+        "decision_notes": {
+            "chosen": segment.get("authored_decisions") or [],
+            "rejected": segment.get("authored_rejected") or [],
+        },
+        "sessions": segment.get("evidence") or [],
+        "tests": segment.get("test_refs") or [],
+        "pull_requests": segment.get("pr_refs") or [],
+    }
+
+
+def _card(file, start, end, segments, precision):
+    valid = _valid_segments(segments)
+    primary = _primary_segment(valid)
+    if segments and not valid:
+        segments, precision = [], "none"
+    else:
+        segments = valid
+    rejected = list((primary or {}).get("authored_rejected") or [])
+    chosen = list((primary or {}).get("authored_decisions") or [])
+    has_context = bool(primary and segment_has_why(primary))
+    kind = ("potential_conflict" if rejected else
+            "decision_context" if has_context else "no_evidence")
+    evidence = None
+    interpretation = None
+    if primary:
+        evidence = {
+            "primary": _evidence_record(primary),
+            "supporting": [_evidence_record(segment) for segment in segments
+                           if segment is not primary],
+        }
+        generated_summary = (primary.get("why") or "").strip()
+        generated_decisions = primary.get("generated_decisions") or []
+        generated_rejected = primary.get("generated_rejected") or []
+        if generated_summary or generated_decisions or generated_rejected:
+            interpretation = {
+                "label": "generated_interpretation",
+                "authoritative": False,
+                "summary": generated_summary,
+                "decisions": generated_decisions,
+                "rejected": generated_rejected,
+            }
+    span = f"{file}:{start}-{end}"
+    reason = (f"Current diff hunk {span} has no recoverable Git history; "
+              "semantic applicability cannot be evaluated."
+              if precision == "none" else
+              f"Current diff hunk {span} maps to Git history for its changed "
+              "range; semantic applicability is not evaluated.")
+    association = {
+        "reason": reason,
+        "semantic_match": "not_evaluated",
+    }
+    return redact_data({
+        "id": _card_id(file, start, end, primary),
+        "kind": kind,
+        "change": {"file": file, "start": start, "end": end},
+        "association": association,
+        "provenance": {
+            "precision": precision,
+            "label": _precision_label(precision, segments),
+        },
+        "evidence": evidence,
+        "interpretation": interpretation,
+        "judgment": {"status": "unresolved"} if rejected else None,
+    })
+
+
+def build_review_cards(project_path, diff_text=None):
+    """Build the shared deterministic review-card contract."""
     pp = Path(project_path).resolve()
     if diff_text is None:
         diff_text, err = _git_diff(pp)
         if err:
-            return None, err
+            return None, err, None
     hunks = parse_unified_diff(diff_text)
     if not hunks:
-        return "没有可分析的改动块(diff 为空或无法解析)。", None
+        return [], None, {
+            "total_hunks": 0, "analyzed_hunks": 0,
+            "truncated": False, "max_hunks": MAX_REVIEW_HUNKS,
+        }
     total_hunks = len(hunks)
-    hunks = hunks[:MAX_REVIEW_HUNKS]          # 上限:大仓大 diff 逐块 blame O(hunks) 会过慢
+    hunks = hunks[:MAX_REVIEW_HUNKS]
     cache = Cache(CACHE_DB_PATH)
-    blocks = []
-    intercepts = []          # 改动块触及曾否决方案 → 顶部拦截清单(人判防重引入)
-    for file, start, end in hunks:
-        try:
-            segs, precision = collect_graded(cache, pp, file, start, end)
-        except Exception:                        # noqa: BLE001 行级 git/解析失败 → 该块降级
-            segs, precision = [], "none"
-        if segs:
-            body = _format(file, start, end, segs).rstrip()  # 复用 blame 的确定性渲染
-            blocks.append(f"{body}\n  {_precision_label(precision, segs)}")
-            rejs = [r for s in segs for r in (s.get("rejected") or [])]
-            if rejs:
-                intercepts.append((file, start, end, rejs))
-        else:
-            blocks.append(f"# {file}:{start}-{end}  {_BADGE['none']} 无据:"
-                          "零-LLM 无从溯源,可先 codetalk enrich")
-    cache.close()
-    header = ("# review 接地(零 LLM,逐块历史决策 + 溯源精度)\n"
-              "> 溯源精度=确定性信号(行级精确 vs 文件级降级 vs 无据),"
-              "**非**判断这条 why 对不对(语义需模型,零-LLM 不判)。\n\n")
-    if total_hunks > MAX_REVIEW_HUNKS:        # 截断提示:余下用单点 blame 查
-        header += (f"> 注:diff 含 {total_hunks} 个改动块,只接地前 {MAX_REVIEW_HUNKS}"
-                   f"(避免大仓逐块 blame 过慢);其余请用 `codetalk blame <文件:行>` 单点查。\n\n")
-    return redact_secrets(
-        header + _intercept_section(intercepts) + "\n\n".join(blocks)), None
+    cards = []
+    try:
+        for file, start, end in hunks:
+            try:
+                segs, precision = collect_graded(cache, pp, file, start, end)
+                cards.append(_card(file, start, end, segs, precision))
+            except Exception:  # noqa: BLE001 - external data must degrade
+                cards.append(_card(file, start, end, [], "none"))
+    finally:
+        cache.close()
+    cards.sort(key=lambda card: (
+        {"potential_conflict": 0, "decision_context": 1,
+         "no_evidence": 2}[card["kind"]],
+        {"line": 0, "file": 1, "none": 2}.get(
+            card["provenance"]["precision"], 3),
+    ))
+    return cards, None, {
+        "total_hunks": total_hunks,
+        "analyzed_hunks": len(hunks),
+        "truncated": total_hunks > MAX_REVIEW_HUNKS,
+        "max_hunks": MAX_REVIEW_HUNKS,
+    }
+
+
+def _render_card(card):
+    change = card["change"]
+    span = f"{change['file']}:{change['start']}-{change['end']}"
+    if card["kind"] == "potential_conflict":
+        title = f"[{card['id']}] 潜在决策冲突 · {span}"
+    elif card["kind"] == "decision_context":
+        title = f"[{card['id']}] 决策上下文 · {span}"
+    else:
+        title = f"[{card['id']}] 未找到决策证据 · {span}"
+    lines = [title]
+    evidence_region = card.get("evidence") or {}
+    evidence = evidence_region.get("primary") or {}
+    notes = evidence.get("decision_notes") or {}
+    for text in notes.get("rejected") or []:
+        lines.append(f"  否决备选(曾放弃):{text}")
+    for text in notes.get("chosen") or []:
+        lines.append(f"  决策:{text}")
+    interpretation = card.get("interpretation")
+    if interpretation:
+        if interpretation["summary"]:
+            lines.append(f"  生成解释(非证据):{interpretation['summary']}")
+        for text in interpretation["rejected"]:
+            lines.append(f"  生成解释·否决路径(非证据):{text}")
+        for text in interpretation["decisions"]:
+            lines.append(f"  生成解释·决策(非证据):{text}")
+    if evidence:
+        lines.append(f"  来源:[{evidence['sha'][:7]}] {str(evidence['date'])[:10]} "
+                     f"{evidence['subject']} · commit 触达")
+    elif card["kind"] == "no_evidence":
+        lines.append("  无据:零-LLM 无从溯源,可先 codetalk enrich")
+    lines.append("  " + card["provenance"]["label"])
+    lines.append("  关联只来自 git 历史,未做语义判定;需要人工判断。")
+    return "\n".join(lines)
+
+
+def render_review_cards(cards, meta):
+    if not cards:
+        return "没有可分析的改动块(diff 为空或无法解析)。"
+    conflicts = [card for card in cards if card["kind"] == "potential_conflict"]
+    lines = ["# review 接地(零 LLM,决策证据 + 溯源精度)",
+             "> CodeTalk 只恢复记录并说明关联;"
+             "是否适用于当前改动由人判断。", ""]
+    if conflicts:
+        lines.extend(["## 拦截检查:改动触及曾否决的方案",
+                      "> 确认结果可记录到 docs/discovery/interceptions.md。", ""])
+    lines.append("\n\n".join(_render_card(card) for card in cards))
+    if meta["truncated"]:
+        lines.extend(["", f"> 注:diff 含 {meta['total_hunks']} 个改动块,"
+                      f"只接地前 {meta['max_hunks']};其余请用 "
+                      "`codetalk blame <文件:行>` 单点查。"])
+    return redact_secrets("\n".join(lines))
+
+
+def review(project_path, diff_text=None):
+    """→ (report_text, error)。diff_text=None → 用 git diff HEAD。"""
+    cards, err, meta = build_review_cards(project_path, diff_text)
+    if err:
+        return None, err
+    return render_review_cards(cards, meta), None

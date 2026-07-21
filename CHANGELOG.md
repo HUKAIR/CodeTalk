@@ -22,6 +22,10 @@ made it verifiable.
   (breadth = verbatim decision-note coverage, depth = session anchors), excluding
   LLM-generated narratives.
 - `codetalk --version`; CI test matrix on Python 3.11 through 3.14.
+- `codetalk review --json` exposes the same deterministic decision review cards
+  used by terminal output, with stable identifiers, provenance, primary and
+  supporting evidence, generated interpretation, and unresolved judgment kept
+  as separate fields.
 
 ### Fixed
 
@@ -49,6 +53,9 @@ made it verifiable.
   dedicated `test` extra, without adding it to Web runtime or core dependencies.
 - CI uses read-only token permissions, does not persist checkout credentials,
   and pins official GitHub Actions to immutable Node 24 release SHAs.
+- Review cards now treat only explicit commit decision notes and verifiable
+  source records as evidence; model-generated decisions and rejected paths stay
+  visibly labeled as non-authoritative interpretation.
 
 ## 0.1.0 - 2026-07-01
 
