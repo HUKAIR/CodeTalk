@@ -112,6 +112,13 @@ directory where applicable:
   privacy, and status-neutral release-note validation. Its wheel installed with
   no dependencies in a fresh environment; `--version`, `doctor`, and
   `review --json` passed in a synthetic repository.
+- GitHub Actions run
+  [`29871281164`](https://github.com/HUKAIR/CodeTalk/actions/runs/29871281164)
+  completed successfully from commit `97f5d3c`: all build and candidate jobs
+  passed, while preflight and every publication job were skipped.
+- The post-run public-state audit found no remote tag, GitHub Release, PyPI
+  0.2.0 publication, Pages site, or Homepage. Issue #142 remained open;
+  protected environments and immutable Releases remained unconfigured.
 
 ## Remaining Release Gates
 
@@ -123,9 +130,6 @@ These are evidence gaps, not hidden implementation claims:
 - Publish and verify a GitHub Release before describing the MCP bundle or VSIX as
   directly downloadable.
 - Publish and verify PyPI only if `pip install codetalk` will be advertised.
-- Complete a real `publish=false` run from the default branch before creating
-  any release tag. This run must leave tag, PyPI, Release, Pages, Homepage, and
-  issue #142 unchanged.
 - Collect at least one external pilot interception. The current blind comparison
   is useful but small (`N=5`, one repository, human judged).
 - Add a short current-product demo recording before a broad launch.

@@ -26,8 +26,10 @@ OIDC Trusted Publishing, GitHub Pages.
   Release recovery.
 - Local verification passed 825 tests, real candidate validation, a clean wheel
   install, and synthetic-repository `doctor` plus `review --json` smoke tests.
-- Task 4 remains open only for the default-branch push, real `publish=false`
-  workflow run, and read-only public-state recheck. No publication is authorized.
+- Task 4 completed its default-branch push, real `publish=false` workflow run,
+  and read-only public-state recheck in Actions run `29871281164`. No tag or
+  public release state was created; the irreversible promotion gate remains
+  closed and requires fresh owner authorization.
 
 ## Global Constraints
 

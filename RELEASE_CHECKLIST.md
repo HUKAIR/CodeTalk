@@ -103,6 +103,8 @@ before promotion:
 Run the non-publishing rehearsal first:
 
 - `gh workflow run release.yml --ref main -f publish=false`
+- Completed evidence: Actions run `29871281164` passed from `97f5d3c`; all jobs
+  after `candidate` were skipped and the public-state recheck was unchanged.
 - Watch the run and require the reusable test workflow, candidate validation,
   secret scan, product-proof test, and Pages artifact upload to pass.
 - Confirm every job after `candidate` is skipped.
