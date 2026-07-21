@@ -19,7 +19,7 @@ class TestCheckStatic(unittest.TestCase):
 
     def test_served_pages_have_no_external_links(self):
         # 红线实测:web app 托管的页面(对话页 + 接进来的控制台)绝不外联
-        for name in ("web_chat.html", "console.html", "tunnel.html"):
+        for name in ("web_chat.html", "console.html", "tunnel.html", "review.html"):
             self.assertEqual(check_file(_PKG / name), [], name)
 
 

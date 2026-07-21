@@ -6,15 +6,13 @@
 终端和结构化输出共享同一审查卡契约。零 LLM、不出网、出口脱敏、解析失败降级绝不崩。
 """
 import hashlib
-import re
 import subprocess
 from pathlib import Path
 
 from .blame import collect_graded, segment_has_why
 from .cache import Cache
 from .config import CACHE_DB_PATH, redact_data, redact_secrets
-
-_HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
+from .review_diff import parse_unified_diff_hunks
 
 # 逐块 blame 是 O(hunks)(每块一次 git log -L);大仓大 diff(实测某深历史仓 276 块约 33s)会过慢,
 # 上限内接地、超出截断并指引单点 blame——防 review 在中大仓上拖死。
@@ -59,21 +57,8 @@ def _precision_label(precision, segs):
 def parse_unified_diff(text):
     """统一 diff → [(file, start, end)] 每 hunk 一条(post-image 行范围)。
     跟 `+++ b/<file>` 定位文件,`@@ … +start,count @@` 取范围;无法解析/纯删除块跳过,绝不崩。"""
-    hunks, cur = [], None
-    for line in (text or "").splitlines():
-        if line.startswith("+++ "):
-            path = line[4:].strip()
-            cur = None if path == "/dev/null" else re.sub(r"^b/", "", path)
-        elif line.startswith("@@") and cur:
-            m = _HUNK.match(line)
-            if not m:
-                continue
-            start = int(m.group(1))
-            count = int(m.group(2)) if m.group(2) else 1
-            if count <= 0:                       # 纯删除块:post-image 无行,跳过
-                continue
-            hunks.append((cur, start, start + count - 1))
-    return hunks
+    return [(hunk["file"], hunk["start"], hunk["end"])
+            for hunk in parse_unified_diff_hunks(text)]
 
 
 def _git_diff(pp):
@@ -134,7 +119,7 @@ def _evidence_record(segment):
     }
 
 
-def _card(file, start, end, segments, precision):
+def _card(file, start, end, segments, precision, diff=""):
     valid = _valid_segments(segments)
     primary = _primary_segment(valid)
     if segments and not valid:
@@ -178,7 +163,7 @@ def _card(file, start, end, segments, precision):
     return redact_data({
         "id": _card_id(file, start, end, primary),
         "kind": kind,
-        "change": {"file": file, "start": start, "end": end},
+        "change": {"file": file, "start": start, "end": end, "diff": diff},
         "association": association,
         "provenance": {
             "precision": precision,
@@ -197,7 +182,7 @@ def build_review_cards(project_path, diff_text=None):
         diff_text, err = _git_diff(pp)
         if err:
             return None, err, None
-    hunks = parse_unified_diff(diff_text)
+    hunks = parse_unified_diff_hunks(diff_text)
     if not hunks:
         return [], None, {
             "total_hunks": 0, "analyzed_hunks": 0,
@@ -208,12 +193,13 @@ def build_review_cards(project_path, diff_text=None):
     cache = Cache(CACHE_DB_PATH)
     cards = []
     try:
-        for file, start, end in hunks:
+        for hunk in hunks:
+            file, start, end = hunk["file"], hunk["start"], hunk["end"]
             try:
                 segs, precision = collect_graded(cache, pp, file, start, end)
-                cards.append(_card(file, start, end, segs, precision))
+                cards.append(_card(file, start, end, segs, precision, hunk["diff"]))
             except Exception:  # noqa: BLE001 - external data must degrade
-                cards.append(_card(file, start, end, [], "none"))
+                cards.append(_card(file, start, end, [], "none", hunk["diff"]))
     finally:
         cache.close()
     cards.sort(key=lambda card: (

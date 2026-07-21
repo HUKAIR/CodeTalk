@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>$project - Decision review</title>
+  <style>
+    :root {
+      --bg: #f4f6f3; --surface: #ffffff; --ink: #18201c; --muted: #5d6861;
+      --line: #d8ded9; --soft: #edf1ed; --red: #a5342f; --red-bg: #fff2f0;
+      --blue: #245f92; --blue-bg: #edf6fc; --green: #28724d; --green-bg: #edf8f1;
+      --amber: #8a6117; --amber-bg: #fff8e8; --focus: #1668b2;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Microsoft YaHei", sans-serif;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+    * { box-sizing: border-box; letter-spacing: 0; }
+    body { margin: 0; min-width: 280px; background: var(--bg); color: var(--ink);
+      font: 14px/1.55 var(--sans); }
+    button, input { font: inherit; }
+    button:focus-visible, input:focus-visible, summary:focus-visible {
+      outline: 3px solid rgba(22, 104, 178, .32);
+      outline-offset: 2px;
+    }
+    .topbar { position: sticky; top: 0; z-index: 10; background: var(--surface);
+      border-bottom: 1px solid var(--line); }
+    .topbar-inner { width: min(1080px, 100%); min-height: 56px; margin: 0 auto;
+      padding: 10px 22px; display: flex; align-items: center; gap: 14px; }
+    .brand { font-weight: 750; font-size: 15px; white-space: nowrap; }
+    .crumb { min-width: 0; color: var(--muted); overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap; }
+    .local { margin-left: auto; color: var(--green); font: 12px var(--mono);
+      white-space: nowrap; }
+    .lang { width: 34px; height: 32px; border: 1px solid var(--line); border-radius: 5px;
+      background: var(--surface); color: var(--muted); cursor: pointer; }
+    main { width: min(1080px, 100%); margin: 0 auto; padding: 28px 22px 80px; }
+    .summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px;
+      align-items: end; margin-bottom: 22px; }
+    h1 { margin: 0; font-size: 24px; line-height: 1.2; font-weight: 720; }
+    .summary p { margin: 6px 0 0; color: var(--muted); }
+    .counts { display: flex; gap: 18px; align-items: baseline; color: var(--muted); }
+    .counts strong { color: var(--ink); font-size: 18px; }
+    .cards { display: grid; gap: 14px; }
+    .card { background: var(--surface); border: 1px solid var(--line); border-radius: 7px;
+      overflow: hidden; }
+    .card-head { min-height: 68px; padding: 15px 18px; display: grid;
+      grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center;
+      border-bottom: 1px solid var(--line); }
+    .kind { color: var(--red); font-weight: 720; font-size: 13px; }
+    .kind.context { color: var(--blue); }
+    .kind.empty { color: var(--muted); }
+    .location { margin-top: 3px; font: 12px/1.5 var(--mono); color: var(--muted);
+      overflow-wrap: anywhere; }
+    .card-id { font: 11px var(--mono); color: var(--muted); overflow-wrap: anywhere; }
+    .card-body { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(240px, .8fr);
+      gap: 0; }
+    .main-column { min-width: 0; padding: 18px; }
+    .side-column { min-width: 0; padding: 18px; border-left: 1px solid var(--line);
+      background: #fafcf9; }
+    .section + .section { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); }
+    .label { margin: 0 0 8px; color: var(--muted); font-size: 11px;
+      font-weight: 720; text-transform: uppercase; }
+    .decision { border-left: 3px solid var(--red); padding: 10px 12px;
+      background: var(--red-bg); overflow-wrap: anywhere; }
+    .decision.chosen { border-color: var(--green); background: var(--green-bg); }
+    .decision + .decision { margin-top: 8px; }
+    .decision b { display: block; margin-bottom: 2px; font-size: 12px; }
+    .interpretation { padding: 12px; border: 1px solid #b9d6e9; border-radius: 5px;
+      max-height: 280px; overflow: auto; background: var(--blue-bg);
+      overflow-wrap: anywhere; }
+    .interpretation .notice { color: var(--blue); font-weight: 720; font-size: 12px;
+      margin-bottom: 6px; }
+    .interpretation p { margin: 0; }
+    .interpretation ul { margin: 7px 0 0; padding-left: 20px; }
+    .provenance { padding: 11px 12px; background: var(--amber-bg);
+      border-left: 3px solid var(--amber); overflow-wrap: anywhere; }
+    .provenance strong { display: block; color: var(--amber); margin-bottom: 3px; }
+    details { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 14px; }
+    summary { min-height: 34px; cursor: pointer; color: var(--blue); font-weight: 680; }
+    .sources { display: grid; gap: 14px; padding: 8px 0 2px; }
+    .source-group { min-width: 0; }
+    .source-group + .source-group { border-top: 1px solid var(--line); padding-top: 12px; }
+    .source-title { margin: 0 0 7px; font-size: 12px; font-weight: 720; }
+    .source-row { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 10px;
+      padding: 5px 0; }
+    .source-type { color: var(--muted); font: 11px/1.55 var(--mono); }
+    .source-value { min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+    code { font-family: var(--mono); font-size: 12px; }
+    pre { margin: 0; max-height: 260px; overflow: auto; padding: 10px;
+      background: #f1f3f1; border: 1px solid var(--line); border-radius: 4px;
+      white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.55 var(--mono); }
+    fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+    legend { padding: 0; margin: 0 0 9px; font-weight: 720; }
+    .choices { display: grid; grid-template-columns: 1fr; gap: 7px; }
+    .choice { position: relative; min-height: 40px; display: flex; align-items: center;
+      padding: 8px 10px 8px 34px; border: 1px solid var(--line); border-radius: 5px;
+      background: var(--surface); cursor: pointer; overflow-wrap: anywhere; }
+    .choice:hover { border-color: #94a39a; }
+    .choice input { position: absolute; left: 10px; width: 15px; height: 15px; margin: 0; }
+    .choice:has(input:checked) { border-color: var(--focus); background: var(--blue-bg); }
+    .action { display: none; margin-top: 13px; padding: 11px; background: var(--soft);
+      border-radius: 5px; }
+    .action.visible { display: block; }
+    .action-title { margin-bottom: 8px; font-weight: 680; }
+    .binary { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .save { width: 100%; min-height: 40px; margin-top: 14px; border: 1px solid #1c5e40;
+      border-radius: 5px; background: var(--green); color: #fff; font-weight: 720;
+      cursor: pointer; }
+    .save:hover:not(:disabled) { background: #205e41; }
+    .save:disabled { opacity: .55; cursor: wait; }
+    .saved { min-height: 24px; margin-top: 9px; color: var(--muted); font-size: 12px;
+      overflow-wrap: anywhere; }
+    .verified { display: none; margin-top: 10px; padding: 9px 10px;
+      background: var(--green-bg); border-left: 3px solid var(--green); color: var(--green);
+      font-weight: 720; }
+    .verified.visible { display: block; }
+    .empty-state { padding: 38px 20px; text-align: center; color: var(--muted);
+      background: var(--surface); border: 1px solid var(--line); border-radius: 7px; }
+    @media (max-width: 720px) {
+      .topbar-inner { padding-inline: 14px; }
+      .crumb { display: none; }
+      main { padding: 20px 12px 56px; }
+      .summary { grid-template-columns: 1fr; align-items: start; }
+      .counts { justify-content: space-between; }
+      .card-head { grid-template-columns: 1fr; }
+      .card-id { justify-self: start; }
+      .card-body { grid-template-columns: 1fr; }
+      .side-column { border-left: 0; border-top: 1px solid var(--line); }
+      .source-row { grid-template-columns: 1fr; gap: 2px; }
+      .interpretation { max-height: 220px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important;
+        animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">CodeTalk</div>
+      <div class="crumb">$project</div>
+      <div class="local" data-i18n="local">LOCAL / NO TELEMETRY</div>
+      <button class="lang" id="lang" type="button" aria-label="Switch language">中</button>
+    </div>
+  </header>
+  <main>
+    <section class="summary">
+      <div><h1 data-i18n="title">Decision review</h1><p data-i18n="subtitle">Resolve the evidence before the change ships.</p></div>
+      <div class="counts" id="counts"></div>
+    </section>
+    <div class="cards" id="cards"></div>
+  </main>
+  <script>
+    var DATA = $data;
+    var STARTED = Date.now();
+    var TEXT = {
+      en: { local:"LOCAL / NO TELEMETRY", title:"Decision review",
+        subtitle:"Resolve the evidence before the change ships.", total:"cards", resolved:"resolved",
+        conflict:"Potential conflict", context:"Decision context", empty:"No decision evidence",
+        evidence:"Decision evidence", rejected:"Previously rejected", chosen:"Chosen direction",
+        interpretation:"Generated interpretation - not evidence", provenance:"Provenance",
+        sources:"Original sources", primary:"Primary source", supporting:"Supporting source",
+        commit:"Commit", diff:"Diff", note:"Decision note", test:"Test", pr:"Pull request", session:"Session",
+        judgment:"Maintainer judgment", confirmed:"Confirmed conflict", exception:"Intentional exception",
+        unrelated:"Unrelated", insufficient:"Insufficient evidence", changed:"Did this change the proposed action?",
+        yes:"Yes", no:"No", save:"Save judgment", saved:"Saved locally", failed:"Could not save",
+        choose:"Select a judgment", actionRequired:"Record whether the action changed",
+        verified:"Verified interception", none:"No review cards for this diff." },
+      zh: { local:"仅本机 / 无遥测", title:"决策审查", subtitle:"在改动提交前完成人工判断。",
+        total:"张卡片", resolved:"已判断", conflict:"潜在冲突", context:"决策上下文", empty:"没有决策证据",
+        evidence:"决策证据", rejected:"曾否决", chosen:"当时选择", interpretation:"生成解释（非证据）",
+        provenance:"溯源关联", sources:"原始来源", primary:"主要来源", supporting:"补充来源",
+        commit:"Commit", diff:"Diff", note:"决策记录", test:"测试", pr:"Pull Request", session:"会话原话",
+        judgment:"维护者判断", confirmed:"确认冲突", exception:"有意例外", unrelated:"无关",
+        insufficient:"证据不足", changed:"这次判断是否改变了原计划？", yes:"是", no:"否",
+        save:"保存判断", saved:"已保存到本机", failed:"保存失败", choose:"请选择一种判断",
+        actionRequired:"请记录是否改变了原计划", verified:"已验证拦截", none:"当前差异没有审查卡片。" }
+    };
+    var LANG = (function(){ try { var saved = localStorage.getItem("codetalk.lang");
+      if (saved === "en" || saved === "zh") return saved; } catch(e) {}
+      return (navigator.language || "").slice(0,2).toLowerCase() === "zh" ? "zh" : "en"; })();
+    function t(key){ return TEXT[LANG][key] || TEXT.en[key] || key; }
+    function esc(value){ return String(value == null ? "" : value).replace(/&/g,"&amp;")
+      .replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;"); }
+    function arr(value){ return Array.isArray(value) ? value : []; }
+    function list(items){ return arr(items).map(function(item){ return "<li>" + esc(item) + "</li>"; }).join(""); }
+    function sourceRow(type, value, pre){ if (value == null || value === "" || (Array.isArray(value) && !value.length)) return "";
+      var body = pre ? "<pre>" + esc(value) + "</pre>" : '<div class="source-value">' + esc(value) + "</div>";
+      return '<div class="source-row"><div class="source-type">' + esc(type) + "</div>" + body + "</div>"; }
+    function sourceRecord(source, title){
+      if (!source) return "";
+      var h = '<div class="source-group"><div class="source-title">' + esc(title) + "</div>";
+      h += sourceRow(t("commit"), [source.sha, source.date, source.subject].filter(Boolean).join(" / "));
+      var notes = source.decision_notes || {};
+      arr(notes.rejected).forEach(function(v){ h += sourceRow(t("note"), t("rejected") + ": " + v); });
+      arr(notes.chosen).forEach(function(v){ h += sourceRow(t("note"), t("chosen") + ": " + v); });
+      arr(source.tests).forEach(function(v){ v = v || {}; h += sourceRow(t("test"), [v.path, arr(v.names).join(", ")].filter(Boolean).join(" / ")); });
+      arr(source.pull_requests).forEach(function(v){ v = v || {}; h += sourceRow(t("pr"), [v.number ? "#" + v.number : "", v.title, v.snippet].filter(Boolean).join(" / ")); });
+      arr(source.sessions).forEach(function(v){ v = v || {}; var parts = [v.source, v.ts];
+        arr(v.prompts).forEach(function(p){ parts.push(p); }); arr(v.excerpts).forEach(function(p){ parts.push(p); });
+        h += sourceRow(t("session"), parts.filter(Boolean).join("\n")); });
+      return h + "</div>";
+    }
+    function sourcesHtml(card){
+      var evidence = card.evidence || {}, h = "";
+      if (card.change && card.change.diff) h += '<div class="source-group">' + sourceRow(t("diff"), card.change.diff, true) + "</div>";
+      h += sourceRecord(evidence.primary, t("primary"));
+      arr(evidence.supporting).forEach(function(v, i){ h += sourceRecord(v, t("supporting") + " " + (i + 1)); });
+      return '<details><summary>' + esc(t("sources")) + '</summary><div class="sources">' + h + "</div></details>";
+    }
+    function evidenceHtml(card){
+      var primary = (card.evidence || {}).primary || {}, notes = primary.decision_notes || {}, h = "";
+      arr(notes.rejected).forEach(function(v){ h += '<div class="decision"><b>' + esc(t("rejected")) + "</b>" + esc(v) + "</div>"; });
+      arr(notes.chosen).forEach(function(v){ h += '<div class="decision chosen"><b>' + esc(t("chosen")) + "</b>" + esc(v) + "</div>"; });
+      return h || '<div class="decision chosen">' + esc(primary.subject || t("empty")) + "</div>";
+    }
+    function interpretationHtml(value){ if (!value) return ""; var h = "";
+      if (value.summary) h += "<p>" + esc(value.summary) + "</p>";
+      if (arr(value.rejected).length || arr(value.decisions).length) h += "<ul>" + list(value.rejected) + list(value.decisions) + "</ul>";
+      return '<section class="section" data-section="interpretation"><div class="label">' + esc(t("interpretation"))
+        + '</div><div class="interpretation"><div class="notice">' + esc(t("interpretation")) + "</div>" + h + "</div></section>"; }
+    function choice(name, value, label, checked){ return '<label class="choice"><input type="radio" name="' + esc(name)
+      + '" value="' + esc(value) + '"' + (checked ? " checked" : "") + ">" + esc(label) + "</label>"; }
+    function judgmentHtml(card, i){ var saved = DATA.judgments[card.id] || {}, name = "judgment-" + i;
+      var h = '<form data-review-form="' + i + '"><fieldset><legend>' + esc(t("judgment")) + '</legend><div class="choices">';
+      [["confirmed_conflict","confirmed"],["intentional_exception","exception"],["unrelated","unrelated"],["insufficient_evidence","insufficient"]]
+        .forEach(function(v){ h += choice(name, v[0], t(v[1]), saved.status === v[0]); });
+      h += '</div></fieldset><div class="action' + (saved.status === "confirmed_conflict" ? " visible" : "") + '" id="action-' + i + '"><div class="action-title">' + esc(t("changed")) + '</div><div class="binary">';
+      h += choice("changed-" + i, "true", t("yes"), saved.action_changed === true);
+      h += choice("changed-" + i, "false", t("no"), saved.action_changed === false);
+      h += '</div></div><button class="save" type="submit">' + esc(t("save")) + '</button><div class="saved" id="saved-' + i + '">'
+        + (saved.status ? esc(t("saved")) : "") + '</div><div class="verified' + (saved.verified_interception ? " visible" : "")
+        + '" id="verified-' + i + '">' + esc(t("verified")) + "</div></form>"; return h; }
+    function cardHtml(card, i){ var kindKey = card.kind === "potential_conflict" ? "conflict" : (card.kind === "decision_context" ? "context" : "empty");
+      var change = card.change || {}, location = (change.file || "") + ":" + (change.start || "") + "-" + (change.end || "");
+      var h = '<article class="card"><header class="card-head"><div><div class="kind ' + esc(kindKey) + '">' + esc(t(kindKey))
+        + '</div><div class="location">' + esc(location) + '</div></div><div class="card-id">' + esc(card.id) + "</div></header>";
+      h += '<div class="card-body"><div class="main-column"><section class="section" data-section="evidence"><div class="label">'
+        + esc(t("evidence")) + "</div>" + evidenceHtml(card) + "</section>" + interpretationHtml(card.interpretation);
+      h += sourcesHtml(card) + '</div><aside class="side-column"><section class="section" data-section="provenance"><div class="label">'
+        + esc(t("provenance")) + '</div><div class="provenance"><strong>' + esc((card.provenance || {}).label || "")
+        + "</strong>" + esc((card.association || {}).reason || "") + "</div></section>" + judgmentHtml(card, i) + "</aside></div></article>"; return h; }
+    function updateCounts(){
+      var resolved = Object.keys(DATA.judgments || {}).filter(function(k){ return DATA.judgments[k] && DATA.judgments[k].status; }).length;
+      document.getElementById("counts").innerHTML = "<span><strong>" + DATA.cards.length + "</strong> " + esc(t("total")) + "</span><span><strong>" + resolved + "</strong> " + esc(t("resolved")) + "</span>";
+    }
+    function render(){ document.documentElement.lang = LANG; document.querySelectorAll("[data-i18n]").forEach(function(el){ el.textContent = t(el.dataset.i18n); });
+      document.getElementById("lang").textContent = LANG === "en" ? "中" : "EN"; updateCounts();
+      document.getElementById("cards").innerHTML = DATA.cards.length ? DATA.cards.map(cardHtml).join("") : '<div class="empty-state">' + esc(t("none")) + "</div>";
+      wire(); }
+    function wire(){ DATA.cards.forEach(function(card, i){ var form = document.querySelector('[data-review-form="' + i + '"]');
+      var action = document.getElementById("action-" + i); form.querySelectorAll('input[name="judgment-' + i + '"]').forEach(function(input){ input.addEventListener("change", function(){ action.classList.toggle("visible", input.value === "confirmed_conflict" && input.checked); }); });
+      form.addEventListener("submit", function(event){ event.preventDefault(); var picked = form.querySelector('input[name="judgment-' + i + '"]:checked');
+        var message = document.getElementById("saved-" + i); if (!picked){ message.textContent = t("choose"); return; }
+        var changed = null; if (picked.value === "confirmed_conflict"){ var actionInput = form.querySelector('input[name="changed-' + i + '"]:checked');
+          if (!actionInput){ message.textContent = t("actionRequired"); return; } changed = actionInput.value === "true"; }
+        var button = form.querySelector("button"); button.disabled = true;
+        fetch("/judgment", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({card_id:card.id,status:picked.value,action_changed:changed,elapsed_seconds:(Date.now()-STARTED)/1000})})
+          .then(function(response){ if (!response.ok) throw new Error(); return response.json(); })
+          .then(function(body){ DATA.judgments[card.id] = body.judgment; message.textContent = t("saved");
+            document.getElementById("verified-" + i).classList.toggle("visible", body.judgment.verified_interception); updateCounts(); })
+          .catch(function(){ message.textContent = t("failed"); }).finally(function(){ button.disabled = false; }); }); }); }
+    document.getElementById("lang").addEventListener("click", function(){ LANG = LANG === "en" ? "zh" : "en";
+      try { localStorage.setItem("codetalk.lang", LANG); } catch(e) {} render(); });
+    render();
+  </script>
+</body>
+</html>

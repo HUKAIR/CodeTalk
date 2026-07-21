@@ -1,5 +1,6 @@
 """SQLite cache: commit narratives are immutable by SHA; session summaries
 update incrementally by (session_id, last_msg_ts)."""
+import hashlib
 import json
 import logging
 import sqlite3
@@ -29,6 +30,10 @@ CREATE TABLE IF NOT EXISTS capsules (
 CREATE TABLE IF NOT EXISTS reviewed (
     project TEXT, sha TEXT, reviewed_at TEXT,
     PRIMARY KEY (project, sha));
+CREATE TABLE IF NOT EXISTS review_judgments (
+    project_key TEXT, card_id TEXT, status TEXT, action_changed INTEGER,
+    elapsed_seconds REAL, updated_at TEXT,
+    PRIMARY KEY (project_key, card_id));
 CREATE TABLE IF NOT EXISTS web_conversations (
     turn_id TEXT PRIMARY KEY, conv_id TEXT, project TEXT, ts TEXT,
     role TEXT, text TEXT, cited_shas TEXT);
@@ -192,6 +197,33 @@ class Cache(CapsuleMixin):
         """{sha: reviewed_at} —— 供理解债算『回看行为』与时间衰减。"""
         return {r[0]: r[1] for r in self.conn.execute(
             "SELECT sha, reviewed_at FROM reviewed WHERE project=?", (project,))}
+
+    @staticmethod
+    def _review_project_key(project):
+        return hashlib.sha256(str(project).encode()).hexdigest()
+
+    def put_review_judgment(self, project, card_id, status, action_changed,
+                            elapsed_seconds):
+        """Store only local review metadata; the project path is irreversibly keyed."""
+        key = self._review_project_key(project)
+        changed = None if action_changed is None else int(action_changed)
+        self.conn.execute(
+            "INSERT OR REPLACE INTO review_judgments VALUES (?,?,?,?,?,?)",
+            (key, card_id, status, changed, elapsed_seconds, self._now()))
+        self.conn.commit()
+
+    def get_review_judgments(self, project):
+        key = self._review_project_key(project)
+        rows = self.conn.execute(
+            "SELECT card_id,status,action_changed,elapsed_seconds,updated_at "
+            "FROM review_judgments WHERE project_key=?", (key,)).fetchall()
+        return {row[0]: {
+            "status": row[1],
+            "action_changed": None if row[2] is None else bool(row[2]),
+            "elapsed_seconds": row[3],
+            "updated_at": row[4],
+            "verified_interception": row[1] == "confirmed_conflict" and bool(row[2]),
+        } for row in rows}
 
     def rekey_project(self, old, new):
         """把胶囊/日报/reviewed 三表的 project 键从 old 迁到 new(同名项目串键修复

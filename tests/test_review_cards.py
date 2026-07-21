@@ -47,9 +47,10 @@ class TestDecisionReviewCards(unittest.TestCase):
         self.assertEqual(len(cards), 1)
         card = cards[0]
         self.assertEqual(card["kind"], "potential_conflict")
-        self.assertEqual(card["change"], {
+        self.assertEqual({k: card["change"][k] for k in ("file", "start", "end")}, {
             "file": "client.py", "start": 1, "end": 2,
         })
+        self.assertIn("return 'new client'", card["change"]["diff"])
         self.assertEqual(card["provenance"]["precision"], "line")
         self.assertEqual(card["association"]["semantic_match"], "not_evaluated")
         primary = card["evidence"]["primary"]

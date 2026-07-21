@@ -86,6 +86,11 @@ def review_cmd(args):
     elif not sys.stdin.isatty():
         piped = sys.stdin.read()
         diff_text = piped if piped.strip() else None
+    if getattr(args, "serve", False):
+        from .review_web import serve_review
+        err = serve_review(args.project, diff_text,
+                           open_browser=not getattr(args, "no_open", False))
+        return _fail(err) if err else 0
     if getattr(args, "as_json", False):
         cards, err, meta = build_review_cards(args.project, diff_text)
         if err:

@@ -26,6 +26,10 @@ made it verifiable.
   used by terminal output, with stable identifiers, provenance, primary and
   supporting evidence, generated interpretation, and unresolved judgment kept
   as separate fields.
+- `codetalk review --serve` opens the same cards in a loopback-only bilingual
+  review page with collapsible sources and four locally persisted maintainer
+  judgments; only a confirmed conflict that changes the proposed action is
+  labeled a verified interception.
 
 ### Fixed
 
