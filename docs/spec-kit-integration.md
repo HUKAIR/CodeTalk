@@ -128,7 +128,8 @@ If your team is already in the Spec Kit / Kiro / OpenSpec / BMAD / Antigravity u
   it, CodeTalk can use optional LLM enrichment of the commit message, which can
   still hallucinate; that is why enrichment is not the deterministic path.
 - The CycloneDX export covers base schema only — not `modelCard` / `formulation` / AI-specific sections, because CodeTalk tracks code decisions, not model artifacts. Don't claim AIBOM conformance you don't have.
-- Coverage depends on decision notes or `codetalk enrich` having run. On a fresh
+- Coverage depends on decision notes or an authorized `codetalk enrich
+  --allow-remote` having run. On a fresh
   repo with neither, blame is close to `git log`. See
   [README honest boundaries](../README.md).
 

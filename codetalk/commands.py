@@ -124,7 +124,8 @@ def init_cmd(args):
 
 def enrich_cmd(args):
     """富集补全(coverage):扫会话对齐 → 零-LLM 给已叙事补 evidence 原话锚点 → LLM 补未叙事。"""
-    from . import align, enrich, gitlog
+    from . import align, enrich, enrich_plan, gitlog
+    from .digest import _sources
     from .llm import LLMClient, LLMError
     cfg = load_config()
     if getattr(args, "no_llm", False):
@@ -135,6 +136,7 @@ def enrich_cmd(args):
         return _fail(err)
     cache = Cache(_cache_db_path())
     cache.rekey_project(pp.name, str(pp))
+    sources = sorted(_sources(cfg, args))
     align.align(commits, _scan_sessions(cfg, args, pp, cache), pp)
     ev = enrich.backfill_evidence(commits, cache, str(pp))
     reenrich = getattr(args, "reenrich", False)
@@ -144,10 +146,22 @@ def enrich_cmd(args):
         missing = commits
     else:
         missing = [c for c in commits if not cache.get_narrative(c["sha"])]
-    if not missing:
+    plan = enrich_plan.build_plan(
+        cfg, commits, missing, str(pp), sources, ev, reenrich=reenrich,
+        allow_remote=getattr(args, "allow_remote", False),
+        payload_preview=getattr(args, "payload_preview", False))
+    preview = None
+    if getattr(args, "payload_preview", False) and missing:
+        preview = enrich_plan.outbound_request_preview(
+            cfg, missing[0], cache, str(pp))
+    print(enrich_plan.render_plan(plan, preview))
+    if not plan["model_request"]:
         cache.close()
-        print(f"补 evidence {ev} 条;全部 {len(commits)} 个 commit 已有叙事。")
+        print(f"补 evidence {ev} 条;模型请求未发送;待叙事 {len(missing)} 个 commit。")
         return 0
+    if plan.get("endpoint_error"):
+        cache.close()
+        return _fail("模型端点配置无效:" + plan["endpoint_error"])
     try:
         llm = LLMClient(cfg)
     except LLMError as exc:

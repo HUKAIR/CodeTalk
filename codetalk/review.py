@@ -48,7 +48,7 @@ def _precision_label(precision, segs):
     elif any(segment_has_why(s) for s in segs):
         detail = "仅生成解释(非证据)"
     elif segs:
-        detail = "仅提交记录(无叙事/决策记录,可先 codetalk enrich)"
+        detail = "仅提交记录(无叙事/决策记录,可先 codetalk enrich 查看计划)"
     else:
         detail = "无历史记录"
     return f"{_BADGE.get(precision, _BADGE['none'])} 溯源精度:{base} · {detail}"
@@ -245,7 +245,7 @@ def _render_card(card):
         lines.append(f"  来源:[{evidence['sha'][:7]}] {str(evidence['date'])[:10]} "
                      f"{evidence['subject']} · commit 触达")
     elif card["kind"] == "no_evidence":
-        lines.append("  无据:零-LLM 无从溯源,可先 codetalk enrich")
+        lines.append("  无据:零-LLM 无从溯源,可先 codetalk enrich 查看计划")
     lines.append("  " + card["provenance"]["label"])
     lines.append("  关联只来自 git 历史,未做语义判定;需要人工判断。")
     return "\n".join(lines)

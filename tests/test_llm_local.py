@@ -47,6 +47,12 @@ class TestLocalProvider(unittest.TestCase):
             LLMClient(_cfg("cloudx", {"cloudx": {"base_url": "https://api.cloudx.com/v1",
                                                  "api_key": ""}}))
 
+    def test_anthropic_destination_is_explicit_not_environment_selected(self):
+        llm = LLMClient(_cfg(
+            "anthropic", {"anthropic": {"api_key": "configured-key"}}))
+        self.assertEqual(llm.base_url, "https://api.anthropic.com")
+        self.assertFalse(llm.local)
+
     def test_no_llm_overrides_local(self):
         with self.assertRaises(LLMError):               # no_llm 优先,本地也拦(数据不出本机)
             LLMClient(_cfg("ollama", no_llm=True))

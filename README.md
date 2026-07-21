@@ -50,10 +50,12 @@ LLM synthesis is optional and sits behind the evidence layer.
   They stay in git and can be written by a person, a git hook, or an AI coding
   agent. `blame`, `ask`, and `review` surface all three; `digest` consumes
   decisions and watches, while `graph` uses decisions as graph nodes.
-- **`enrich`** is optional backfill for old commits. It asks an LLM to read a
-  commit plus nearby local session snippets, then stores a redacted narrative in
-  `~/.codetalk/cache.db` under that commit SHA. Use it when old commits do not
-  already have decision notes.
+- **`enrich`** is optional backfill for old commits. It first completes local
+  evidence work and prints an inspectable, no-request plan. A configured API key
+  alone never authorizes remote project-data transfer. `--payload-preview` shows
+  one post-redaction request locally; `--allow-remote` authorizes remote model
+  calls for that command only. Generated narratives are stored under the commit
+  SHA and remain interpretation, not decision evidence.
 - **Grounding evidence** is the material CodeTalk can cite: commit messages,
   all three `Vibe-*` decision-note types, and local session transcript excerpts.
   If there is no evidence, CodeTalk should fall back to listing what it found,
@@ -69,7 +71,7 @@ LLM synthesis is optional and sits behind the evidence layer.
   deserve a reread because they changed recently, carried risks, or have not
   been reviewed.
 
-> **Honest boundaries:** Blind test is N=5, this repo only, human-judged — not a population claim. Coverage depends on decision notes + `enrich`. Run `python3 scripts/grounding_hitrate.py .` for the live non-merge commit count and real-grounding rate; the number is intentionally not frozen here because every new decision-note commit changes it. After a full `codetalk enrich` backfill, the looser narrative-inclusive coverage can approach 100%, but that upper bound is *not* used as a trust claim. A separate 605-commit repo without enrich started at 0.3% and approached 100% after enrich. Without enrich or decision notes, blame shows commit subjects only — similar to `git log`. CodeTalk finds "what was actually said and decided", not "whether the code is correct" — source records themselves may be wrong. Blind-test method: `python3 scripts/blind_test.py`; moat comparison: `docs/moat-real-records-vs-inference.md`.
+> **Honest boundaries:** Blind test is N=5, this repo only, human-judged — not a population claim. Coverage depends on decision notes + `enrich`. Run `python3 scripts/grounding_hitrate.py .` for the live non-merge commit count and real-grounding rate; the number is intentionally not frozen here because every new decision-note commit changes it. After a full authorized `codetalk enrich --allow-remote` backfill, the looser narrative-inclusive coverage can approach 100%, but that upper bound is *not* used as a trust claim. A separate 605-commit repo without enrich started at 0.3% and approached 100% after enrich. Without enrich or decision notes, blame shows commit subjects only — similar to `git log`. CodeTalk finds "what was actually said and decided", not "whether the code is correct" — source records themselves may be wrong. Blind-test method: `python3 scripts/blind_test.py`; moat comparison: `docs/moat-real-records-vs-inference.md`.
 
 ## See it work in 30 seconds
 
@@ -100,9 +102,11 @@ codetalk doctor --project /path/to/repo
 # Step 1 — decision notes already in your history? blame works immediately, zero key:
 codetalk blame yourfile.py --project /path/to/repo
 
-# Step 2 — for full narratives on a repo without decision notes (needs an LLM key):
-codetalk init                              # write config, fill your API key
-codetalk enrich --project /path/to/repo    # backfill decision narratives from git+sessions
+# Step 2 — inspect optional narrative backfill on a repo without decision notes:
+codetalk init                                      # write config, fill your API key
+codetalk enrich --project /path/to/repo            # local evidence work + no-request plan
+codetalk enrich --project /path/to/repo --payload-preview  # show one redacted request, no send
+codetalk enrich --project /path/to/repo --allow-remote     # authorize this remote run only
 
 # Step 3 — make future commits self-document (zero extra effort, no key):
 codetalk install-agent-seed --project .    # your AI agent leaves Vibe-Decision notes
@@ -219,12 +223,24 @@ To switch models: change the top-level `provider` to any of the above and set th
 
 **Zero-egress local inference**: set `provider` to `ollama`, or configure an OpenAI-compatible endpoint whose parsed hostname is exactly `localhost`, `127.0.0.1`, or `::1` (for example LM Studio / llama.cpp / vLLM). CodeTalk does not trust a `local` label or a hostname that merely contains `localhost`. Synthesis then runs on your machine, so the LLM call stays off the network. Together with `--no-llm` (never call an LLM at all), this forms a two-tier privacy gradient.
 
+**Inspectable remote enrichment**: plain `codetalk enrich` does not call a
+remote model, even when its API key is configured. Its plan names the provider,
+exact destination origin, model, uncached scope, bounded input categories,
+redaction counts, and cache effects. Secret-pattern redaction does not make code
+anonymous: ordinary code, business logic, filenames, author data, and
+non-secret conversation text may remain visible to the selected provider.
+Provider retention is controlled by that provider and is outside CodeTalk's
+guarantees. Use `--allow-remote` only after reviewing the plan or
+`--payload-preview` output. Exact parsed loopback endpoints remain local and do
+not require remote authorization.
+
 ## Commands
 
 | Command | What it does | Example |
 |---|---|---|
 | `doctor` | **First-run diagnosis**: evidence coverage, session sources, LLM config status, and next-step suggestions (**pure local, zero LLM**) | `codetalk doctor --project .` |
 | `digest` | Enrich a span of commits + sessions into a **change-narrative daily report** (anti-hallucination, letter style, embedded time capsules) | `codetalk digest --since "3 days ago"` |
+| `enrich` | Backfill local evidence, show an inspectable no-request plan, and optionally create generated narratives with explicit per-command remote authorization | `codetalk enrich --project . --payload-preview` |
 | `brief` | **Kickoff brief**: where you left off + top 3 understanding debts (**pure local, zero LLM**); `--all` gives a **cross-project overview** (across all projects: those with due capsules + those with the highest understanding debt, ordered by urgency) | `codetalk brief` · `codetalk brief --all` |
 | `graph` | **Decision-impact graph**: which decision drove which later changes (timeline DAG, **zero LLM**; `--canvas` exports an Obsidian Canvas) | `codetalk graph --canvas` |
 | `course` | **Evolution course**: how the project grew into what it is, step by step (chaptered + plain-language + scenario quizzes, single-file HTML) | `codetalk course` |
@@ -254,8 +270,14 @@ Committers who hand-write commits (without `-m`) can run `codetalk install-hook`
 
 - Commit narratives are cached by SHA in `~/.codetalk/cache.db` and **never recomputed**; re-running the same day's digest is 0 LLM calls and sub-second. `graph:` / `course:` / `ask:` derived results are cached in the same table under prefixed keys.
 - Session parsing is incrementally cached by (session_id, mtime, size); every run's parameters are appended to `~/.codetalk/usage.log`.
-- **Data does not leave your machine** (except LLM API calls); **before** writing the cache / writing the vault / injecting HTML, common secret patterns (API key / token / JWT / private key / Google / Stripe / Slack …) are always redacted.
-- **`no_llm` hard switch**: turn off even that "LLM call" exception to **guarantee zero egress**. Any of three ways takes effect, applying globally (including the MCP `ask` tool): set `"no_llm": true` in config.json, set the environment variable `CODETALK_NO_LLM=1`, or pass `--no-llm` to `digest`/`ask`/`course`. Once on, blame/graph/search/brief/prompts work as usual, ask/course/MCP ask fall back to deterministic retrieval, and digest — which must use an LLM — exits directly (clearly stated, never silent).
+- **Remote `enrich` transfer is off by default.** It requires `--allow-remote`
+  on that command; an API key is configuration, not consent. Other commands
+  with optional model features follow their documented/configured behavior.
+  Before a permitted model call and before writing the cache / vault / HTML,
+  common secret patterns (API key / token / JWT / private key / Google / Stripe /
+  Slack ...) are redacted. Redaction is not anonymization; inspect the listed
+  visible categories and provider-retention boundary in the enrichment plan.
+- **`no_llm` hard switch**: turn off even that "LLM call" exception to **guarantee zero egress**. Any of three ways takes effect, applying globally (including the MCP `ask` tool): set `"no_llm": true` in config.json, set the environment variable `CODETALK_NO_LLM=1`, or pass `--no-llm` to `digest`/`enrich`/`ask`/`course`/`web`. Once on, blame/graph/search/brief/prompts work as usual, ask/course/MCP ask fall back to deterministic retrieval, enrich keeps its local evidence pass and plan, and digest — which must use an LLM — exits directly (clearly stated, never silent).
 
 ## Known limitations (M0)
 

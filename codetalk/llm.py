@@ -20,6 +20,7 @@ RETRYABLE_HTTP = {429, 500, 502, 503, 504}
 MAX_ATTEMPTS = 4
 MAX_OUTPUT_TOKENS = 3000
 MAX_TOKENS_CEIL = 8000      # 截断重试时 max_tokens 提升上限(抢救半截 JSON,封顶防失控)
+ANTHROPIC_BASE_URL = "https://api.anthropic.com"
 
 
 class LLMError(Exception):
@@ -37,7 +38,8 @@ class LLMClient:
         self.provider = cfg["provider"]
         self.model = cfg["model"]
         pconf = cfg["providers"].get(self.provider) or {}
-        self.base_url = (pconf.get("base_url") or "").rstrip("/")
+        self.base_url = (ANTHROPIC_BASE_URL if self.provider == "anthropic"
+                         else (pconf.get("base_url") or "").rstrip("/"))
         # 本地推理无需 key,但只信 URL 解析后的精确 loopback 主机名。字符串包含或
         # `local: true` 都不能把远端伪装成本机,避免隐私配置被静默绕过。
         try:
@@ -118,7 +120,8 @@ class LLMClient:
             raise LLMError("anthropic SDK 未安装:pip install anthropic") from exc
         system = next((m["content"] for m in messages if m["role"] == "system"), "")
         turns = [m for m in messages if m["role"] != "system"]
-        client = anthropic.Anthropic(api_key=self.api_key, max_retries=3)
+        client = anthropic.Anthropic(
+            api_key=self.api_key, base_url=self.base_url, max_retries=3)
         try:
             with client.messages.stream(model=self.model, max_tokens=max_tokens,
                                         system=system, messages=turns) as stream:
@@ -164,7 +167,8 @@ class LLMClient:
             raise LLMError("anthropic SDK 未安装:pip install anthropic") from exc
         system = next((m["content"] for m in messages if m["role"] == "system"), "")
         turns = [m for m in messages if m["role"] != "system"]
-        client = anthropic.Anthropic(api_key=self.api_key, max_retries=3)
+        client = anthropic.Anthropic(
+            api_key=self.api_key, base_url=self.base_url, max_retries=3)
         try:
             resp = client.messages.create(model=self.model, max_tokens=max_tokens,
                                            system=system, messages=turns)
@@ -234,7 +238,8 @@ class LLMClient:
             import anthropic
         except ImportError as exc:
             raise LLMError("anthropic SDK 未安装:pip install anthropic") from exc
-        client = anthropic.Anthropic(api_key=self.api_key, max_retries=3)
+        client = anthropic.Anthropic(
+            api_key=self.api_key, base_url=self.base_url, max_retries=3)
         system_blocks = [{"type": "text", "text": system or SYSTEM_PROMPT,
                           "cache_control": {"type": "ephemeral"}}]
         if cache_prefix:  # 项目上下文作第二个缓存前缀块,不随 commit 变、命中后近乎免费

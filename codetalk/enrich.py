@@ -16,6 +16,9 @@ log = logging.getLogger("codetalk")
 
 # 单天 commit 过多时的兜底:概览输入字符上限,超出截断,概览 token 不爆。
 OVERVIEW_LISTING_BUDGET = 6000
+AUTHOR_CAP = 200
+SUBJECT_CAP = 500
+STAT_CAP = 2000
 
 
 def _project_context(project_path, limit=4000):
@@ -49,9 +52,9 @@ def _commit_prompt(commit, prior_context=""):
         parts.append(prior_context)
     parts += [
         f"## Commit {commit['sha'][:10]}",
-        f"时间:{commit['date'].isoformat()} 作者:{commit['author']}",
-        f"message:{commit['subject']}\n{commit['body'][:500]}".strip(),
-        "### 变更统计\n" + commit["stat"],
+        f"时间:{commit['date'].isoformat()} 作者:{commit['author'][:AUTHOR_CAP]}",
+        f"message:{commit['subject'][:SUBJECT_CAP]}\n{commit['body'][:500]}".strip(),
+        "### 变更统计\n" + commit["stat"][:STAT_CAP],
         "### diff 节选\n" + commit["diff_excerpt"],
     ]
     for match in commit.get("matches", [])[:2]:
@@ -59,9 +62,9 @@ def _commit_prompt(commit, prior_context=""):
         parts.append(
             f"### 关联会话 {session['session_id'][:8]}"
             f"(置信度 {match['confidence']},文件交集:"
-            f"{', '.join(match['overlap']) or '无'})")
+            f"{', '.join(match['overlap'][:20]) or '无'})")
         if session["title"]:
-            parts.append("会话标题:" + session["title"])
+            parts.append("会话标题:" + session["title"][:200])
         if session["prompts"]:    # 保留首尾:靠后的话更接近最终决策
             parts.append("用户原话:\n"
                          + "\n".join("- " + p for p in head_tail(session["prompts"], 6)))
@@ -179,6 +182,14 @@ def backfill_evidence(commits, cache, project):
     return done
 
 
+def outbound_inputs(commit, cache, project, cache_prefix=None):
+    """Exact post-redaction inputs shared by preview and model execution."""
+    prefix = (_project_context(project) if cache_prefix is None else cache_prefix)
+    prior = _prior_context(project, commit, cache)
+    return {"cache_prefix": redact_secrets(prefix),
+            "user_prompt": redact_secrets(_commit_prompt(commit, prior))}
+
+
 def enrich_commits(commits, llm, cache, project, with_pr=False, force=False):
     """force=True:opt-in 违反 SHA 缓存 immutability,所有 commit 重 enrich
     (典型用法:prompt 规则升级后回填已有叙事)。默认 False,守 ROADMAP 红线。"""
@@ -201,9 +212,9 @@ def enrich_commits(commits, llm, cache, project, with_pr=False, force=False):
             stats["trivial"] += 1
             continue
         try:
-            prior = _prior_context(project, commit, cache)  # 这些文件上次改动叙事
-            raw = llm.narrate(redact_secrets(_commit_prompt(commit, prior)),
-                              cache_prefix=cache_prefix)
+            outbound = outbound_inputs(commit, cache, project, cache_prefix)
+            raw = llm.narrate(outbound["user_prompt"],
+                              cache_prefix=outbound["cache_prefix"])
             normalized = _normalize(raw)
             decisions, watches = parse_breadcrumbs(commit.get("body", ""))
             if decisions:  # 人原话并入决策,去重,保留 LLM 既有决策

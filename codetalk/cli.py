@@ -49,7 +49,7 @@ def _build_parser():
         "self", help="自我周报:近 N 天用量/省额/回填率,自证关掉 LLM 仍有价值(零 LLM)")
     slf.add_argument("--days", type=int, default=7, help="聚合窗口天数(默认 7)")
     enr = _proj(sub.add_parser(
-        "enrich", help="富集补全:给全史中尚无叙事的 commit 补叙事(闭合召回覆盖,需 LLM)"))
+        "enrich", help="富集补全:先本地回填证据并展示模型输入计划;远端需本次明确授权"))
     enr.add_argument("--since", default="20 years ago",
                      help='富集范围(默认全史;如 "3 months ago")')
     enr.add_argument("--no-llm", action="store_true",
@@ -59,6 +59,11 @@ def _build_parser():
     enr.add_argument("--reenrich", action="store_true",
                      help="opt-in 违反 immutability:重 enrich 已有叙事(prompt 规则升级用);"
                           "默认 SHA 缓存永不重算")
+    enr_mode = enr.add_mutually_exclusive_group()
+    enr_mode.add_argument("--allow-remote", action="store_true",
+                          help="仅本次允许把计划中列明的脱敏项目数据发送到远端模型")
+    enr_mode.add_argument("--payload-preview", action="store_true",
+                          help="本地显示一条脱敏后的模型请求;绝不发送")
     crs = _proj(sub.add_parser("course", help="生成演进课程(项目怎么长成的,实验)"))
     crs.add_argument("--no-llm", action="store_true",
                      help="显式关闭 LLM(数据不出本机);降级为按时间均分的朴素课程")

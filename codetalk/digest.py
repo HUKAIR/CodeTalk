@@ -79,7 +79,8 @@ def coverage_nudge(total, narrated):
         return None
     pct = 100 * narrated / total
     return (f"叙事覆盖 {narrated}/{total} = {pct:.1f}%;{missing} 个 commit 仍无叙事"
-            f" —— 跑 `codetalk enrich` 补全(digest 只富集 --since 窗口)。")
+            f" —— 跑 `codetalk enrich` 看计划,确认后加 `--allow-remote` 补全"
+            "(digest 只富集 --since 窗口)。")
 
 
 def _capsule_days():

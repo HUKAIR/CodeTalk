@@ -34,6 +34,11 @@ made it verifiable.
   JSON allowlist. It includes judgment and evidence metadata but never copies
   repository identity, paths, source material, commits, sessions, or authors;
   optional approved comments are redacted before preview and export.
+- `codetalk enrich` now performs deterministic evidence work and prints an
+  inspectable no-request privacy plan by default. Remote model calls require
+  `--allow-remote` for that command; `--payload-preview` shows one redacted
+  request locally without sending it, while exact loopback endpoints remain
+  zero egress.
 
 ### Fixed
 

@@ -93,6 +93,12 @@ SECRET_PATTERNS = [
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----"),  # PEM 私钥整块
     re.compile(r"https://hooks\.slack\.com/services/[A-Za-z0-9/]+"),    # Slack webhook
 ]
+SECRET_PATTERN_NAMES = (
+    "openai_key", "github_token", "slack_token", "aws_access_key",
+    "bearer_token", "named_secret", "google_api_key",
+    "google_oauth_client", "stripe_key", "sendgrid_key", "jwt",
+    "private_key", "slack_webhook",
+)
 
 
 def redact_secrets(text):
@@ -103,6 +109,20 @@ def redact_secrets(text):
         text = pat.sub(lambda m: (m.group(1) + m.group(2) + "[REDACTED]")
                        if m.lastindex else "[REDACTED]", text)
     return text
+
+
+def redact_secrets_with_counts(text):
+    """Return redacted text plus per-pattern counts, never matched values."""
+    counts = {name: 0 for name in SECRET_PATTERN_NAMES}
+    if not isinstance(text, str):
+        return text, counts
+    for name, pat in zip(SECRET_PATTERN_NAMES, SECRET_PATTERNS):
+        def replace(match, category=name):
+            counts[category] += 1
+            return ((match.group(1) + match.group(2) + "[REDACTED]")
+                    if match.lastindex else "[REDACTED]")
+        text = pat.sub(replace, text)
+    return text, counts
 
 
 def redact_data(obj):

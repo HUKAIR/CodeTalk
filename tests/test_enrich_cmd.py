@@ -56,7 +56,8 @@ class TestEnrichCmd(unittest.TestCase):
         with mock.patch.object(cli, "CACHE_DB_PATH", self.db), \
              mock.patch("codetalk.llm.LLMClient", return_value=fake), \
              contextlib.redirect_stdout(io.StringIO()):
-            rc = cli.main(["enrich", "--project", self.d, *extra_argv])
+            rc = cli.main(["enrich", "--project", self.d,
+                           "--allow-remote", *extra_argv])
         return rc, fake
 
     def test_backfills_only_uncached(self):
@@ -191,7 +192,7 @@ class TestEnrichCmd(unittest.TestCase):
              contextlib.redirect_stdout(io.StringIO()), \
              contextlib.redirect_stderr(io.StringIO()):
             rc = cli.main(["enrich", "--project", self.d, "--no-llm"])
-        self.assertEqual(rc, 2)                   # 富集需 LLM:no_llm → 干净退出(非崩)
+        self.assertEqual(rc, 0)                   # 本地 evidence/计划仍成功,模型明确禁用
 
 
 if __name__ == "__main__":

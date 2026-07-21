@@ -109,7 +109,8 @@ def build_doctor_report(project):
         lines.append(f"3. 让后续提交自动带决策记录: codetalk install-agent-seed --project {project_q}")
     else:
         lines.append(f"2. 让后续提交自动带决策记录: codetalk install-agent-seed --project {project_q}")
-        lines.append(f"3. 需要历史全量叙事时: codetalk enrich --project {project_q}")
+        lines.append(f"3. 需要历史全量叙事时: codetalk enrich --project {project_q} "
+                     "(先看计划;远端执行再加 --allow-remote)")
     return "\n".join(lines), None
 
 

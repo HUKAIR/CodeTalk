@@ -164,6 +164,7 @@ def blame(project_path, target, json_output=False):
         # 末行(stderr,不污染管道)指下一步:富集或装面包屑捕捉。
         if not any(segment_has_why(s) for s in segments):
             print("\n提示:该文件暂无决策记录(仅 commit 标题)。跑 `codetalk enrich .` "
-                  "补叙事,或 `codetalk install-agent-seed .` 让 AI 提交时留 why。",
+                  "查看计划,确认后加 `--allow-remote`;或 `codetalk install-agent-seed .` "
+                  "让 AI 提交时留 why。",
                   file=sys.stderr)
     return 0
