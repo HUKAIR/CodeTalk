@@ -1,4 +1,4 @@
-"""构建 codetalk.mcpb(MCP Bundle):zip(manifest.json + server/<纯 stdlib 源>)。
+"""构建带版本号的 MCP Bundle:zip(manifest.json + server/<纯 stdlib 源>)。
 
 codetalk 零三方依赖(pyproject dependencies=[]),故无需打包解释器/编译依赖——
 manifest 声明 `python3 -m codetalk mcp-serve`,靠用户已装的 python3 运行,PYTHONPATH
@@ -37,6 +37,13 @@ def build(out_path, root=ROOT):
     return out_path
 
 
+def default_output(root=ROOT):
+    """Return the immutable release filename declared by the manifest."""
+    root = Path(root)
+    manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+    return root / "dist" / f"codetalk-{manifest['version']}.mcpb"
+
+
 if __name__ == "__main__":
-    out = build(ROOT / "codetalk.mcpb")
+    out = build(default_output())
     print(f"built {out} ({out.stat().st_size} bytes)")

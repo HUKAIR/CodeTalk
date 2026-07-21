@@ -6,7 +6,7 @@ This project follows a small, source-backed changelog style: each entry should
 describe user-visible behavior and point to the release, PR, or commit that
 made it verifiable.
 
-## Unreleased
+## 0.2.0 - Unreleased
 
 ### Added
 

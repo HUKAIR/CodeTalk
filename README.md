@@ -108,10 +108,10 @@ is correct.
 Expose the zero-LLM grounding capability to MCP clients such as Claude Code / Cursor / Codex, so you can ask "why was this code written this way" inside your agent workflow. CodeTalk's core is pure standard library, so it packs into one `.mcpb` containing the manifest and source. The built file is drag-to-install; until a downloadable GitHub Release exists, a source checkout must build it once. It uses the installed `python3` and **does not bundle an interpreter**:
 
 ```bash
-python3 -m scripts.build_mcpb     # produces codetalk.mcpb
+python3 -m scripts.build_mcpb     # produces dist/codetalk-0.2.0.mcpb
 ```
 
-Drag `codetalk.mcpb` into your client's extension-install entry point, and pick a project root during installation. It exposes **7 tools** (all marked `readOnlyHint: true`, so Claude Code / Cursor can auto-approve them without a confirmation prompt):
+Drag `codetalk-0.2.0.mcpb` into your client's extension-install entry point, and pick a project root during installation. It exposes **7 tools** (all marked `readOnlyHint: true`, so Claude Code / Cursor can auto-approve them without a confirmation prompt):
 
 | Tool | Purpose | LLM |
 |---|---|---|
