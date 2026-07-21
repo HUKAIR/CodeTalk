@@ -11,8 +11,11 @@ from scripts.release_artifacts import (
     SBOM_NAME,
     VERSION,
     expected_artifact_names,
+    python_artifact_names,
     validate_artifacts,
 )
+from scripts.release_privacy import (sanitize_png, validate_release_privacy,
+                                     validate_staged_pages)
 
 
 TAG = f"v{VERSION}"
@@ -132,6 +135,7 @@ def validate_candidate(directory, notes_path):
     records = _checksum_records(directory)
     _validate_sbom(directory, records)
     _validate_release_notes(notes_path)
+    validate_release_privacy(directory, notes_path, expected_artifact_names())
 
 
 def _regular_source(repository, relative):
@@ -157,14 +161,18 @@ def stage_pages(repository, destination):
         source = _regular_source(repository, relative)
         target = destination / relative
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(source, target)
+        if source.suffix.lower() == ".png":
+            target.write_bytes(sanitize_png(source.read_bytes()))
+        else:
+            shutil.copyfile(source, target)
         staged.append(target)
+    validate_staged_pages(destination, PAGES_FILES)
     return tuple(staged)
 
 
 def pypi_state(directory, payload):
     directory = Path(directory)
-    names = expected_artifact_names()[:2]
+    names = python_artifact_names()
     for name in names:
         path = directory / name
         if path.is_symlink() or not path.is_file():

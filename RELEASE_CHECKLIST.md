@@ -18,7 +18,10 @@ After packaging the editor extension, copy
 `vscode-codetalk/vscode-codetalk-0.2.0.vsix` into `dist/`, then run:
 
 - `SOURCE_DATE_EPOCH=<release-commit-epoch> python3 -m scripts.release_artifacts dist`
+- `python3 -m scripts.release_promotion validate-candidate dist docs/releases/v0.2.0.md`
 - `cd dist && shasum -a 256 -c SHA256SUMS`
+- Confirm the sdist contains no `tests/` tree and all four archives pass the
+  secret, private-path, member-type, and public-filename scan.
 - Confirm the CycloneDX SBOM lists the wheel, sdist, MCP bundle, and VSIX with
   the same SHA-256 values as `SHA256SUMS`.
 
@@ -111,6 +114,8 @@ enable or perform public, partly irreversible changes:
 
 - Configure required reviewers and tag restrictions on the `release`, `pypi`,
   and `github-pages` environments.
+- Add a repository tag ruleset that blocks update and deletion of `v0.2.0`,
+  including administrator bypass during the promotion window.
 - Register the PyPI Pending Trusted Publisher with the exact values above.
 - Enable immutable Releases and verify
   `gh api repos/HUKAIR/CodeTalk/immutable-releases --jq .enabled` prints `true`.
@@ -129,7 +134,8 @@ After promotion, verify from public endpoints:
 - `gh release verify v0.2.0` and `gh release verify-asset v0.2.0 <local-file>`
   for the wheel, sdist, MCP bundle, VSIX, SBOM, and `SHA256SUMS`.
 - Fetch the Pages root and `docs/images/codetalk-logo-banner.png`, then compare
-  them byte-for-byte with the tagged allowlisted files.
+  them byte-for-byte with a fresh local `stage-pages` output. The staged PNG is
+  expected to differ from the source only by removed EXIF/text/time metadata.
 - Set the repository Homepage only after the Pages URL and local asset resolve
   from a clean session.
 - Leave issue #142 open until every public endpoint, hash, install smoke test,

@@ -18,6 +18,17 @@ immutable GitHub Release publication, Pages deployment, and public checks.
 **Tech Stack:** GitHub Actions, Python 3.11 standard library, GitHub CLI, PyPI
 OIDC Trusted Publishing, GitHub Pages.
 
+## Implementation Record
+
+- Tasks 1-3 are implemented in commits `fca3a8e`, `1774c08`, and `c3df3c6`.
+- The final privacy and recovery review added pre-upload archive inspection,
+  sanitized Pages PNG staging, repeated signed-tag checks, and immutable public
+  Release recovery.
+- Local verification passed 825 tests, real candidate validation, a clean wheel
+  install, and synthetic-repository `doctor` plus `review --json` smoke tests.
+- Task 4 remains open only for the default-branch push, real `publish=false`
+  workflow run, and read-only public-state recheck. No publication is authorized.
+
 ## Global Constraints
 
 - Preparation must not create a tag, publish a package or Release, enable Pages,
@@ -30,12 +41,16 @@ OIDC Trusted Publishing, GitHub Pages.
   Python standard library.
 - Every Python module remains below 300 lines.
 - Public artifacts are built once and reused byte-for-byte.
+- The source distribution excludes test fixtures; every archive is scanned for
+  secret-shaped content, private paths, unsafe members, and prohibited names
+  before the candidate is uploaded.
 - Public writes require the `release`, `pypi`, or `github-pages` protected
   environment and job-level least privilege.
 - PyPI publishing uses OIDC and must not reference a token secret.
 - All external actions are pinned to full verified commit SHAs.
 - Public Pages content is exactly `index.html` and
-  `docs/images/codetalk-logo-banner.png`.
+  `docs/images/codetalk-logo-banner.png`; PNG private metadata is removed while
+  staging without re-encoding image pixels.
 - No formal public filename introduced by this work contains a date or
   non-English characters.
 - Do not run `npm ci` locally because it replaces `node_modules`; the fresh
@@ -269,6 +284,10 @@ Download the exact artifact name
 `codetalk-release-candidate-${{ github.sha }}`. Use explicit action inputs,
 `persist-credentials: false`, and `if-no-files-found: error`. The dry-run path
 ends after `candidate` when `publish` is false.
+
+The reusable builder runs the same exact candidate and archive-privacy
+validation before `actions/upload-artifact`, so unexpected generated data never
+leaves the builder runner.
 
 - [ ] **Step 5: Implement tag and repository-setting preflight**
 

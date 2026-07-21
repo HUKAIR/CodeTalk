@@ -2,11 +2,11 @@
 
 ## Verdict
 
-CodeTalk is ready for a source-install pilot from the public repository. The
-safest supported path remains cloning the repository and installing it locally.
-It is not yet ready to claim general package distribution: no immutable GitHub
-Release, PyPI package, or Marketplace listing has been published and verified
-from an independent clean client.
+CodeTalk is ready for a non-publishing 0.2.0 release rehearsal and remains ready
+for a source-install pilot from the public repository. It is not yet ready to
+claim general package distribution: no immutable GitHub Release, PyPI package,
+or Marketplace listing has been published and verified from an independent
+clean client.
 
 This review does not claim mathematical certainty. It records the concrete
 threats checked, the defects found, the fixes applied, and the evidence needed
@@ -75,13 +75,26 @@ to reproduce the conclusion.
   explicit Python 3.11-3.14 classifiers.
 - Added release-contract tests for the Docker boundary, public capability copy,
   formal documentation, package metadata, and CI gates.
+- Added a manual release workflow whose required `publish` input defaults to
+  false and whose public jobs are separated by protected environments.
+- Added exact six-file validation, checksums, CycloneDX 1.6 SBOM validation,
+  byte-level PyPI recovery, and a two-file Pages allowlist.
+- Added archive privacy inspection before the candidate leaves its builder. The
+  sdist excludes test fixtures; wheel, sdist, MCPB, and VSIX contents are scanned
+  for secret-shaped text, private build paths, unsafe members, and prohibited
+  public filenames.
+- Added deterministic removal of PNG EXIF, text, and time metadata while
+  preserving the original compressed pixel chunks.
+- Recheck the signed annotated tag immediately before draft creation, PyPI
+  publication, and public Release publication. Existing public Releases are
+  accepted only when immutable and byte-identical, allowing Pages recovery.
 
 ## Verification Evidence
 
 The final local review ran the following checks from a clean, isolated home
 directory where applicable:
 
-- Python unit suite: 737 tests passed.
+- Python unit suite: 825 tests passed.
 - Worktree and full-git-history secret scans: passed.
 - Six standalone HTML pages: no external runtime assets detected.
 - Python sdist and wheel: built; wheel installed into a fresh virtual
@@ -95,6 +108,10 @@ directory where applicable:
   the hidden search drawer no longer obscured the main interface.
 - Repository constraints: all Python modules remain below 300 lines and
   `git diff --check` passed.
+- A locally built 0.2.0 candidate passed exact-set, checksum, SBOM, archive
+  privacy, and status-neutral release-note validation. Its wheel installed with
+  no dependencies in a fresh environment; `--version`, `doctor`, and
+  `review --json` passed in a synthetic repository.
 
 ## Remaining Release Gates
 
@@ -106,6 +123,9 @@ These are evidence gaps, not hidden implementation claims:
 - Publish and verify a GitHub Release before describing the MCP bundle or VSIX as
   directly downloadable.
 - Publish and verify PyPI only if `pip install codetalk` will be advertised.
+- Complete a real `publish=false` run from the default branch before creating
+  any release tag. This run must leave tag, PyPI, Release, Pages, Homepage, and
+  issue #142 unchanged.
 - Collect at least one external pilot interception. The current blind comparison
   is useful but small (`N=5`, one repository, human judged).
 - Add a short current-product demo recording before a broad launch.

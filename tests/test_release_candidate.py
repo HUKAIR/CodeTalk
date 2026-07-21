@@ -28,6 +28,8 @@ class TestVersionContract(unittest.TestCase):
         self.assertEqual(lock["version"], VERSION)
         self.assertEqual(lock["packages"][""]["version"], VERSION)
         self.assertEqual(project["dependencies"], [])
+        self.assertIn("prune tests", (ROOT / "MANIFEST.in").read_text(
+            encoding="ascii"))
         self.assertIn(f'__version__ = "{VERSION}"',
                       (ROOT / "codetalk" / "__init__.py").read_text(
                           encoding="utf-8"))
@@ -90,13 +92,16 @@ class TestReleaseMetadata(unittest.TestCase):
                          "codetalk-0.2.0/PKG-INFO")
 
     def test_expected_primary_artifacts_are_explicit(self):
-        from scripts.release_artifacts import expected_artifact_names
+        from scripts.release_artifacts import (expected_artifact_names,
+                                               python_artifact_names)
         self.assertEqual(expected_artifact_names(VERSION), (
             "codetalk-0.2.0-py3-none-any.whl",
             "codetalk-0.2.0.tar.gz",
             "codetalk-0.2.0.mcpb",
             "vscode-codetalk-0.2.0.vsix",
         ))
+        self.assertEqual(python_artifact_names(VERSION),
+                         expected_artifact_names(VERSION)[:2])
 
     def test_sbom_is_cyclonedx_and_covers_every_primary_artifact(self):
         from scripts.release_artifacts import render_sbom

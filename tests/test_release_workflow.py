@@ -51,6 +51,12 @@ class TestReleaseWorkflow(unittest.TestCase):
         self.assertNotIn("python -m build", release)
         self.assertNotIn("npm ci", release)
 
+    def test_candidate_is_validated_before_it_leaves_the_builder(self):
+        text = TEST_WORKFLOW.read_text(encoding="utf-8")
+        validate = text.index("scripts.release_promotion validate-candidate")
+        upload = text.index("name: codetalk-release-candidate-${{ github.sha }}")
+        self.assertLess(validate, upload)
+
     def test_public_jobs_use_protected_environments_and_short_lived_identity(self):
         text = self.release_text()
         for environment in ("release", "pypi", "github-pages"):
@@ -75,6 +81,27 @@ class TestReleaseWorkflow(unittest.TestCase):
         self.assertIn("python -m scripts.scan_secrets", text)
         self.assertIn("python -m unittest tests.test_product_proof", text)
 
+    def test_tag_is_revalidated_at_every_irreversible_boundary(self):
+        text = self.release_text()
+        self.assertGreaterEqual(text.count('git/ref/tags/$TAG'), 4)
+        self.assertGreaterEqual(text.count("verification.verified"), 4)
+        self.assertGreaterEqual(text.count('= "$GITHUB_SHA"'), 4)
+
+    def test_release_lookup_is_fail_closed_and_public_release_is_recoverable(self):
+        text = self.release_text()
+        self.assertIn("release-status", text)
+        self.assertGreaterEqual(text.count("--paginate --slurp"), 2)
+        self.assertGreaterEqual(text.count("select(.tag_name == $tag)"), 2)
+        self.assertIn('test "$release_count" = "0" -o "$release_count" = "1"',
+                      text)
+        self.assertIn('release_state="public"', text)
+        self.assertIn('release_state="draft"', text)
+        self.assertIn('release_state="missing"', text)
+        self.assertIn('test "$immutable" = "true"', text)
+        self.assertNotIn("curl --silent", text)
+        self.assertNotIn("release view \"$TAG\" --json isDraft,body,assets 2>/dev/null",
+                         text)
+
     def test_release_uses_exact_assets_and_verifies_public_surfaces(self):
         text = self.release_text()
         for name in ARTIFACTS:
@@ -86,6 +113,9 @@ class TestReleaseWorkflow(unittest.TestCase):
             self.assertIn(phrase, text)
         self.assertNotIn("gh issue close", text)
         self.assertNotIn("gh repo edit", text)
+        self.assertIn("Revalidate Release body and exact assets before publication",
+                      text)
+        self.assertGreaterEqual(text.count('cmp "dist/$name"'), 2)
 
     def test_all_external_actions_are_pinned_to_reviewed_commits(self):
         text = self.release_text()

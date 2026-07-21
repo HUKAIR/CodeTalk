@@ -26,6 +26,11 @@ def expected_artifact_names(version=VERSION):
     )
 
 
+def python_artifact_names(version=VERSION):
+    wheel, sdist, _, _ = expected_artifact_names(version)
+    return wheel, sdist
+
+
 def _sha256(path):
     digest = hashlib.sha256()
     with Path(path).open("rb") as handle:

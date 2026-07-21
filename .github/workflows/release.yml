@@ -132,6 +132,19 @@ jobs:
         run: >-
           python -m scripts.release_promotion validate-candidate
           dist docs/releases/v0.2.0.md
+      - name: Reverify signed tag before creating a draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/tags/v0.2.0"
+          ref_json="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG")"
+          test "$(jq -r '.object.type' <<<"$ref_json")" = "tag"
+          tag_sha="$(jq -r '.object.sha' <<<"$ref_json")"
+          tag_json="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$tag_sha")"
+          test "$(jq -r '.verification.verified' <<<"$tag_json")" = "true"
+          test "$(jq -r '.object.type' <<<"$tag_json")" = "commit"
+          test "$(jq -r '.object.sha' <<<"$tag_json")" = "$GITHUB_SHA"
       - name: Create or verify the hidden draft
         env:
           GH_TOKEN: ${{ github.token }}
@@ -145,11 +158,31 @@ jobs:
             codetalk-0.2.0.sbom.cdx.json
             SHA256SUMS
           )
-          if release_json="$(gh release view "$TAG" --json isDraft,body,assets 2>/dev/null)"; then
-            test "$(jq -r '.isDraft' <<<"$release_json")" = "true"
-            test "$(jq -r '.body' <<<"$release_json")" = "$(cat docs/releases/v0.2.0.md)"
+          gh api --paginate --slurp \
+            "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            > /tmp/release-pages.json
+          jq --arg tag "$TAG" \
+            '[.[][] | select(.tag_name == $tag)]' \
+            /tmp/release-pages.json > /tmp/release-matches.json
+          release_count="$(jq 'length' /tmp/release-matches.json)"
+          test "$release_count" = "0" -o "$release_count" = "1"
+          if test "$release_count" = "1"; then
+            jq '.[0]' /tmp/release-matches.json > /tmp/release-status.json
+            draft="$(jq -r '.draft' /tmp/release-status.json)"
+            if test "$draft" = "true"; then
+              release_state="draft"
+            elif test "$draft" = "false"; then
+              release_state="public"
+            else
+              exit 1
+            fi
+          else
+            release_state="missing"
+          fi
+          if test "$release_state" != "missing"; then
+            test "$(jq -r '.body' /tmp/release-status.json)" = "$(cat docs/releases/v0.2.0.md)"
             mkdir -p existing-assets
-            mapfile -t existing < <(jq -r '.assets[].name' <<<"$release_json")
+            mapfile -t existing < <(jq -r '.assets[].name' /tmp/release-status.json)
             for name in "${existing[@]}"; do
               known=false
               for expected in "${ASSETS[@]}"; do
@@ -159,15 +192,22 @@ jobs:
               gh release download "$TAG" --pattern "$name" --dir existing-assets
               cmp "dist/$name" "existing-assets/$name"
             done
-            for name in "${ASSETS[@]}"; do
-              present=false
-              for existing_name in "${existing[@]}"; do
-                if test "$name" = "$existing_name"; then present=true; fi
+            if test "$release_state" = "public"; then
+              test "${#existing[@]}" = "${#ASSETS[@]}"
+              immutable="$(jq -r '.immutable' /tmp/release-status.json)"
+              test "$immutable" = "true"
+              gh release verify "$TAG"
+            else
+              for name in "${ASSETS[@]}"; do
+                present=false
+                for existing_name in "${existing[@]}"; do
+                  if test "$name" = "$existing_name"; then present=true; fi
+                done
+                if test "$present" = "false"; then
+                  gh release upload "$TAG" "dist/$name"
+                fi
               done
-              if test "$present" = "false"; then
-                gh release upload "$TAG" "dist/$name"
-              fi
-            done
+            fi
           else
             gh release create "$TAG" \
               dist/codetalk-0.2.0-py3-none-any.whl \
@@ -223,6 +263,19 @@ jobs:
         with:
           name: codetalk-release-candidate-${{ github.sha }}
           path: dist
+      - name: Reverify signed tag before PyPI publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/tags/v0.2.0"
+          ref_json="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG")"
+          test "$(jq -r '.object.type' <<<"$ref_json")" = "tag"
+          tag_sha="$(jq -r '.object.sha' <<<"$ref_json")"
+          tag_json="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$tag_sha")"
+          test "$(jq -r '.verification.verified' <<<"$tag_json")" = "true"
+          test "$(jq -r '.object.type' <<<"$tag_json")" = "commit"
+          test "$(jq -r '.object.sha' <<<"$tag_json")" = "$GITHUB_SHA"
       - name: Isolate Python distribution files
         run: |
           mkdir -p pypi-dist
@@ -274,18 +327,67 @@ jobs:
       actions: read
       contents: write
     steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: codetalk-release-candidate-${{ github.sha }}
           path: dist
-      - name: Publish and verify immutable Release
+      - name: Revalidate Release body and exact assets before publication
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          test "$(gh release view "$TAG" --json isDraft --jq '.isDraft')" = "true"
-          gh release edit "$TAG" --draft=false --latest --verify-tag
-          immutable="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq '.immutable')"
+          ASSETS=(
+            codetalk-0.2.0-py3-none-any.whl
+            codetalk-0.2.0.tar.gz
+            codetalk-0.2.0.mcpb
+            vscode-codetalk-0.2.0.vsix
+            codetalk-0.2.0.sbom.cdx.json
+            SHA256SUMS
+          )
+          test "$GITHUB_REF" = "refs/tags/v0.2.0"
+          ref_json="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG")"
+          test "$(jq -r '.object.type' <<<"$ref_json")" = "tag"
+          tag_sha="$(jq -r '.object.sha' <<<"$ref_json")"
+          tag_json="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$tag_sha")"
+          test "$(jq -r '.verification.verified' <<<"$tag_json")" = "true"
+          test "$(jq -r '.object.type' <<<"$tag_json")" = "commit"
+          test "$(jq -r '.object.sha' <<<"$tag_json")" = "$GITHUB_SHA"
+          release_pages="$(gh api --paginate --slurp \
+            "repos/$GITHUB_REPOSITORY/releases?per_page=100")"
+          release_matches="$(jq --arg tag "$TAG" \
+            '[.[][] | select(.tag_name == $tag)]' <<<"$release_pages")"
+          release_count="$(jq 'length' <<<"$release_matches")"
+          test "$release_count" = "1"
+          release_json="$(jq '.[0]' <<<"$release_matches")"
+          test "$(jq -r '.body' <<<"$release_json")" = "$(cat docs/releases/v0.2.0.md)"
+          mapfile -t existing < <(jq -r '.assets[].name' <<<"$release_json")
+          test "${#existing[@]}" = "${#ASSETS[@]}"
+          mkdir -p prepublish-assets
+          for name in "${existing[@]}"; do
+            known=false
+            for expected in "${ASSETS[@]}"; do
+              if test "$name" = "$expected"; then known=true; fi
+            done
+            test "$known" = "true"
+            gh release download "$TAG" --pattern "$name" --dir prepublish-assets
+            cmp "dist/$name" "prepublish-assets/$name"
+          done
+          draft="$(jq -r '.draft' <<<"$release_json")"
+          if test "$draft" = "true"; then
+            gh release edit "$TAG" --draft=false --latest --verify-tag
+          else
+            test "$draft" = "false"
+          fi
+          immutable="false"
+          for attempt in {1..12}; do
+            immutable="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq '.immutable')"
+            if test "$immutable" = "true"; then break; fi
+            sleep 10
+          done
           test "$immutable" = "true"
           for attempt in {1..12}; do
             if gh release verify "$TAG"; then break; fi

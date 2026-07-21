@@ -21,6 +21,9 @@ Success means:
   environments;
 - every public artifact is built once from the authenticated release tag and
   reused byte-for-byte across all publication steps;
+- every archive is scanned before it leaves the builder for secret-shaped
+  content, private build paths, unsafe member types, and prohibited public
+  filenames;
 - PyPI uses OpenID Connect Trusted Publishing rather than an API token;
 - the GitHub Release exposes the wheel, source distribution, MCP bundle, VSIX,
   checksums, SBOM, release notes, and known limitations;
@@ -80,7 +83,8 @@ The job also stages the Pages payload from an explicit allowlist:
 - `docs/images/codetalk-logo-banner.png`.
 
 Static dependency and secret scans run against the staged payload before it is
-uploaded. No source tree, cache, local path, discovery document, or environment
+uploaded. PNG text, EXIF, and time metadata are removed deterministically during
+staging. No source tree, cache, local path, discovery document, or environment
 file is included.
 
 ### 2. Promotion preflight
@@ -95,6 +99,10 @@ checks all of the following before any public write:
 - `SHA256SUMS` validates every distributable and the SBOM;
 - all package metadata reports version `0.2.0`;
 - the release notes are publication-ready and do not claim candidate status.
+
+The signed tag identity is checked again immediately before draft creation,
+PyPI publication, and public Release publication. A repository tag ruleset must
+also block updates and deletion of the fixed release tag.
 
 ### 3. Hidden GitHub Release draft
 
@@ -166,7 +174,8 @@ Publication across PyPI, GitHub Releases, and Pages is not atomic.
   issue closure stop; a re-run may only verify and reuse the exact PyPI bytes,
   then continue the remaining steps.
 - Failure after the GitHub Release is public does not alter immutable assets;
-  Pages verification can be resumed independently.
+  a later run accepts only the same immutable Release body and exact asset
+  bytes, then resumes Pages deployment and verification.
 - A checksum mismatch, version mismatch, unverified tag, missing environment,
   or unexpected public file is a hard stop. The workflow never overwrites a
   public package or silently skips a conflicting artifact.
@@ -202,6 +211,7 @@ Promotion remains blocked until the owner explicitly confirms all of these:
 - enable GitHub Actions as the Pages source;
 - enable immutable GitHub Releases;
 - create the verified annotated `v0.2.0` tag at the recorded source commit;
+- protect `v0.2.0` against update and deletion with a repository tag ruleset;
 - authorize the workflow's promotion input.
 
 These actions are intentionally outside the preparation change because they

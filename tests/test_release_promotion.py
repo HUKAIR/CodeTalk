@@ -30,6 +30,10 @@ class PromotionCase(unittest.TestCase):
         self.notes = self.root / "notes.md"
         self.notes.write_text("# CodeTalk 0.2.0\n\nKnown limitations.\n",
                               encoding="utf-8")
+        self.privacy_patch = mock.patch(
+            "scripts.release_promotion.validate_release_privacy")
+        self.privacy = self.privacy_patch.start()
+        self.addCleanup(self.privacy_patch.stop)
 
     def tearDown(self):
         self.temp.cleanup()
@@ -63,6 +67,7 @@ class PromotionCase(unittest.TestCase):
         self.make_candidate()
         validate_candidate(self.dist, self.notes)
         validate.assert_called_once_with(self.dist)
+        self.privacy.assert_called_once_with(self.dist, self.notes, PRIMARY)
 
     @mock.patch("scripts.release_promotion.validate_artifacts")
     def test_candidate_rejects_unexpected_files(self, validate):
@@ -147,7 +152,9 @@ class PromotionCase(unittest.TestCase):
         image.mkdir(parents=True)
         (self.root / "index.html").write_text("<h1>CodeTalk</h1>",
                                               encoding="utf-8")
-        (image / "codetalk-logo-banner.png").write_bytes(b"png")
+        logo = (Path(__file__).resolve().parent.parent / "docs" / "images" /
+                "codetalk-logo-banner.png")
+        (image / "codetalk-logo-banner.png").write_bytes(logo.read_bytes())
         (self.root / "private.txt").write_text("private", encoding="utf-8")
         staged = stage_pages(self.root, self.root / "pages")
         self.assertEqual(tuple(path.relative_to(self.root / "pages")

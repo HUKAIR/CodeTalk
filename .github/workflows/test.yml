@@ -79,6 +79,10 @@ jobs:
         run: |
           python -m pip install --force-reinstall --no-deps dist/*.whl
           python -P -m codetalk --version
+      - name: Validate candidate before artifact upload
+        run: >-
+          python -m scripts.release_promotion validate-candidate
+          dist docs/releases/v0.2.0.md
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: codetalk-release-candidate-${{ github.sha }}
