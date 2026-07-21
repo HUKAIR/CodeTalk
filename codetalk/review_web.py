@@ -10,12 +10,9 @@ from urllib.parse import urlsplit
 
 from .cache import Cache
 from .config import CACHE_DB_PATH, redact_data, redact_secrets
+from .review_feedback import JUDGMENT_OUTCOMES, build_feedback
 from .webserve import inline_json
 
-JUDGMENT_OUTCOMES = {
-    "confirmed_conflict", "intentional_exception", "unrelated",
-    "insufficient_evidence",
-}
 _CSP = ("default-src 'none'; connect-src 'self'; img-src data:; "
         "script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
         "base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
@@ -81,27 +78,45 @@ def _validated_judgment(payload, card_ids):
 
 def create_review_server(project_path, cards, cache_path=CACHE_DB_PATH):
     project = str(Path(project_path).resolve())
-    card_ids = {card.get("id") for card in cards
-                if isinstance(card, dict)
-                and isinstance(card.get("id"), str) and card.get("id")}
+    cards_by_id = {card.get("id"): card for card in cards
+                   if isinstance(card, dict)
+                   and isinstance(card.get("id"), str) and card.get("id")}
+    card_ids = set(cards_by_id)
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *_):
             pass
 
-        def _headers(self, status, content_type, length):
+        def _headers(self, status, content_type, length, disposition=None):
             self.send_response(status)
             self.send_header("Content-Type", content_type)
             self.send_header("Content-Length", str(length))
             self.send_header("Content-Security-Policy", _CSP)
             self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header("Cache-Control", "no-store")
+            if disposition:
+                self.send_header("Content-Disposition", disposition)
             self.end_headers()
 
-        def _json(self, status, payload):
-            body = json.dumps(redact_data(payload), ensure_ascii=False).encode()
-            self._headers(status, "application/json; charset=utf-8", len(body))
+        def _json(self, status, payload, disposition=None):
+            body = json.dumps(redact_data(payload), ensure_ascii=False).encode(
+                "utf-8", errors="replace")
+            self._headers(status, "application/json; charset=utf-8", len(body),
+                          disposition)
             self.wfile.write(body)
+
+        def _read_json(self):
+            if not self.headers.get("Content-Type", "").startswith("application/json"):
+                self._json(415, {"error": "JSON required"})
+                return None
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                if length <= 0 or length > 65536:
+                    raise ValueError
+                return json.loads(self.rfile.read(length))
+            except (ValueError, TypeError, json.JSONDecodeError):
+                self._json(400, {"error": "invalid JSON"})
+                return None
 
         def _guard_host(self):
             port = self.server.server_address[1]
@@ -134,19 +149,15 @@ def create_review_server(project_path, cards, cache_path=CACHE_DB_PATH):
                     self.headers.get("Origin"), self.headers.get("Host"), port):
                 self._json(403, {"error": "bad origin"})
                 return
-            if self.path != "/judgment":
+            if self.path not in {
+                    "/judgment", "/feedback/preview", "/feedback/export"}:
                 self._json(404, {"error": "not found"})
                 return
-            if not self.headers.get("Content-Type", "").startswith("application/json"):
-                self._json(415, {"error": "JSON required"})
+            payload = self._read_json()
+            if payload is None:
                 return
-            try:
-                length = int(self.headers.get("Content-Length", "0"))
-                if length <= 0 or length > 65536:
-                    raise ValueError
-                payload = json.loads(self.rfile.read(length))
-            except (ValueError, TypeError, json.JSONDecodeError):
-                self._json(400, {"error": "invalid JSON"})
+            if self.path != "/judgment":
+                self._feedback(payload)
                 return
             judgment, status_code, error = _validated_judgment(payload, card_ids)
             if error:
@@ -162,6 +173,36 @@ def create_review_server(project_path, cards, cache_path=CACHE_DB_PATH):
                 self._json(500, {"error": "judgment not saved"})
                 return
             self._json(200, {"ok": True, "judgment": saved})
+
+        def _feedback(self, payload):
+            if not isinstance(payload, dict):
+                self._json(400, {"error": "invalid payload"})
+                return
+            card_id = payload.get("card_id")
+            if card_id not in cards_by_id:
+                self._json(404, {"error": "unknown card"})
+                return
+            try:
+                with Cache(cache_path) as cache:
+                    judgment = cache.get_review_judgments(project).get(card_id)
+                if not judgment:
+                    self._json(409, {"error": "resolve card before feedback"})
+                    return
+                feedback = build_feedback(
+                    cards_by_id[card_id], judgment,
+                    approved_comment=payload.get("approved_comment"))
+            except ValueError:
+                self._json(400, {"error": "invalid feedback"})
+                return
+            except Exception:  # noqa: BLE001 - never disclose cache/render details
+                self._json(500, {"error": "feedback unavailable"})
+                return
+            if self.path == "/feedback/preview":
+                self._json(200, {"feedback": feedback})
+            else:
+                self._json(
+                    200, feedback,
+                    'attachment; filename="codetalk-review-feedback.json"')
 
     return ThreadingHTTPServer(("127.0.0.1", 0), Handler)
 

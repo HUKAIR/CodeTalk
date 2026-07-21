@@ -30,6 +30,10 @@ made it verifiable.
   review page with collapsible sources and four locally persisted maintainer
   judgments; only a confirmed conflict that changes the proposed action is
   labeled a verified interception.
+- Resolved review cards can preview and explicitly download a local feedback
+  JSON allowlist. It includes judgment and evidence metadata but never copies
+  repository identity, paths, source material, commits, sessions, or authors;
+  optional approved comments are redacted before preview and export.
 
 ### Fixed
 

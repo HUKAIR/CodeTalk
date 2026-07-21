@@ -18,8 +18,8 @@
     * { box-sizing: border-box; letter-spacing: 0; }
     body { margin: 0; min-width: 280px; background: var(--bg); color: var(--ink);
       font: 14px/1.55 var(--sans); }
-    button, input { font: inherit; }
-    button:focus-visible, input:focus-visible, summary:focus-visible {
+    button, input, textarea { font: inherit; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus-visible {
       outline: 3px solid rgba(22, 104, 178, .32);
       outline-offset: 2px;
     }
@@ -115,6 +115,19 @@
       background: var(--green-bg); border-left: 3px solid var(--green); color: var(--green);
       font-weight: 720; }
     .verified.visible { display: block; }
+    .feedback { display: none; padding: 18px; border-top: 1px solid var(--line); background: #fafcf9; }
+    .feedback.visible { display: block; }
+    .feedback textarea { width: 100%; min-height: 72px; resize: vertical; padding: 8px;
+      border: 1px solid var(--line); border-radius: 5px; color: var(--ink); background: var(--surface); }
+    .approve { min-height: 36px; display: flex; gap: 8px; align-items: center; color: var(--muted); }
+    .approve input { width: 15px; height: 15px; margin: 0; }
+    .feedback-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 9px; }
+    .feedback-actions button { min-height: 38px; border: 1px solid var(--line); border-radius: 5px; cursor: pointer; }
+    .preview-button { background: var(--surface); color: var(--ink); }
+    .export-button { background: var(--blue); border-color: var(--blue) !important; color: #fff; }
+    .feedback-actions button:disabled { opacity: .45; cursor: not-allowed; }
+    .feedback-preview { margin-top: 10px; font: 11px/1.5 var(--mono); overflow-wrap: anywhere; }
+    .preview-row { display: grid; grid-template-columns: minmax(170px, 1.2fr) minmax(0, .8fr); gap: 8px; padding: 5px 0; border-top: 1px solid var(--line); } .preview-row b { overflow-wrap: normal; }
     .empty-state { padding: 38px 20px; text-align: center; color: var(--muted);
       background: var(--surface); border: 1px solid var(--line); border-radius: 7px; }
     @media (max-width: 720px) {
@@ -134,6 +147,7 @@
       *, *::before, *::after { scroll-behavior: auto !important;
         animation-duration: .01ms !important; transition-duration: .01ms !important; }
     }
+    @media (max-width: 340px) { .preview-row { grid-template-columns: 1fr; gap: 2px; } }
   </style>
 </head>
 <body>
@@ -167,7 +181,9 @@
         unrelated:"Unrelated", insufficient:"Insufficient evidence", changed:"Did this change the proposed action?",
         yes:"Yes", no:"No", save:"Save judgment", saved:"Saved locally", failed:"Could not save",
         choose:"Select a judgment", actionRequired:"Record whether the action changed",
-        verified:"Verified interception", none:"No review cards for this diff." },
+        verified:"Verified interception", feedback:"Sanitized feedback", comment:"Optional comment",
+        approve:"Include redacted comment", preview:"Preview feedback", export:"Export JSON",
+        exported:"Downloaded locally", previewFailed:"Could not prepare feedback", none:"No review cards for this diff." },
       zh: { local:"仅本机 / 无遥测", title:"决策审查", subtitle:"在改动提交前完成人工判断。",
         total:"张卡片", resolved:"已判断", conflict:"潜在冲突", context:"决策上下文", empty:"没有决策证据",
         evidence:"决策证据", rejected:"曾否决", chosen:"当时选择", interpretation:"生成解释（非证据）",
@@ -176,7 +192,9 @@
         judgment:"维护者判断", confirmed:"确认冲突", exception:"有意例外", unrelated:"无关",
         insufficient:"证据不足", changed:"这次判断是否改变了原计划？", yes:"是", no:"否",
         save:"保存判断", saved:"已保存到本机", failed:"保存失败", choose:"请选择一种判断",
-        actionRequired:"请记录是否改变了原计划", verified:"已验证拦截", none:"当前差异没有审查卡片。" }
+        actionRequired:"请记录是否改变了原计划", verified:"已验证拦截", feedback:"脱敏反馈",
+        comment:"可选评论", approve:"包含脱敏后的评论", preview:"预览反馈", export:"导出 JSON",
+        exported:"已下载到本机", previewFailed:"无法生成反馈", none:"当前差异没有审查卡片。" }
     };
     var LANG = (function(){ try { var saved = localStorage.getItem("codetalk.lang");
       if (saved === "en" || saved === "zh") return saved; } catch(e) {}
@@ -223,6 +241,10 @@
         + '</div><div class="interpretation"><div class="notice">' + esc(t("interpretation")) + "</div>" + h + "</div></section>"; }
     function choice(name, value, label, checked){ return '<label class="choice"><input type="radio" name="' + esc(name)
       + '" value="' + esc(value) + '"' + (checked ? " checked" : "") + ">" + esc(label) + "</label>"; }
+    function feedbackHtml(saved, i){ return '<section class="feedback' + (saved.status ? " visible" : "") + '" id="feedback-' + i + '"><div class="label">' + esc(t("feedback"))
+      + '</div><label><span>' + esc(t("comment")) + '</span><textarea maxlength="500" id="comment-' + i + '"></textarea></label><label class="approve"><input type="checkbox" id="approve-' + i + '">' + esc(t("approve"))
+      + '</label><div class="feedback-actions"><button class="preview-button" type="button" id="preview-button-' + i + '">' + esc(t("preview")) + '</button><button class="export-button" type="button" id="export-button-' + i + '" disabled>' + esc(t("export"))
+      + '</button></div><div class="feedback-preview" id="feedback-preview-' + i + '"></div><a hidden id="download-' + i + '" download="codetalk-review-feedback.json"></a><div class="saved" id="feedback-status-' + i + '"></div></section>'; }
     function judgmentHtml(card, i){ var saved = DATA.judgments[card.id] || {}, name = "judgment-" + i;
       var h = '<form data-review-form="' + i + '"><fieldset><legend>' + esc(t("judgment")) + '</legend><div class="choices">';
       [["confirmed_conflict","confirmed"],["intentional_exception","exception"],["unrelated","unrelated"],["insufficient_evidence","insufficient"]]
@@ -234,14 +256,14 @@
         + (saved.status ? esc(t("saved")) : "") + '</div><div class="verified' + (saved.verified_interception ? " visible" : "")
         + '" id="verified-' + i + '">' + esc(t("verified")) + "</div></form>"; return h; }
     function cardHtml(card, i){ var kindKey = card.kind === "potential_conflict" ? "conflict" : (card.kind === "decision_context" ? "context" : "empty");
-      var change = card.change || {}, location = (change.file || "") + ":" + (change.start || "") + "-" + (change.end || "");
+      var change = card.change || {}, saved = DATA.judgments[card.id] || {}, location = (change.file || "") + ":" + (change.start || "") + "-" + (change.end || "");
       var h = '<article class="card"><header class="card-head"><div><div class="kind ' + esc(kindKey) + '">' + esc(t(kindKey))
         + '</div><div class="location">' + esc(location) + '</div></div><div class="card-id">' + esc(card.id) + "</div></header>";
       h += '<div class="card-body"><div class="main-column"><section class="section" data-section="evidence"><div class="label">'
         + esc(t("evidence")) + "</div>" + evidenceHtml(card) + "</section>" + interpretationHtml(card.interpretation);
       h += sourcesHtml(card) + '</div><aside class="side-column"><section class="section" data-section="provenance"><div class="label">'
         + esc(t("provenance")) + '</div><div class="provenance"><strong>' + esc((card.provenance || {}).label || "")
-        + "</strong>" + esc((card.association || {}).reason || "") + "</div></section>" + judgmentHtml(card, i) + "</aside></div></article>"; return h; }
+        + "</strong>" + esc((card.association || {}).reason || "") + "</div></section>" + judgmentHtml(card, i) + "</aside></div>" + feedbackHtml(saved, i) + "</article>"; return h; }
     function updateCounts(){
       var resolved = Object.keys(DATA.judgments || {}).filter(function(k){ return DATA.judgments[k] && DATA.judgments[k].status; }).length;
       document.getElementById("counts").innerHTML = "<span><strong>" + DATA.cards.length + "</strong> " + esc(t("total")) + "</span><span><strong>" + resolved + "</strong> " + esc(t("resolved")) + "</span>";
@@ -250,8 +272,15 @@
       document.getElementById("lang").textContent = LANG === "en" ? "中" : "EN"; updateCounts();
       document.getElementById("cards").innerHTML = DATA.cards.length ? DATA.cards.map(cardHtml).join("") : '<div class="empty-state">' + esc(t("none")) + "</div>";
       wire(); }
-    function wire(){ DATA.cards.forEach(function(card, i){ var form = document.querySelector('[data-review-form="' + i + '"]');
-      var action = document.getElementById("action-" + i); form.querySelectorAll('input[name="judgment-' + i + '"]').forEach(function(input){ input.addEventListener("change", function(){ action.classList.toggle("visible", input.value === "confirmed_conflict" && input.checked); }); });
+    function feedbackPayload(card, i){ return {card_id:card.id,approved_comment:document.getElementById("approve-" + i).checked ? document.getElementById("comment-" + i).value : null}; }
+    function wireFeedback(card, i){ var previewReady = false, box = document.getElementById("feedback-" + i), preview = document.getElementById("feedback-preview-" + i), status = document.getElementById("feedback-status-" + i), exportButton = document.getElementById("export-button-" + i);
+      function invalidate(){ previewReady = false; exportButton.disabled = true; preview.innerHTML = ""; status.textContent = ""; }
+      [document.getElementById("comment-" + i), document.getElementById("approve-" + i)].forEach(function(el){ el.addEventListener("input", invalidate); el.addEventListener("change", invalidate); });
+      document.getElementById("preview-button-" + i).addEventListener("click", function(){ fetch("/feedback/preview", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(feedbackPayload(card,i))}).then(function(r){ if(!r.ok) throw new Error(); return r.json(); }).then(function(body){ preview.innerHTML = Object.keys(body.feedback).map(function(k){ return '<div class="preview-row"><b>' + esc(k).replace(/_/g,"_<wbr>") + '</b><span>' + esc(JSON.stringify(body.feedback[k])).replace(/_/g,"_<wbr>") + '</span></div>'; }).join(""); previewReady = true; exportButton.disabled = false; }).catch(function(){ invalidate(); status.textContent = t("previewFailed"); }); });
+      exportButton.addEventListener("click", function(){ if(!previewReady) return; fetch("/feedback/export", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(feedbackPayload(card,i))}).then(function(r){ if(!r.ok) throw new Error(); return r.blob(); }).then(function(blob){ var link=document.getElementById("download-"+i), url=URL.createObjectURL(blob); link.href=url; link.click(); setTimeout(function(){ URL.revokeObjectURL(url); },0); status.textContent=t("exported"); }).catch(function(){ status.textContent=t("previewFailed"); }); });
+      return {show:function(){ box.classList.add("visible"); invalidate(); },invalidate:invalidate}; }
+    function wire(){ DATA.cards.forEach(function(card, i){ var form = document.querySelector('[data-review-form="' + i + '"]'), feedback = wireFeedback(card, i);
+      var action = document.getElementById("action-" + i); form.querySelectorAll("input").forEach(function(input){ input.addEventListener("change", feedback.invalidate); }); form.querySelectorAll('input[name="judgment-' + i + '"]').forEach(function(input){ input.addEventListener("change", function(){ action.classList.toggle("visible", input.value === "confirmed_conflict" && input.checked); }); });
       form.addEventListener("submit", function(event){ event.preventDefault(); var picked = form.querySelector('input[name="judgment-' + i + '"]:checked');
         var message = document.getElementById("saved-" + i); if (!picked){ message.textContent = t("choose"); return; }
         var changed = null; if (picked.value === "confirmed_conflict"){ var actionInput = form.querySelector('input[name="changed-' + i + '"]:checked');
@@ -260,7 +289,7 @@
         fetch("/judgment", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({card_id:card.id,status:picked.value,action_changed:changed,elapsed_seconds:(Date.now()-STARTED)/1000})})
           .then(function(response){ if (!response.ok) throw new Error(); return response.json(); })
           .then(function(body){ DATA.judgments[card.id] = body.judgment; message.textContent = t("saved");
-            document.getElementById("verified-" + i).classList.toggle("visible", body.judgment.verified_interception); updateCounts(); })
+            document.getElementById("verified-" + i).classList.toggle("visible", body.judgment.verified_interception); feedback.show(); updateCounts(); })
           .catch(function(){ message.textContent = t("failed"); }).finally(function(){ button.disabled = false; }); }); }); }
     document.getElementById("lang").addEventListener("click", function(){ LANG = LANG === "en" ? "zh" : "en";
       try { localStorage.setItem("codetalk.lang", LANG); } catch(e) {} render(); });

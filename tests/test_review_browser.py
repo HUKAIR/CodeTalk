@@ -65,12 +65,12 @@ class ReviewServerCase(unittest.TestCase):
         self.server.shutdown()
         self.thread.join(timeout=2)
 
-    def _post(self, payload, origin="same", host=None):
+    def _post(self, payload, origin="same", host=None, path="/judgment"):
         headers = {"Content-Type": "application/json"}
         if origin is not None:
             headers["Origin"] = self.origin if origin == "same" else origin
         req = urllib.request.Request(
-            self.origin + "/judgment",
+            self.origin + path,
             data=json.dumps(payload).encode(), method="POST",
             headers=headers)
         if host:
@@ -144,6 +144,61 @@ class ReviewServerCase(unittest.TestCase):
         }, host="evil.example")
         self.assertEqual(status, 403)
 
+    def test_feedback_preview_and_export_share_the_sanitized_contract(self):
+        self._post({
+            "card_id": "review-card-1", "status": "confirmed_conflict",
+            "action_changed": True, "elapsed_seconds": 7.2,
+        })
+        secret = "sk-abcdefghijklmnop123456"
+        payload = {"card_id": "review-card-1",
+                   "approved_comment": "Helpful 中文 " + secret}
+        status, preview = self._post(payload, path="/feedback/preview")
+        self.assertEqual(status, 200)
+        self.assertEqual(set(preview["feedback"]), {
+            "schema_version", "product_version", "judgment", "action_changed",
+            "evidence_type", "provenance_precision", "elapsed_review_seconds",
+            "verified_interception", "approved_comment",
+        })
+        serialized = json.dumps(preview)
+        for sensitive in (secret, "client.py", "old", "new", "a" * 40,
+                          "Keep it local", "review-card-1"):
+            self.assertNotIn(sensitive, serialized)
+
+        req = urllib.request.Request(
+            self.origin + "/feedback/export", data=json.dumps(payload).encode(),
+            method="POST", headers={"Content-Type": "application/json",
+                                    "Origin": self.origin})
+        with urllib.request.urlopen(req, timeout=2) as response:
+            raw_export = response.read()
+            exported = json.loads(raw_export)
+            disposition = response.headers["Content-Disposition"]
+        self.assertIn("中文".encode(), raw_export)
+        self.assertEqual(exported, preview["feedback"])
+        self.assertEqual(disposition,
+                         'attachment; filename="codetalk-review-feedback.json"')
+
+    def test_feedback_requires_a_resolved_known_card_and_same_origin(self):
+        payload = {"card_id": "review-card-2"}
+        status, _ = self._post(payload, path="/feedback/preview")
+        self.assertEqual(status, 409)
+        status, _ = self._post(
+            {"card_id": "missing"}, path="/feedback/preview")
+        self.assertEqual(status, 404)
+        status, _ = self._post(
+            payload, origin="https://evil.example", path="/feedback/export")
+        self.assertEqual(status, 403)
+
+    def test_feedback_comment_with_lone_surrogate_does_not_break_response(self):
+        self._post({
+            "card_id": "review-card-1", "status": "unrelated",
+            "action_changed": None, "elapsed_seconds": 1,
+        })
+        status, body = self._post(
+            {"card_id": "review-card-1", "approved_comment": "ok\ud800safe"},
+            path="/feedback/preview")
+        self.assertEqual(status, 200)
+        self.assertIn("approved_comment", body["feedback"])
+
 
 class TestReviewPage(unittest.TestCase):
     def test_page_separates_sections_and_collapses_original_sources(self):
@@ -176,6 +231,16 @@ class TestReviewPage(unittest.TestCase):
         for outcome in ("confirmed_conflict", "intentional_exception", "unrelated",
                         "insufficient_evidence"):
             self.assertIn('"' + outcome + '"', html)
+
+    def test_feedback_requires_preview_and_explicit_local_export(self):
+        html = render_review_html("Repo", [_card()], {})
+        self.assertIn("Preview feedback", html)
+        self.assertIn("Export JSON", html)
+        self.assertIn("approved_comment", html)
+        self.assertIn("/feedback/preview", html)
+        self.assertIn("/feedback/export", html)
+        self.assertIn('download="codetalk-review-feedback.json"', html)
+        self.assertIn("previewReady", html)
 
 
 class TestReviewServeCommand(unittest.TestCase):
