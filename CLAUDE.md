@@ -103,3 +103,19 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - **每条带 `Why` + `How to apply`**:结论之外写清为什么 + 下次怎么用,尤其 `project` 长文——没 How 就只是「读过」不是「会用」,下次仍会重推同一裁决。
 - **真溯源 + supersedes**:`originSessionId` 写真实当前 session_id,别复制同一默认值(伪溯源比没有更糟);事实被推翻时就地改 `MEMORY.md` 索引行 + 在旧条目正文头标一行「已被 X 取代(日期)」,自然语言标注,不引版本系统。
 - **别做**:不建 consolidation 脚本 / 定期整固(条目少、人眼可去重;逼近约 25–30 篇且出现重复簇再回来重审)· 不做向量 / 语义去重 · 不建月度日报台账(待验证赌注写在对应 memory 正文,别两处维护成漂移源)。
+
+## Agent skills
+
+### Issue tracker
+
+使用 GitHub Issues;外部 Pull Request 不纳入自动分类。所有公开 Issue、评论和
+附件必须先脱敏。详见 `docs/agents/issue-tracker.md`。
+
+### Triage labels
+
+采用 `needs-triage`、`needs-info`、`ready-for-agent`、`ready-for-human`、
+`wontfix`。详见 `docs/agents/triage-labels.md`。
+
+### Domain docs
+
+采用单一上下文:根目录 `CONTEXT.md` 与 `docs/adr/`。详见 `docs/agents/domain.md`。
