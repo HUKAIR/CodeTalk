@@ -10,118 +10,98 @@
   <strong>Zero-LLM core · Real citations · Local cache · MCP / CLI / VS Code</strong>
 </p>
 
-**AI writes your code. Three months later, nobody knows why it was written that way.**
+**AI writes the change. CodeTalk brings back the decision that change may be repeating.**
 
-CodeTalk grounds "why" in real commit history — verbatim citations you can click and verify, not AI confabulation. The core is zero-LLM, local-first, and pure stdlib; optional model synthesis is explicit and redacted.
+CodeTalk reviews a local diff against real commit and session records before the
+change ships. The core is zero-LLM, local-first, and pure standard library;
+generated interpretation is labeled separately from evidence.
 
----
+## 1. Review a change
+
+This successful review caught a proposed global cache invalidation that the
+team had already rejected. The maintainer opened the original source, confirmed
+the conflict, and changed the action. CodeTalk records the human judgment; it
+does not pretend a file-level association is a semantic verdict.
+
+![Successful CodeTalk decision review](docs/images/codetalk-review-proof.png)
+
+The sanitized, no-install product proof is [`index.html`](index.html). It uses
+synthetic data, exercises all four judgment outcomes, and makes no external
+runtime request. The same local workflow runs with:
+
+```bash
+codetalk review --serve --project .
+```
+
+## 2. Inspect enrichment
+
+Optional model backfill starts with a local, no-request plan. It names the exact
+destination, model, uncached scope, bounded inputs, redaction counts, cache
+effects, data still visible after redaction, and the provider-retention boundary.
+A configured key is not authorization.
+
+```bash
+codetalk enrich --project .                    # local evidence + no-request plan
+codetalk enrich --project . --payload-preview  # one redacted payload, no send
+codetalk enrich --project . --allow-remote     # authorize this remote run only
+```
+
+**Secret redaction is not anonymization.** Ordinary code, business logic,
+filenames, author data, and non-secret conversation text may remain visible to
+the selected provider. Generated narratives remain interpretation, not decision
+evidence.
+
+## 3. Install
+
+```bash
+pipx install codetalk
+```
+
+Requires Python 3.11+. One alternative installer is `uv tool install codetalk`.
+Then run `codetalk doctor --project .` to inspect local evidence coverage, or
+open the review workflow shown above. Optional Anthropic synthesis is available
+through the package extra after the core install.
+
+## Deeper documentation
+
+| Need | Start here |
+|---|---|
+| Full CLI surface | [Commands](#commands) |
+| MCP client setup | [MCP installation](docs/mcp-install.md) |
+| VS Code / Cursor / Windsurf | [IDE extension](#ide-extension-vs-code--cursor--windsurf) |
+| Privacy and persistence | [Cache & privacy](#cache--privacy) |
+| Spec-driven workflows | [Spec Kit integration](docs/spec-kit-integration.md) |
+| Architecture and vocabulary | [Pipeline](#pipeline) · [Terms](#what-these-terms-mean) |
 
 ### Why this matters
 
 - **Trust is collapsing.** 46% of developers actively distrust AI output; only 3% highly trust it. *(Stack Overflow 2025, N=33,244)*
-- **AI "explanations" are fabricated.** We blind-tested 5 real commits: AI inferred "why" from diffs alone — **5/5 missed the real decisions, 2/5 completely wrong.** *(This repo, reproducible: `python3 scripts/blind_test.py . 5`)* — or run the shareable A/B blind test on your own repo and judge for yourself: `python3 scripts/trust_ab_demo.py . 5` (real records vs diff-only inference, side by side, reveal at the end; add `--html demo.html` for an interactive shareable page).
-- **Your chat history is fragile.** Multiple bug reports across Cursor, Claude Code, and Copilot describe conversations silently vanishing — data still on disk, UI can't surface it. One confirmed Cursor case (~175 agent chats hidden while intact on disk) is written up in `docs/moat-real-records-vs-inference.md`.
+- **AI "explanations" are fabricated.** We blind-tested 5 real commits: AI inferred "why" from diffs alone — **5/5 missed the real decisions, 2/5 completely wrong.** *(This repo, reproducible: `python3 scripts/blind_test.py . 5`)*
+- **Chat history is fragile.** Coding-agent conversations can disappear from their UI even while local records remain. CodeTalk makes the source record independently retrievable and verifiable.
 
 ### How CodeTalk is different
 
-| | AI inference (Cursor/Copilot) | CodeTalk |
+| | AI inference from a diff | CodeTalk |
 |---|---|---|
-| Source | current diff | real commit + session transcript |
-| Method | LLM guesses from code | zero-LLM deterministic lookup by SHA |
-| Verifiable | no — plausible but ungrounded | yes — click SHA to see original |
-| Data | sent to cloud | local-first; LLM calls opt-in (`--no-llm` for zero egress) |
-
-## Pipeline
-
-CodeTalk is a local evidence pipeline. It reads git history and AI coding
-session files, parses them defensively, aligns sessions to commits, stores
-redacted evidence in a local SQLite cache, then exposes deterministic tools for
-`ask`, `blame`, `search`, `review`, `drift`, `graph`, `prompts`, and `adr-export`.
-LLM synthesis is optional and sits behind the evidence layer.
-
-![CodeTalk pipeline](docs/images/codetalk-pipeline.png)
-
-### What These Terms Mean
-
-- **Decision notes** (called breadcrumbs internally) are three optional line
-  types in a git commit message: `Vibe-Decision: ...` records what was chosen
-  and why, `Vibe-Rejected: ...` records a seriously considered alternative and
-  why it was rejected, and `Vibe-Watch: ...` records a risk to check later.
-  They stay in git and can be written by a person, a git hook, or an AI coding
-  agent. `blame`, `ask`, and `review` surface all three; `digest` consumes
-  decisions and watches, while `graph` uses decisions as graph nodes.
-- **`enrich`** is optional backfill for old commits. It first completes local
-  evidence work and prints an inspectable, no-request plan. A configured API key
-  alone never authorizes remote project-data transfer. `--payload-preview` shows
-  one post-redaction request locally; `--allow-remote` authorizes remote model
-  calls for that command only. Generated narratives are stored under the commit
-  SHA and remain interpretation, not decision evidence.
-- **Grounding evidence** is the material CodeTalk can cite: commit messages,
-  all three `Vibe-*` decision-note types, and local session transcript excerpts.
-  If there is no evidence, CodeTalk should fall back to listing what it found,
-  not inventing an answer.
-- **Zero-LLM / zero egress** means CodeTalk only does local deterministic lookup.
-  `--no-llm` also disables optional model calls, so project data stays on your
-  machine.
-- **Time capsule** means a `Vibe-Watch` line is brought back in a future report
-  so you can check whether the risk actually happened.
-- **MCP** is the protocol CodeTalk uses to expose its commands inside AI coding
-  clients such as Claude Code, Cursor, and Codex.
-- **Understanding debt** is CodeTalk's priority list of files or decisions that
-  deserve a reread because they changed recently, carried risks, or have not
-  been reviewed.
-
-> **Honest boundaries:** Blind test is N=5, this repo only, human-judged — not a population claim. Coverage depends on decision notes + `enrich`. Run `python3 scripts/grounding_hitrate.py .` for the live non-merge commit count and real-grounding rate; the number is intentionally not frozen here because every new decision-note commit changes it. After a full authorized `codetalk enrich --allow-remote` backfill, the looser narrative-inclusive coverage can approach 100%, but that upper bound is *not* used as a trust claim. A separate 605-commit repo without enrich started at 0.3% and approached 100% after enrich. Without enrich or decision notes, blame shows commit subjects only — similar to `git log`. CodeTalk finds "what was actually said and decided", not "whether the code is correct" — source records themselves may be wrong. Blind-test method: `python3 scripts/blind_test.py`; moat comparison: `docs/moat-real-records-vs-inference.md`.
-
-## See it work in 30 seconds
-
-```bash
-git clone https://github.com/HUKAIR/CodeTalk && cd CodeTalk && pip install -e .
-
-# This repo uses CodeTalk on itself — many non-merge commits carry Vibe-* notes.
-# Run doctor for the current count rather than relying on a frozen README number.
-# No API key, no config, no enrich:
-codetalk doctor
-
-# Then inspect real decisions straight from git history:
-codetalk blame codetalk/cache.py
-```
-
-For every commit that carries decision notes, you'll see: the **why**, the **decisions made**, the **alternatives rejected** — verbatim from the commit record, zero LLM. Commits without notes show their subject only. That's the whole pitch in one command.
-
-`codetalk console --serve` gives the same grounding as a local, click-to-drill web view (this screenshot is CodeTalk dogfooding itself):
-
-![CodeTalk console screenshot](docs/images/codetalk-console-screenshot.png)
+| Source | current code | real commit + session record |
+| Method | model guesses why | deterministic lookup by commit identity |
+| Verifiable | plausible prose | original source available beside the card |
+| Judgment | model conclusion | maintainer chooses one of four outcomes |
+| Data | provider-dependent | local by default; remote enrichment needs per-command authorization |
 
 ## On your own repo
 
 ```bash
-# Step 0 — see coverage, local session availability, and the best next command:
-codetalk doctor --project /path/to/repo
-
-# Step 1 — decision notes already in your history? blame works immediately, zero key:
-codetalk blame yourfile.py --project /path/to/repo
-
-# Step 2 — inspect optional narrative backfill on a repo without decision notes:
-codetalk init                                      # write config, fill your API key
-codetalk enrich --project /path/to/repo            # local evidence work + no-request plan
-codetalk enrich --project /path/to/repo --payload-preview  # show one redacted request, no send
-codetalk enrich --project /path/to/repo --allow-remote     # authorize this remote run only
-
-# Step 3 — make future commits self-document (zero extra effort, no key):
-codetalk install-agent-seed --project .    # your AI agent leaves Vibe-Decision notes
+codetalk doctor --project .
+codetalk review --serve --project .
+codetalk install-agent-seed --project .
 ```
 
-**Honest cold-start:** a repo with no decision notes and no `enrich` shows commit subjects only — like `git log`. The value comes from decision notes (free, in git) or `enrich` (needs a key). This repo has both, which is why the 30-second demo above is rich. Yours starts empty and fills as you use it.
-
-## Install
-
-```bash
-pip install -e .                 # Core: pure standard library, zero third-party dependencies
-pip install -e ".[anthropic]"    # Optional: only needed for the anthropic provider
-```
-
-Requires Python ≥ 3.11. After installing you get the `codetalk` command (equivalent to `python3 -m codetalk`).
+**Honest cold-start:** a repository with no decision notes and no enrichment has
+only commit subjects, similar to `git log`. Decision notes capture future why at
+commit time; inspectable enrichment can backfill generated interpretation for
+older commits. CodeTalk finds what was recorded, not whether the code or record
+is correct.
 
 ## Build and install the MCP bundle (.mcpb)
 
@@ -239,6 +219,7 @@ not require remote authorization.
 | Command | What it does | Example |
 |---|---|---|
 | `doctor` | **First-run diagnosis**: evidence coverage, session sources, LLM config status, and next-step suggestions (**pure local, zero LLM**) | `codetalk doctor --project .` |
+| `review` | Turn the current diff into focused decision-review cards; terminal, JSON, or local browser (**zero LLM**) | `codetalk review --serve --project .` |
 | `digest` | Enrich a span of commits + sessions into a **change-narrative daily report** (anti-hallucination, letter style, embedded time capsules) | `codetalk digest --since "3 days ago"` |
 | `enrich` | Backfill local evidence, show an inspectable no-request plan, and optionally create generated narratives with explicit per-command remote authorization | `codetalk enrich --project . --payload-preview` |
 | `brief` | **Kickoff brief**: where you left off + top 3 understanding debts (**pure local, zero LLM**); `--all` gives a **cross-project overview** (across all projects: those with due capsules + those with the highest understanding debt, ordered by urgency) | `codetalk brief` · `codetalk brief --all` |
@@ -286,6 +267,42 @@ Committers who hand-write commits (without `-m`) can run `codetalk install-hook`
 - Once a commit is amended / rebased and its SHA changes, it's treated as a new commit; the old SHA's cache becomes dead data.
 - `graph`'s file-level edges get dense on very small projects and are suppressed with sparse nodes; line-level precision is deferred as a non-goal.
 - The local session formats of Claude Code / Cursor / Codex are all unofficial, non-stable APIs; a version upgrade may break parsing — the parser ignores unknown fields and degrades on missing ones, worst-case falling back to pure-git mode.
+
+## Pipeline
+
+CodeTalk is a local evidence pipeline. It reads git history and AI coding
+session files, parses them defensively, aligns sessions to commits, stores
+redacted evidence in a local SQLite cache, then exposes deterministic review
+and retrieval tools. Optional model synthesis sits behind that evidence layer.
+
+![CodeTalk pipeline](docs/images/codetalk-pipeline.png)
+
+### What These Terms Mean
+
+- **Decision notes** (called breadcrumbs internally) are three optional line
+  types in a git commit message: `Vibe-Decision: ...` records what was chosen
+  and why, `Vibe-Rejected: ...` records a seriously considered alternative and
+  why it was rejected, and `Vibe-Watch: ...` records a risk to check later.
+- **Grounding evidence** is material CodeTalk can cite directly: commit
+  messages, decision notes, tests, pull requests, and verbatim local session
+  excerpts. If no evidence exists, CodeTalk reports the gap instead of
+  inventing an answer.
+- **Generated interpretation** is optional model-written context. It is shown
+  separately and never promoted to decision evidence.
+- **Zero-LLM / zero egress** means local deterministic lookup only. `--no-llm`
+  disables optional model calls across supported commands.
+- **Time capsule** brings a `Vibe-Watch` risk back later so a maintainer can
+  record what happened.
+- **MCP** exposes CodeTalk's tools inside coding clients such as Claude Code,
+  Cursor, and Codex.
+- **Understanding debt** prioritizes files or decisions that changed recently,
+  carry open risks, or have not been reviewed.
+
+> **Honest boundaries:** CodeTalk retrieves what was actually recorded; records
+> can still be incomplete or wrong, and semantic applicability remains a human
+> judgment. The repository blind test is N=5 and human-judged, not a population
+> claim. Run `python3 scripts/blind_test.py . 5` and
+> `python3 scripts/grounding_hitrate.py .` to reproduce the current evidence.
 
 ## Architecture
 

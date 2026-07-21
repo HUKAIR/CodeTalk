@@ -39,6 +39,11 @@ made it verifiable.
   `--allow-remote` for that command; `--payload-preview` shows one redacted
   request locally without sending it, while exact loopback endpoints remain
   zero egress.
+- A sanitized, dependency-free `index.html` product proof now opens on a
+  successful synthetic decision review, exercises every judgment outcome,
+  demonstrates inspectable enrichment without making a request, and leads to
+  the canonical `pipx` install. Both READMEs follow the same review, privacy,
+  install, then deeper-documentation path.
 
 ### Fixed
 

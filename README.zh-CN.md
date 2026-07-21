@@ -10,100 +10,88 @@
   <strong>零-LLM 内核 · 真实引用 · 本地缓存 · MCP / CLI / VS Code</strong>
 </p>
 
-**AI 高速写码，三个月后没人知道当初为什么这么写。** CodeTalk 把「为什么」钉在真实 commit 记录上——逐字引用、可点开核验，不是 AI 反推编造。内核零 LLM、本地优先、纯标准库;可选模型综合需显式配置且出网前脱敏。
+**AI 写下改动，CodeTalk 找回这次改动可能正在重复的旧决定。**
 
----
+CodeTalk 在提交前，把当前本地 diff 与真实 commit 和会话记录对照。内核零 LLM、
+本地优先、纯标准库；模型生成的解释与可核验的决策证据始终分开显示。
+
+## 1. 审查当前改动
+
+下面这次成功审查发现：新改动重新引入了团队早已否决的全量缓存失效方案。
+维护者展开原始来源、确认冲突，并改变了原计划。CodeTalk 记录人的判断，不会把
+文件或行级关联冒充成自动语义结论。
+
+![CodeTalk 成功决策审查](docs/images/codetalk-review-proof.png)
+
+无需安装的脱敏产品体验位于 [`index.html`](index.html)。它使用纯合成数据，可操作
+全部四种判断结果，不发起任何外部运行时请求。真实本地流程是：
+
+```bash
+codetalk review --serve --project .
+```
+
+## 2. 先检查富集边界
+
+可选模型富集先输出本地、零请求计划：准确列出目标地址、模型、未缓存范围、输入
+上限、脱敏命中数、缓存影响、脱敏后仍可见的数据，以及模型服务商的保留边界。
+配置了 API key 不等于授权发送。
+
+```bash
+codetalk enrich --project .                    # 本地证据 + 零请求计划
+codetalk enrich --project . --payload-preview  # 本地看一条脱敏请求，不发送
+codetalk enrich --project . --allow-remote     # 只授权这一次远端执行
+```
+
+**秘密模式脱敏不等于匿名化。** 普通源码、业务逻辑、文件名、作者信息和非秘密会话
+文字仍可能被所选服务商看到。生成叙事只是解释，不是决策证据。
+
+## 3. 安装
+
+```bash
+pipx install codetalk
+```
+
+要求 Python 3.11+。唯一列出的替代安装器是 `uv tool install codetalk`。安装后先跑
+`codetalk doctor --project .` 查看本地证据覆盖，或直接打开上面的审查流程。
+
+## 深入文档
+
+| 需要了解 | 从这里开始 |
+|---|---|
+| 全部 CLI 命令 | [命令](#命令) |
+| MCP 客户端安装 | [MCP 安装](docs/mcp-install.md) |
+| VS Code / Cursor / Windsurf | [IDE 扩展](#ide-extension-vs-code--cursor--windsurf) |
+| 隐私与本地持久化 | [缓存与隐私](#缓存与隐私) |
+| Spec Kit 等规范工作流 | [Spec Kit 集成](docs/spec-kit-integration.md) |
+| 架构与术语 | [管道](#pipeline--管道) · [术语](#这些词在-codetalk-里具体指什么) |
 
 ### 为什么重要
 
-- **信任正在崩塌。** 46% 开发者不信 AI 输出，仅 3% 高度信任。*(SO 2025, N=33,244)*
-- **AI「解释」是编造的。** 本仓 5 commit 盲测：纯 diff 反推 5/5 漏真实决策、2/5 完全弄错。*(可复跑: `python3 scripts/blind_test.py . 5`)* —— 也可在你自己的仓跑可分享的 A/B 盲测,自己判断:`python3 scripts/trust_ab_demo.py . 5`(真实记录 vs 纯 diff 反推,并排呈现,末尾揭晓;加 `--html demo.html` 生成可交互分享页)。
-- **你的对话历史很脆弱。** Cursor / Claude Code / Copilot 均有 bug 报告:对话静默消失——数据还在磁盘,UI 接不回。一个已核实的 Cursor 案例(~175 条 agent 对话在磁盘完好却从 UI 消失)写在 `docs/moat-real-records-vs-inference.md`。
+- **信任正在下降。** 46% 开发者不信 AI 输出，仅 3% 高度信任。*(SO 2025, N=33,244)*
+- **只看 diff 的解释可能很像真的。** 本仓 5 个 commit 盲测中，纯 diff 反推 5/5 漏掉真实决策、2/5 完全错误。可运行 `python3 scripts/blind_test.py . 5` 复现。
+- **会话 UI 不是稳定档案。** 编码 agent 的对话可能从界面消失，即使本机记录还在。CodeTalk 让原始记录可以独立检索和核验。
 
 ### CodeTalk 有什么不同
 
-| | AI 反推 (Cursor/Copilot) | CodeTalk |
+| | 从 diff 反推 | CodeTalk |
 |---|---|---|
-| 来源 | 当前 diff | 真实 commit + 会话原话 |
-| 方法 | LLM 从代码猜测 | 零-LLM 确定性按 SHA 查找 |
-| 可核验 | 否——听起来对但无据 | 是——点开 SHA 看原文 |
-| 数据 | 发往云端 | 本地优先；LLM 调用可关（`--no-llm` 零出网） |
-
-## Pipeline / 管道
-
-CodeTalk 是一条本地证据管道。它读取 git 历史和 AI 编码会话文件，容错解析，把会话对齐到 commit，把脱敏后的证据存进本地 SQLite 缓存，再暴露 `ask`、`blame`、`search`、`review`、`drift`、`graph`、`prompts` 和 `adr-export` 这些确定性工具。LLM 综合是可选的，位于证据层之后。
-
-![CodeTalk pipeline](docs/images/codetalk-pipeline.png)
-
-### 这些词在 CodeTalk 里具体指什么
-
-- **决策记录行**(内部曾叫 breadcrumbs / 面包屑): git commit message 里的三类可选行。
-  `Vibe-Decision: ...` 记录选了什么及原因,`Vibe-Rejected: ...` 记录认真考虑但放弃的
-  方案及原因,`Vibe-Watch: ...` 记录以后要验证的风险。它们存在 git commit 里,可以由
-  人、git hook 或 AI coding agent 写入。`blame`、`ask`、`review` 展示全部三类;
-  `digest` 使用决定与待验证项,`graph` 用决定生成图节点。
-- **`enrich` / 富集**: 给旧 commit 补资料的可选步骤。它让 LLM 读取某个 commit 和附近的本地
-  会话摘录,生成脱敏后的决策叙事,再按该 commit 的 SHA 存进 `~/.codetalk/cache.db`。旧提交
-  还没有决策记录行时才需要它。
-- **接地证据 / grounding evidence**: CodeTalk 能引用的真实材料,包括 commit message、
-  三类 `Vibe-*` 决策记录行、本地会话原话摘录。没有证据时,CodeTalk 应该退回到
-  “列出找到的材料”,而不是让模型自己编答案。
-- **零-LLM / 零出网**: 只做本地确定性查找,不调用模型。加 `--no-llm` 后,连可选的 LLM
-  调用也关闭,项目数据留在本机。
-- **时间胶囊**: `Vibe-Watch` 行记录的风险会在未来报告里重新出现,提醒你验证当初的担心是否成真。
-- **MCP**: CodeTalk 用来把命令接进 Claude Code、Cursor、Codex 等 AI 编码客户端的协议。
-- **理解债**: CodeTalk 排出来的一组“该回头读一读”的文件或决策,通常因为它们最近改动多、
-  带风险、或还没被认真回看。
-
-> **诚实边界:** 盲测 N=5、本仓、人工判读，不是人群结论。覆盖率取决于决策记录行 + `enrich`。请运行 `python3 scripts/grounding_hitrate.py .` 查看实时的非合并 commit 数和真实接地率;README 故意不冻结这个数字,因为每个新决策记录都会改变它。全量 `enrich` 后,含 LLM 叙事的较松覆盖上限可接近 100%,但它**不当**可信度背书。另一本地 605-commit 仓未 enrich 时从 0.3% 起步,enrich 后接近 100%。未 enrich 且无决策记录行时,blame 只显示 commit subject——与 `git log` 接近。CodeTalk 找的是「当初到底说了什么、为什么这么写」,不保证源记录本身正确。盲测方法见 `python3 scripts/blind_test.py`;护城河对照见 `docs/moat-real-records-vs-inference.md`。
-
-## 30 秒看效果 / See it work in 30 seconds
-
-```bash
-git clone https://github.com/HUKAIR/CodeTalk && cd CodeTalk && pip install -e .
-
-# 本仓自己使用 CodeTalk——许多非合并 commit 都有 Vibe-* 决策记录。
-# 运行 doctor 查看实时数量,不依赖 README 里的冻结数字。
-# 不需要 API key、不需要 config、不需要 enrich:
-codetalk doctor
-
-# Then inspect real decisions straight from git history:
-codetalk blame codetalk/cache.py
-```
-
-对每个带决策记录行的 commit，你会看到：**为什么**、**做了哪些决定**、**否决了哪些替代方案**——全部逐字取自 commit 记录，零 LLM。没有记录行的 commit 只显示其 subject。一条命令就是全部卖点。
-
-`codetalk console --serve` 提供同样的接地能力，做成本地、可点击下钻的网页视图(下图是 CodeTalk 对自身仓库的 dogfood 截图):
-
-![CodeTalk console 截图](docs/images/codetalk-console-screenshot.png)
+| 来源 | 当前代码 | 真实 commit + 会话记录 |
+| 方法 | 模型猜“为什么” | 按 commit 标识确定性查找 |
+| 核验 | 听起来合理的文字 | 审查卡旁可展开原始来源 |
+| 判断 | 模型给结论 | 维护者从四种结果中选择 |
+| 数据 | 取决于服务商 | 默认本地；远端富集需逐次授权 |
 
 ## 用到你自己的仓 / On your own repo
 
 ```bash
-# Step 0 — 看证据覆盖、可用会话源和下一步建议:
-codetalk doctor --project /path/to/repo
-
-# Step 1 — 历史里已有决策记录行? blame 立刻可用,不需要 key:
-codetalk blame yourfile.py --project /path/to/repo
-
-# Step 2 — 没有决策记录行的旧仓,可用 enrich 补全叙事(需要 LLM key):
-codetalk init                              # 写配置,填 API key
-codetalk enrich --project /path/to/repo    # 从 git + 会话补全决策叙事
-
-# Step 3 — 让未来 commit 自动带决策记录行(不需要 key):
-codetalk install-agent-seed --project .    # 让 AI agent 提交时留下 Vibe-Decision
+codetalk doctor --project .
+codetalk review --serve --project .
+codetalk install-agent-seed --project .
 ```
 
-**诚实冷启动:** 没有决策记录行、也没跑 `enrich` 的仓库只显示 commit subject——和 `git log` 一样。价值来自决策记录行(免费、就在 git 里)或 `enrich`(需要 key)。本仓两者都有,所以上面 30 秒 demo 内容丰富。你的仓从空开始,随用随填。
-
-## 安装
-
-```bash
-pip install -e .                 # 核心:纯标准库,零三方依赖
-pip install -e ".[anthropic]"    # 可选:仅 anthropic provider 需要
-```
-
-要求 Python ≥ 3.11。安装后有 `codetalk` 命令(等价于 `python3 -m codetalk`)。
+**诚实冷启动:** 没有决策记录、也没有富集的仓库只有 commit subject，接近
+`git log`。决策记录负责捕捉未来的 why；可检查的富集可以给旧 commit 补生成解释。
+CodeTalk 找回的是被记录的内容，不保证代码或源记录本身正确。
 
 ## 构建并安装 MCP bundle(.mcpb)
 
@@ -224,12 +212,19 @@ API key 也可用环境变量 `<PROVIDER>_API_KEY`(如 `DEEPSEEK_API_KEY` / `KIM
 `local` 标签,也不会把仅仅包含 `localhost` 的远端域名当成本机。此时综合推理在本机运行;
 与 `--no-llm`(完全不调 LLM)形成两档隐私梯度。
 
+**可检查的远端富集**:普通 `codetalk enrich` 即使配置了 API key 也不会调用远端模型。
+计划会列出 provider、准确目标 origin、model、未缓存范围、输入类别及上限、脱敏计数和
+缓存影响。服务商保留策略不在 CodeTalk 的保证范围内。只有检查后显式加
+`--allow-remote` 才授权该次远端运行；准确解析出的 loopback 端点仍视为本机。
+
 ## 命令
 
 | 命令 | 做什么 | 例 |
 |---|---|---|
 | `doctor` | **首跑诊断**:证据覆盖、会话源、LLM 配置状态和下一步建议(**纯本地零 LLM**) | `codetalk doctor --project .` |
+| `review` | 把当前 diff 变成聚焦的决策审查卡；支持终端、JSON 和本地浏览器(**零 LLM**) | `codetalk review --serve --project .` |
 | `digest` | 把一段时间的 commit + 会话富集成**变更叙事日报**(防幻觉、信件体、内嵌时间胶囊) | `codetalk digest --since "3 days ago"` |
+| `enrich` | 本地补证据并展示零请求计划；远端生成需逐次明确授权 | `codetalk enrich --project . --payload-preview` |
 | `brief` | **开工简报**:你上次停在哪 + 理解债 top 3(**纯本地零 LLM**);`--all` 出**跨项目总览**(所有项目里有到期胶囊的 + 理解债最高的几个,按紧迫度) | `codetalk brief` · `codetalk brief --all` |
 | `graph` | **决策影响图**:哪个决定牵动了后续哪些改动(时间轴 DAG,**零 LLM**;`--canvas` 导出 Obsidian Canvas) | `codetalk graph --canvas` |
 | `course` | **演进课程**:项目怎么一步步长成这样(分章 + 大白话 + 场景测验,单文件 HTML) | `codetalk course` |
@@ -266,11 +261,14 @@ Vibe-Watch:    先这么扛,并发安全待验证
 - commit 叙事以 SHA 为键缓存于 `~/.codetalk/cache.db`,**永不重算**;重跑同一天 digest 为
   0 次 LLM 调用、亚秒级返回。`graph:`/`course:`/`ask:` 派生结果同表加前缀键缓存。
 - 会话解析以 (session_id, mtime, size) 增量缓存;每次运行参数追加到 `~/.codetalk/usage.log`。
-- **数据不出本机**(LLM API 调用除外);写缓存 / 写 vault / 注入 HTML **之前**,对常见 secret
-  模式(API key / token / JWT / 私钥 / Google / Stripe / Slack …)一律脱敏。
+- **远端 `enrich` 默认不发送。** 该命令必须显式带 `--allow-remote`;API key 是配置,不是
+  同意。允许的模型请求及写缓存 / vault / HTML 之前,常见 secret 模式(API key / token /
+  JWT / 私钥 / Google / Stripe / Slack 等)一律脱敏。脱敏不等于匿名化;计划会明确列出仍
+  可能可见的数据与服务商保留边界。其他可选模型命令遵循各自文档和配置。
 - **`no_llm` 硬开关**:把那个「LLM 调用」例外也关掉,**保证零 egress**。三种方式任一即生效,
   全局覆盖(含 MCP `ask` 工具):config.json 置 `"no_llm": true`、设环境变量 `CODETALK_NO_LLM=1`、
-  或给 `digest`/`ask`/`course` 加 `--no-llm`。开启后 blame/graph/search/brief/prompts 照常,
+  或给 `digest`/`enrich`/`ask`/`course`/`web` 加 `--no-llm`。开启后
+  blame/graph/search/brief/prompts 照常,enrich 仍完成本地证据和计划,
   ask/course/MCP ask 降级为确定性检索,digest 因必须用 LLM 而直接退出(信息明确,不静默)。
 
 ## 已知限制(M0)
@@ -283,6 +281,26 @@ Vibe-Watch:    先这么扛,并发安全待验证
 - `graph` 文件级边在极小项目偏密,靠稀疏节点压制;行级精度作非目标延后。
 - Claude Code / Cursor / Codex 的本地会话格式都非官方稳定 API;版本升级可能破坏解析,
   解析器对未知字段忽略、缺字段降级,最坏退化为纯 git 模式。
+
+## Pipeline / 管道
+
+CodeTalk 读取 git 历史与本地 AI 编码会话，容错解析并按时间与文件交集建立软关联，
+把脱敏证据存进本地 SQLite，再提供确定性审查与检索工具。可选模型综合位于证据层之后。
+
+![CodeTalk pipeline](docs/images/codetalk-pipeline.png)
+
+### 这些词在 CodeTalk 里具体指什么
+
+- **决策记录行**(内部曾叫 breadcrumbs / 面包屑):commit message 中三类可选行。
+  `Vibe-Decision` 记录所选方案及原因，`Vibe-Rejected` 记录认真考虑但放弃的方案及原因，
+  `Vibe-Watch` 记录以后要验证的风险。
+- **接地证据**:CodeTalk 能直接引用的 commit message、决策记录、测试、Pull Request 与
+  本地会话原话。没有证据时只报告缺口，不让模型自行补答案。
+- **生成解释**:可选模型写出的可读上下文，始终独立显示，绝不升级为决策证据。
+- **零-LLM / 零出网**:只做本地确定性查找；`--no-llm` 关闭支持该参数的全部可选模型调用。
+- **时间胶囊**:让 `Vibe-Watch` 风险在未来重新出现，供维护者记录实际结果。
+- **MCP**:把 CodeTalk 工具接入 Claude Code、Cursor、Codex 等编码客户端的协议。
+- **理解债**:优先列出最近频繁变动、带未闭环风险或尚未认真回看的文件和决策。
 
 ## 架构
 

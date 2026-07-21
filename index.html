@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="Operate a synthetic CodeTalk decision review and inspect its privacy boundary before installing.">
+  <link rel="icon" href="docs/images/codetalk-logo-banner.png">
+  <title>CodeTalk - Decision review, before code ships</title>
+  <style>
+    :root {
+      --bg: #f4f6f3; --surface: #ffffff; --ink: #17201b; --muted: #5c6860;
+      --line: #d6ddd8; --soft: #e9eeea; --blue: #185f98; --blue-bg: #edf6fc;
+      --green: #216d48; --green-bg: #ebf7ef; --red: #9e302d; --red-bg: #fff1ef;
+      --amber: #7b5717; --amber-bg: #fff7e5; --focus: #0b66ad;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+    * { box-sizing: border-box; letter-spacing: 0; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; min-width: 280px; background: var(--bg); color: var(--ink);
+      font: 15px/1.55 var(--sans); }
+    button, input { font: inherit; }
+    button:focus-visible, input:focus-visible, summary:focus-visible, a:focus-visible {
+      outline: 3px solid rgba(11, 102, 173, .3); outline-offset: 2px;
+    }
+    a { color: var(--blue); text-underline-offset: 3px; }
+    code, pre { font-family: var(--mono); }
+    .topbar { position: sticky; top: 0; z-index: 10; background: rgba(255,255,255,.96);
+      border-bottom: 1px solid var(--line); }
+    .topbar-inner { width: min(1120px, 100%); min-height: 58px; margin: 0 auto;
+      padding: 8px 22px; display: flex; align-items: center; gap: 18px; }
+    .brand-image { display: block; width: 164px; height: 42px; object-fit: cover;
+      object-position: 50% 50%; border-radius: 5px; }
+    .topbar nav { margin-left: auto; display: flex; gap: 18px; font-size: 13px; }
+    .topbar nav a { color: var(--muted); text-decoration: none; }
+    .local { color: var(--green); font: 11px var(--mono); white-space: nowrap; }
+    .band { border-bottom: 1px solid var(--line); }
+    .inner { width: min(1120px, 100%); margin: 0 auto; padding: 54px 22px; }
+    .review-band .inner { padding-top: 32px; }
+    .intro { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 28px;
+      align-items: end; margin-bottom: 22px; }
+    .eyebrow { margin: 0 0 7px; color: var(--red); font: 700 12px var(--mono);
+      text-transform: uppercase; }
+    h1, h2, h3, p { overflow-wrap: anywhere; }
+    h1 { max-width: 760px; margin: 0; font-size: clamp(28px, 4vw, 46px);
+      line-height: 1.08; font-weight: 760; }
+    h2 { margin: 0; font-size: 28px; line-height: 1.15; }
+    h3 { margin: 0; font-size: 16px; }
+    .lede { max-width: 750px; margin: 10px 0 0; color: var(--muted); font-size: 16px; }
+    .outcome { min-width: 210px; padding-left: 18px; border-left: 3px solid var(--green); }
+    .outcome span { display: block; color: var(--muted); font: 11px var(--mono);
+      text-transform: uppercase; }
+    .outcome strong { display: block; margin-top: 3px; color: var(--green); font-size: 17px; }
+    .review-card { background: var(--surface); border: 1px solid var(--line); border-radius: 7px;
+      overflow: hidden; box-shadow: 0 10px 30px rgba(23,32,27,.06); }
+    .card-head { min-height: 66px; padding: 14px 18px; display: grid;
+      grid-template-columns: minmax(0,1fr) auto; gap: 14px; align-items: center;
+      border-bottom: 1px solid var(--line); }
+    .kind { color: var(--red); font-size: 13px; font-weight: 750; }
+    .location, .card-id { color: var(--muted); font: 11px/1.5 var(--mono);
+      overflow-wrap: anywhere; }
+    .card-id { text-align: right; }
+    .card-body { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(270px, .75fr); }
+    .evidence-column, .judgment-column { min-width: 0; padding: 18px; }
+    .judgment-column { border-left: 1px solid var(--line); background: #fafcf9; }
+    .label { margin: 0 0 8px; color: var(--muted); font-size: 11px;
+      font-weight: 750; text-transform: uppercase; }
+    .decision { padding: 10px 12px; border-left: 3px solid var(--red); background: var(--red-bg); }
+    .decision + .decision { margin-top: 8px; }
+    .decision.chosen { border-color: var(--green); background: var(--green-bg); }
+    .decision b { display: block; margin-bottom: 2px; font-size: 12px; }
+    .association { margin-top: 14px; padding: 10px 12px; border-left: 3px solid var(--amber);
+      background: var(--amber-bg); }
+    .association strong { color: var(--amber); }
+    .interpretation { margin-top: 14px; padding: 10px 12px; border: 1px solid #b8d5e8;
+      border-radius: 5px; background: var(--blue-bg); }
+    .interpretation b { display: block; color: var(--blue); font-size: 12px; }
+    details { margin-top: 15px; padding-top: 12px; border-top: 1px solid var(--line); }
+    summary { min-height: 34px; color: var(--blue); cursor: pointer; font-weight: 700; }
+    .sources { display: grid; gap: 10px; padding: 6px 0 2px; }
+    .source-row { display: grid; grid-template-columns: 116px minmax(0,1fr); gap: 10px; }
+    .source-type { color: var(--muted); font: 11px/1.5 var(--mono); }
+    .source-value { min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .diff { max-height: 190px; margin: 0; padding: 10px; overflow: auto;
+      border: 1px solid var(--line); border-radius: 4px; background: #f0f3f0;
+      white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.5 var(--mono); }
+    fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+    legend { margin: 0 0 9px; padding: 0; font-weight: 750; }
+    .choices { display: grid; gap: 7px; }
+    .choice { position: relative; min-height: 40px; display: flex; align-items: center;
+      padding: 8px 10px 8px 34px; border: 1px solid var(--line); border-radius: 5px;
+      background: var(--surface); cursor: pointer; overflow-wrap: anywhere; }
+    .choice input { position: absolute; left: 10px; width: 15px; height: 15px; margin: 0; }
+    .choice:has(input:checked) { border-color: var(--focus); background: var(--blue-bg); }
+    .action { margin-top: 13px; padding: 11px; background: var(--soft); border-radius: 5px; }
+    .action[hidden] { display: none; }
+    .action-title { margin-bottom: 8px; font-weight: 700; }
+    .binary { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .primary { width: 100%; min-height: 40px; margin-top: 14px; border: 1px solid #19593a;
+      border-radius: 5px; background: var(--green); color: white; font-weight: 750; cursor: pointer; }
+    .primary:hover { background: #185b3b; }
+    .result { min-height: 48px; margin-top: 10px; padding: 9px 10px; border-left: 3px solid var(--green);
+      background: var(--green-bg); color: var(--green); }
+    .result b { display: block; }
+    .result span { color: var(--muted); font-size: 12px; }
+    .enrich-band { background: #eef3f6; }
+    .section-head { display: grid; grid-template-columns: minmax(0,1fr) minmax(240px, .55fr);
+      gap: 34px; align-items: end; margin-bottom: 26px; }
+    .section-head p { margin: 8px 0 0; color: var(--muted); }
+    .boundary { padding-left: 16px; border-left: 3px solid var(--red); color: var(--red); }
+    .plan { border-top: 1px solid #c8d3da; border-bottom: 1px solid #c8d3da; }
+    .plan-row { display: grid; grid-template-columns: 190px minmax(0,1fr); gap: 22px;
+      padding: 13px 0; border-top: 1px solid #d5dee3; }
+    .plan-row:first-child { border-top: 0; }
+    .plan-row dt { color: var(--muted); font: 12px var(--mono); }
+    .plan-row dd { margin: 0; }
+    .status { color: var(--red); font-weight: 750; }
+    .counts { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+    .counts code { color: var(--ink); font-size: 12px; }
+    .enrich-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 18px; }
+    .secondary, .authorize { min-height: 40px; padding: 8px 13px; border-radius: 5px;
+      cursor: pointer; font-weight: 700; }
+    .secondary { border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+    .authorize { border: 1px solid var(--blue); background: var(--blue); color: white; }
+    .payload { margin: 14px 0 0; max-height: 330px; padding: 14px; overflow: auto;
+      border: 1px solid #c8d3da; border-radius: 5px; background: #17201b; color: #edf4ef;
+      white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.55 var(--mono); }
+    .demo-note { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
+    .install-band { background: var(--surface); }
+    .install-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(250px,.55fr);
+      gap: 36px; align-items: start; }
+    .command { margin-top: 16px; display: grid; grid-template-columns: minmax(0,1fr) auto;
+      border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: #17201b; }
+    .command code { min-width: 0; padding: 14px 16px; color: #f4f7f5; overflow-wrap: anywhere; }
+    .copy { min-width: 92px; border: 0; border-left: 1px solid #3a463f; background: #243029;
+      color: white; cursor: pointer; }
+    .alternative { margin: 14px 0 0; color: var(--muted); }
+    .alternative code { color: var(--ink); }
+    .requirements { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+    .requirements li { padding: 10px 0; border-bottom: 1px solid var(--line); }
+    .docs { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px;
+      margin-top: 34px; padding-top: 24px; border-top: 1px solid var(--line); }
+    .docs a { min-height: 64px; padding: 10px 0; font-weight: 700; }
+    .docs small { display: block; margin-top: 3px; color: var(--muted); font-weight: 400; }
+    footer { width: min(1120px,100%); margin: 0 auto; padding: 24px 22px 42px;
+      display: flex; justify-content: space-between; gap: 18px; color: var(--muted); font-size: 12px; }
+    @media (max-width: 760px) {
+      .topbar-inner { padding-inline: 14px; }
+      .topbar nav { display: none; }
+      .brand-image { width: 138px; height: 36px; }
+      .inner { padding: 38px 14px; }
+      .review-band .inner { padding-top: 24px; }
+      .intro, .section-head, .install-grid { grid-template-columns: 1fr; gap: 16px; }
+      .outcome, .boundary { min-width: 0; }
+      .card-head { grid-template-columns: 1fr; }
+      .card-id { text-align: left; }
+      .card-body { grid-template-columns: 1fr; }
+      .judgment-column { border-left: 0; border-top: 1px solid var(--line); }
+      .source-row, .plan-row { grid-template-columns: 1fr; gap: 3px; }
+      .docs { grid-template-columns: 1fr; }
+      footer { flex-direction: column; }
+    }
+    @media (max-width: 340px) {
+      .local { display: none; }
+      .command { grid-template-columns: 1fr; }
+      .copy { min-height: 40px; border-left: 0; border-top: 1px solid #3a463f; }
+      .binary { grid-template-columns: 1fr; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation-duration: .01ms !important;
+        transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <img class="brand-image" src="docs/images/codetalk-logo-banner.png" alt="CodeTalk, code provenance made clear">
+      <nav aria-label="Page sections">
+        <a href="#review">Review</a>
+        <a href="#enrichment">Enrichment</a>
+        <a href="#install">Install</a>
+      </nav>
+      <div class="local">STATIC PROOF / NO TELEMETRY</div>
+    </div>
+  </header>
+
+  <main>
+    <section class="band review-band" id="review">
+      <div class="inner">
+        <div class="intro">
+          <div>
+            <p class="eyebrow">Decision caught before commit</p>
+            <h1>This change reopened an approach the team had already rejected.</h1>
+            <p class="lede">CodeTalk connected the current diff to an original decision record. The maintainer confirmed the conflict and changed the proposed action.</p>
+          </div>
+          <div class="outcome" aria-label="Review outcome">
+            <span>Review outcome</span>
+            <strong>Verified interception</strong>
+          </div>
+        </div>
+
+        <article class="review-card" aria-labelledby="card-title">
+          <header class="card-head">
+            <div>
+              <div class="kind" id="card-title">Potential conflict</div>
+              <div class="location">src/cache_policy.py:48-67</div>
+            </div>
+            <div class="card-id">synthetic-review-card</div>
+          </header>
+          <div class="card-body">
+            <div class="evidence-column">
+              <p class="label">Decision evidence</p>
+              <div class="decision">
+                <b>Previously rejected</b>
+                Invalidate every cached narrative after any configuration edit. It was rejected because commit evidence is immutable by commit identity; global invalidation made repeat reviews slower without improving correctness.
+              </div>
+              <div class="decision chosen">
+                <b>Chosen direction</b>
+                Keep commit narratives immutable. Version only the derived view whose interpretation rules changed.
+              </div>
+              <div class="association">
+                <strong>Line-level provenance</strong><br>
+                The current diff changes the same cache-write branch. This is a deterministic association, not a semantic verdict.
+              </div>
+              <div class="interpretation">
+                <b>Generated interpretation - not evidence</b>
+                The new invalidation branch may repeat the rejected global strategy. Read the original source below before deciding.
+              </div>
+              <details>
+                <summary>Original synthetic evidence</summary>
+                <div class="sources">
+                  <div class="source-row">
+                    <div class="source-type">Current diff</div>
+                    <pre class="diff">- cache.write(commit_id, narrative)
++ cache.clear_all()
++ cache.write(commit_id, narrative)</pre>
+                  </div>
+                  <div class="source-row">
+                    <div class="source-type">Decision note</div>
+                    <div class="source-value">Vibe-Rejected: Global cache invalidation after configuration edits; immutable commit evidence does not change, so invalidate only derived views whose rules changed.</div>
+                  </div>
+                  <div class="source-row">
+                    <div class="source-type">Commit</div>
+                    <div class="source-value">Synthetic commit D-014 / preserve immutable commit narratives</div>
+                  </div>
+                  <div class="source-row">
+                    <div class="source-type">Test</div>
+                    <div class="source-value">tests/test_cache_policy.py / test_config_change_preserves_commit_narrative</div>
+                  </div>
+                </div>
+              </details>
+            </div>
+
+            <aside class="judgment-column">
+              <form id="judgment-form">
+                <fieldset>
+                  <legend>Maintainer judgment</legend>
+                  <div class="choices">
+                    <label class="choice"><input type="radio" name="judgment" value="confirmed_conflict" checked>Confirmed conflict</label>
+                    <label class="choice"><input type="radio" name="judgment" value="intentional_exception">Intentional exception</label>
+                    <label class="choice"><input type="radio" name="judgment" value="unrelated">Unrelated</label>
+                    <label class="choice"><input type="radio" name="judgment" value="insufficient_evidence">Insufficient evidence</label>
+                  </div>
+                </fieldset>
+                <div class="action" id="action-change">
+                  <div class="action-title">Did this change the proposed action?</div>
+                  <div class="binary">
+                    <label class="choice"><input type="radio" name="changed" value="yes" checked>Yes</label>
+                    <label class="choice"><input type="radio" name="changed" value="no">No</label>
+                  </div>
+                </div>
+                <button class="primary" type="submit">Save judgment</button>
+                <div class="result" id="judgment-result" aria-live="polite">
+                  <b>Verified interception</b>
+                  <span>Stored in this tab only. No telemetry.</span>
+                </div>
+              </form>
+            </aside>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="band enrich-band" id="enrichment">
+      <div class="inner">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Inspectable enrichment</p>
+            <h2>See the boundary before a model sees the payload.</h2>
+            <p>A configured key is not consent. The default command completes local evidence work and shows this plan without constructing a model client.</p>
+          </div>
+          <div class="boundary"><strong>Redaction is not anonymization.</strong><br>Ordinary code and business context can remain readable.</div>
+        </div>
+
+        <dl class="plan">
+          <div class="plan-row"><dt>Execution</dt><dd><span class="status" id="authorization-status">Blocked - no authorization</span></dd></div>
+          <div class="plan-row"><dt>Destination</dt><dd><code>https://api.anthropic.com</code> / provider: Anthropic / model: configured model</dd></div>
+          <div class="plan-row"><dt>Read scope</dt><dd>12 uncached synthetic commits; commit message, bounded diff excerpt, local decision notes, and up to two matched session excerpts.</dd></div>
+          <div class="plan-row"><dt>Redaction effects</dt><dd class="counts"><code>named_secret: 1</code><code>bearer_token: 0</code><code>private_key: 0</code><code>slack_webhook: 0</code></dd></div>
+          <div class="plan-row"><dt>Still visible</dt><dd>Ordinary source code, business logic, filenames, author data, and non-secret conversation text.</dd></div>
+          <div class="plan-row"><dt>Cache effects</dt><dd>Deterministic evidence is updated locally. Generated narratives are written by immutable commit identity only after execution.</dd></div>
+          <div class="plan-row"><dt>Provider retention</dt><dd>Controlled by the selected provider and outside CodeTalk guarantees.</dd></div>
+        </dl>
+
+        <div class="enrich-actions">
+          <button class="secondary" id="preview-button" type="button" aria-expanded="false" aria-controls="payload">Preview redacted payload</button>
+          <button class="authorize" id="authorize-button" type="button">Authorize this run</button>
+        </div>
+        <pre class="payload" id="payload" hidden>{
+  "destination": "https://api.anthropic.com/v1/messages",
+  "credentials": "omitted",
+  "model": "configured model",
+  "input": {
+    "file": "src/cache_policy.py",
+    "decision_note": "Preserve immutable commit narratives",
+    "diff_excerpt": "credential = '[REDACTED]'",
+    "session_excerpt": "Keep the source record separate from interpretation."
+  }
+}</pre>
+        <p class="demo-note" id="enrich-note" aria-live="polite">No request is sent from this static demo. Preview and authorization are local interface states only.</p>
+      </div>
+    </section>
+
+    <section class="band install-band" id="install">
+      <div class="inner">
+        <div class="install-grid">
+          <div>
+            <p class="eyebrow">Install</p>
+            <h2>Run the same review on your repository.</h2>
+            <p class="lede">The core review path is deterministic, local-first, and requires no model key.</p>
+            <div class="command">
+              <code id="install-command">pipx install codetalk</code>
+              <button class="copy" id="copy-command" type="button">Copy command</button>
+            </div>
+            <p class="alternative">One alternative: <code>uv tool install codetalk</code></p>
+          </div>
+          <ul class="requirements" aria-label="Install facts">
+            <li><strong>Python 3.11+</strong><br>Core CLI has no runtime dependency.</li>
+            <li><strong>Start locally</strong><br><code>codetalk review --serve --project .</code></li>
+            <li><strong>Optional models</strong><br>Remote enrichment stays blocked until that command is explicitly authorized.</li>
+          </ul>
+        </div>
+        <nav class="docs" aria-label="Deeper documentation">
+          <a href="https://github.com/HUKAIR/CodeTalk#commands">Command reference<small>CLI, MCP, editor, and local browser surfaces</small></a>
+          <a href="https://github.com/HUKAIR/CodeTalk/blob/main/docs/mcp-install.md">MCP installation<small>Client setup and local self-checks</small></a>
+          <a href="https://github.com/HUKAIR/CodeTalk/blob/main/SECURITY.md">Security policy<small>Privacy boundaries and private reporting</small></a>
+        </nav>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>All repository details on this page are synthetic.</span>
+    <span>CodeTalk is AGPL-3.0-or-later.</span>
+  </footer>
+
+  <script>
+    (function () {
+      var form = document.getElementById("judgment-form");
+      var action = document.getElementById("action-change");
+      var result = document.getElementById("judgment-result");
+      var labels = {
+        confirmed_conflict: "Confirmed conflict",
+        intentional_exception: "Intentional exception",
+        unrelated: "Unrelated",
+        insufficient_evidence: "Insufficient evidence"
+      };
+      form.querySelectorAll('input[name="judgment"]').forEach(function (input) {
+        input.addEventListener("change", function () {
+          action.hidden = input.value !== "confirmed_conflict";
+        });
+      });
+      form.addEventListener("submit", function (event) {
+        event.preventDefault();
+        var picked = form.querySelector('input[name="judgment"]:checked');
+        var changed = form.querySelector('input[name="changed"]:checked');
+        var verified = picked.value === "confirmed_conflict" && changed && changed.value === "yes";
+        result.innerHTML = "<b>" + (verified ? "Verified interception" : labels[picked.value])
+          + "</b><span>Stored in this tab only. No telemetry.</span>";
+      });
+
+      var preview = document.getElementById("preview-button");
+      var payload = document.getElementById("payload");
+      preview.addEventListener("click", function () {
+        payload.hidden = !payload.hidden;
+        preview.setAttribute("aria-expanded", String(!payload.hidden));
+        preview.textContent = payload.hidden ? "Preview redacted payload" : "Hide redacted payload";
+      });
+
+      var authorize = document.getElementById("authorize-button");
+      var status = document.getElementById("authorization-status");
+      var note = document.getElementById("enrich-note");
+      authorize.addEventListener("click", function () {
+        status.textContent = "Authorized for this demo run";
+        status.style.color = "var(--green)";
+        note.textContent = "Authorization recorded in this tab. No request is sent from this static demo.";
+        authorize.disabled = true;
+      });
+
+      document.getElementById("copy-command").addEventListener("click", function () {
+        var button = this;
+        var command = document.getElementById("install-command").textContent;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(command).then(function () {
+            button.textContent = "Copied";
+          }, function () { button.textContent = "Select command"; });
+        } else {
+          button.textContent = "Select command";
+        }
+      });
+    }());
+  </script>
+</body>
+</html>
