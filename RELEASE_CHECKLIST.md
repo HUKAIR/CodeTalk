@@ -84,6 +84,57 @@ After packaging the editor extension, copy
 - Confirm LICENSE, SECURITY, CONTRIBUTING, CHANGELOG, and issue templates are
   present.
 
+## 0.2.0 Promotion
+
+Preparation snapshot; update every item from its public or owner-only endpoint
+before promotion:
+
+- [ ] Protected `release`, `pypi`, and `github-pages` environments are not yet
+  configured.
+- [ ] The PyPI Pending Trusted Publisher still requires owner setup for project
+  `codetalk`, repository `HUKAIR/CodeTalk`, workflow `release.yml`, and
+  environment `pypi`.
+- [ ] GitHub immutable Releases are currently disabled.
+- [ ] GitHub Pages is currently disabled; its source must be GitHub Actions.
+
+Run the non-publishing rehearsal first:
+
+- `gh workflow run release.yml --ref main -f publish=false`
+- Watch the run and require the reusable test workflow, candidate validation,
+  secret scan, product-proof test, and Pages artifact upload to pass.
+- Confirm every job after `candidate` is skipped.
+- Reconfirm that no tag, PyPI project, GitHub Release, Pages site, or Homepage
+  change exists.
+
+The following owner actions require fresh explicit confirmation because they
+enable or perform public, partly irreversible changes:
+
+- Configure required reviewers and tag restrictions on the `release`, `pypi`,
+  and `github-pages` environments.
+- Register the PyPI Pending Trusted Publisher with the exact values above.
+- Enable immutable Releases and verify
+  `gh api repos/HUKAIR/CodeTalk/immutable-releases --jq .enabled` prints `true`.
+- Enable GitHub Pages with GitHub Actions as the source and verify
+  `gh api repos/HUKAIR/CodeTalk/pages --jq .build_type` prints `workflow`.
+- Create a signed annotated `v0.2.0` tag at the fully verified preparation
+  commit and confirm GitHub reports its signature as verified.
+- Push only that tag, then run
+  `gh workflow run release.yml --ref v0.2.0 -f publish=true`.
+
+After promotion, verify from public endpoints:
+
+- `python3 -m pip install --no-cache-dir --no-deps codetalk==0.2.0` in a new
+  virtual environment, followed by `codetalk --version`, `doctor`, and
+  `review --json` in a synthetic repository.
+- `gh release verify v0.2.0` and `gh release verify-asset v0.2.0 <local-file>`
+  for the wheel, sdist, MCP bundle, VSIX, SBOM, and `SHA256SUMS`.
+- Fetch the Pages root and `docs/images/codetalk-logo-banner.png`, then compare
+  them byte-for-byte with the tagged allowlisted files.
+- Set the repository Homepage only after the Pages URL and local asset resolve
+  from a clean session.
+- Leave issue #142 open until every public endpoint, hash, install smoke test,
+  and Homepage check succeeds.
+
 ## Post-Release
 
 - Watch install issues for command drift, MCP client differences, and Python

@@ -261,7 +261,7 @@ jobs:
       - run: python -m scripts.release_promotion validate-candidate dist docs/releases/v0.2.0.md
       - run: python -m scripts.release_promotion stage-pages . pages
       - run: python -m scripts.scan_secrets
-      - run: python -m scripts.check_static_no_external pages/index.html
+      - run: python -m unittest tests.test_product_proof
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9
 ```
 

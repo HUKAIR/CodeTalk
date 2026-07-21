@@ -32,17 +32,35 @@ class TestVersionContract(unittest.TestCase):
                       (ROOT / "codetalk" / "__init__.py").read_text(
                           encoding="utf-8"))
 
-    def test_release_notes_name_version_and_honest_limitations(self):
+    def test_release_notes_are_status_neutral_and_complete(self):
         changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
         notes = (ROOT / "docs" / "releases" / "v0.2.0.md").read_text(
             encoding="utf-8")
         self.assertIn("## 0.2.0 - Unreleased", changelog)
-        self.assertIn("# CodeTalk 0.2.0 Release Candidate", notes)
+        self.assertTrue(notes.startswith("# CodeTalk 0.2.0\n"))
         for phrase in (
                 "cold-start evidence gaps", "human semantic judgment",
                 "provider retention", "unofficial local session formats"):
             self.assertIn(phrase, notes)
-        self.assertIn("not been published", notes)
+        for name in (
+                "codetalk-0.2.0-py3-none-any.whl",
+                "codetalk-0.2.0.tar.gz", "codetalk-0.2.0.mcpb",
+                "vscode-codetalk-0.2.0.vsix",
+                "codetalk-0.2.0.sbom.cdx.json", "SHA256SUMS"):
+            self.assertIn(name, notes)
+        for forbidden in ("Release Candidate", "not been published",
+                          "Unreleased"):
+            self.assertNotIn(forbidden, notes)
+
+    def test_release_checklist_keeps_public_changes_behind_owner_gate(self):
+        checklist = (ROOT / "RELEASE_CHECKLIST.md").read_text(encoding="utf-8")
+        for phrase in (
+                "0.2.0 Promotion", "release.yml", "publish=false",
+                "publish=true", "release", "pypi", "github-pages",
+                "Pending Trusted Publisher", "immutable Releases",
+                "GitHub Pages", "fresh explicit confirmation",
+                "Leave issue #142 open"):
+            self.assertIn(phrase, checklist)
 
     def test_user_facing_bundle_examples_are_versioned(self):
         for name in ("README.md", "README.zh-CN.md", "docs/mcp-install.md",
