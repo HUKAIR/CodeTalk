@@ -54,13 +54,15 @@ evidence.
 ## 3. Install
 
 ```bash
-pipx install codetalk
+pipx install hukair-codetalk
 ```
 
-Requires Python 3.11+. One alternative installer is `uv tool install codetalk`.
-Then run `codetalk doctor --project .` to inspect local evidence coverage, or
-open the review workflow shown above. Optional Anthropic synthesis is available
-through the package extra after the core install.
+Requires Python 3.11+. The PyPI distribution is `hukair-codetalk`; the installed
+command remains `codetalk`. One alternative installer is
+`uv tool install hukair-codetalk`. Then run `codetalk doctor --project .` to
+inspect local evidence coverage, or open the review workflow shown above.
+Optional Anthropic synthesis is available through the package extra after the
+core install.
 
 ## Deeper documentation
 
@@ -108,10 +110,10 @@ is correct.
 Expose the zero-LLM grounding capability to MCP clients such as Claude Code / Cursor / Codex, so you can ask "why was this code written this way" inside your agent workflow. CodeTalk's core is pure standard library, so it packs into one `.mcpb` containing the manifest and source. The built file is drag-to-install; until a downloadable GitHub Release exists, a source checkout must build it once. It uses the installed `python3` and **does not bundle an interpreter**:
 
 ```bash
-python3 -m scripts.build_mcpb     # produces dist/codetalk-0.3.0.mcpb
+python3 -m scripts.build_mcpb     # produces dist/codetalk-0.3.1.mcpb
 ```
 
-Drag `codetalk-0.3.0.mcpb` into your client's extension-install entry point, and pick a project root during installation. It exposes **7 tools** (all marked `readOnlyHint: true`, so Claude Code / Cursor can auto-approve them without a confirmation prompt):
+Drag `codetalk-0.3.1.mcpb` into your client's extension-install entry point, and pick a project root during installation. It exposes **7 tools** (all marked `readOnlyHint: true`, so Claude Code / Cursor can auto-approve them without a confirmation prompt):
 
 | Tool | Purpose | LLM |
 |---|---|---|
@@ -140,8 +142,8 @@ npm run package                                      # package the .vsix
 Install (pick one):
 
 ```bash
-cursor --install-extension vscode-codetalk-0.3.0.vsix   # Cursor
-code --install-extension vscode-codetalk-0.3.0.vsix      # VS Code
+cursor --install-extension vscode-codetalk-0.3.1.vsix   # Cursor
+code --install-extension vscode-codetalk-0.3.1.vsix      # VS Code
 # Windsurf: Extensions → Install from VSIX → pick the file
 ```
 

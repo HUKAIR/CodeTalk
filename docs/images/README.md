@@ -8,7 +8,7 @@
 | `codetalk-logo-banner.png` | CodeTalk 品牌横幅 | README / 静态产品体验 |
 | `codetalk-pipeline.png` | 本地证据管道与隐私边界 | README 深层架构章节 |
 | `codetalk-review-proof.png` | 已确认冲突并改变行动的成功决策审查 | README 第一屏 |
-| `mcp-desktop-install.png` | Claude Desktop → Settings → Extensions 安装 `codetalk-0.3.0.mcpb`,填 project 路径,启用后 7 个工具出现 | 3·A |
+| `mcp-desktop-install.png` | Claude Desktop → Settings → Extensions 安装 `codetalk-0.3.1.mcpb`,填 project 路径,启用后 7 个工具出现 | 3·A |
 | `mcp-claude-code.png` | Claude Code:`.mcp.json` 配置 + `claude mcp list` 显示 CodeTalk connected | 3·B |
 | `mcp-cursor.png` | Cursor Settings → MCP:CodeTalk 已连接、显示工具数 | 3·C |
 | `mcp-call-result.png` | agent 实际调用 `codetalk_blame` / `codetalk_ask` 的接地返回 | 4 |

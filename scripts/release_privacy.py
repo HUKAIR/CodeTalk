@@ -141,11 +141,11 @@ def validate_public_text(path):
     _scan_payload(text.encode("utf-8"), "public", path.name)
 
 
-def validate_release_privacy(directory, notes_path, artifact_names):
+def validate_release_privacy(directory, notes_path, artifact_names, sbom_name):
     directory = Path(directory)
     for name in artifact_names:
         validate_archive(directory / name)
-    for name in ("SHA256SUMS", "codetalk-0.3.0.sbom.cdx.json"):
+    for name in ("SHA256SUMS", sbom_name):
         validate_public_text(directory / name)
     validate_public_text(notes_path)
 

@@ -2,11 +2,11 @@
 
 ## Verdict
 
-CodeTalk is ready for a non-publishing 0.3.0 release rehearsal and remains ready
-for a source-install pilot from the public repository. It is not yet ready to
-claim general package distribution: no immutable GitHub Release, PyPI package,
-or Marketplace listing has been published and verified from an independent
-clean client.
+CodeTalk 0.3.1 is locally ready for a non-publishing release rehearsal and
+remains ready for a source-install pilot from the public repository. It is not
+yet ready to claim general package distribution: the new `hukair-codetalk`
+distribution, immutable GitHub Release, and Pages payload have not yet been
+published and verified from an independent clean client.
 
 This review does not claim mathematical certainty. It records the concrete
 threats checked, the defects found, the fixes applied, and the evidence needed
@@ -86,10 +86,14 @@ to reproduce the conclusion.
 - Added deterministic removal of PNG EXIF, text, and time metadata while
   preserving the original compressed pixel chunks.
 - Recorded that a PyPI 404 cannot reveal deleted-filename tombstones. The
-  `0.2.0`, `0.2.1`, and `0.2.2` uploads authenticated through OIDC but failed
-  closed on PyPI's permanent filename reservations. Recovery advances directly
-  to `0.3.0` without a token, sequential patch probing, `skip-existing`, or
-  weaker verification.
+  `0.2.0`, `0.2.1`, `0.2.2`, and `0.3.0` uploads authenticated through OIDC but
+  failed closed on PyPI's permanent `codetalk` filename reservations. Version
+  `0.3.1` uses the collision-resistant PyPI distribution name
+  `hukair-codetalk` while retaining the `codetalk` command, import package, MCP
+  identity, and editor branding. No token, sequential probing, `skip-existing`,
+  deletion, or history rewrite is used.
+- Registered the exact Pending Trusted Publisher for `hukair-codetalk`:
+  `HUKAIR/CodeTalk`, `.github/workflows/release.yml`, environment `pypi`.
 - Recheck the signed annotated tag immediately before draft creation, PyPI
   publication, and public Release publication. Existing public Releases are
   accepted only when immutable and byte-identical, allowing Pages recovery.
@@ -107,7 +111,7 @@ directory where applicable:
 - MCP bundle: built, unpacked, initialized, and returned seven read-only tools.
 - VS Code extension: `npm ci`, typecheck, build, package, archive validation, and
   production dependency audit passed; the VSIX contains the AGPL license and
-  installed as `codetalk.vscode-codetalk@0.3.0` in isolated VS Code and Cursor
+  installed as `codetalk.vscode-codetalk@0.3.1` in isolated VS Code and Cursor
   profiles without touching the existing profiles.
 - Docker: image built from the allowlisted context; loopback-mapped home page
   returned HTTP 200; a forged non-loopback Host header returned HTTP 403.
@@ -115,11 +119,16 @@ directory where applicable:
   the hidden search drawer no longer obscured the main interface.
 - Repository constraints: all Python modules remain below 300 lines and
   `git diff --check` passed.
-- Two independently built 0.3.0 candidates produced byte-identical wheels and
+- Two independently built 0.3.1 candidates produced byte-identical wheels and
   normalized sdists. The assembled six-file candidate passed exact-set,
   checksum, SBOM, archive privacy, and status-neutral release-note validation.
-  Its wheel installed with no dependencies in a fresh environment; `--version`
-  and `doctor` launched the installed copy.
+  Its `hukair_codetalk-0.3.1` wheel installed with no dependencies in a fresh
+  environment; package metadata reported `hukair-codetalk 0.3.1`, while
+  `codetalk --version`, `doctor`, and `review --json` launched the installed
+  `codetalk` package.
+- The unpacked `codetalk-0.3.1.mcpb` negotiated MCP protocol `2025-11-25`,
+  reported server version `0.3.1`, and returned exactly seven tools with
+  `readOnlyHint: true`.
 - GitHub Actions run
   [`29871281164`](https://github.com/HUKAIR/CodeTalk/actions/runs/29871281164)
   completed successfully from commit `97f5d3c`: all build and candidate jobs
@@ -170,12 +179,15 @@ These are evidence gaps, not hidden implementation claims:
   CodeLens and hover cards on a real committed file. Package installation has
   passed in isolated VS Code and Cursor profiles; MCP initialization and
   `tools/list` have passed from the unpacked bundle.
-- Decide whether to use a collision-resistant PyPI distribution name while
-  keeping the `codetalk` CLI, or to make the first release GitHub-only. Do not
-  probe another version under the opaque `codetalk` filename history.
+- Run the 0.3.1 non-publishing workflow from the exact preparation commit and
+  require every build, candidate, privacy, and Pages-staging gate to pass.
+- Restrict all protected release environments and the tag ruleset to the exact
+  signed `v0.3.1` tag before the publishing workflow is dispatched.
 - Publish and verify a GitHub Release before describing the MCP bundle or VSIX as
   directly downloadable.
-- Publish and verify PyPI only if `pip install codetalk` will be advertised.
+- Publish and verify `hukair-codetalk==0.3.1` before advertising the canonical
+  `pipx install hukair-codetalk` path; the installed command must remain
+  `codetalk`.
 - Collect at least one external pilot interception. The current blind comparison
   is useful but small (`N=5`, one repository, human judged).
 - Add a short current-product demo recording before a broad launch.
@@ -185,11 +197,9 @@ These are evidence gaps, not hidden implementation claims:
 
 ## Safest Release Path
 
-1. Merge and publish this source hardening with the install promise limited to
-   clone plus local editable install.
-2. Run the clean-client checks in `RELEASE_CHECKLIST.md` without personal cache,
-   credentials, or preinstalled CodeTalk state.
-3. Create immutable GitHub artifacts only after the version and artifact hashes
-   are fixed.
-4. Expand distribution claims only after each advertised installation path has
-   been tested from the public artifact itself.
+1. Commit and push the fully verified 0.3.1 preparation state.
+2. Run the non-publishing workflow from that exact commit and record its run ID.
+3. Protect and sign `v0.3.1`, then approve each public environment only after
+   the preceding gate has succeeded.
+4. Expand distribution claims only after PyPI, the immutable GitHub Release,
+   and Pages match the locally verified hashes and bytes.

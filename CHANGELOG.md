@@ -6,13 +6,13 @@ This project follows a small, source-backed changelog style: each entry should
 describe user-visible behavior and point to the release, PR, or commit that
 made it verifiable.
 
-## 0.3.0 - Unreleased
+## 0.3.1 - Unreleased
 
-Versions `0.2.0`, `0.2.1`, and `0.2.2` were not publicly released. The `0.3.0`
-candidate also remains unpublished because PyPI permanently reserved its
-deleted artifact filenames. No user-facing change below has been dropped; the
-next public distribution identity is intentionally undecided until a
-collision-free package name or a GitHub-only path is approved.
+Versions `0.2.0`, `0.2.1`, `0.2.2`, and `0.3.0` were not publicly released
+because PyPI had permanently reserved their deleted `codetalk` artifact
+filenames. Version `0.3.1` moves only the PyPI distribution identity to the
+collision-resistant `hukair-codetalk`; the CLI command, Python import package,
+MCP identity, and editor branding remain `codetalk` / CodeTalk.
 
 ### Added
 

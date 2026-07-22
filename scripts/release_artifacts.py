@@ -13,22 +13,24 @@ from email.parser import BytesParser
 from pathlib import Path
 
 
-VERSION = "0.3.0"
+VERSION = "0.3.1"
+PYPI_DISTRIBUTION = "hukair-codetalk"
+PYTHON_ARTIFACT_PREFIX = "hukair_codetalk"
 SBOM_NAME = f"codetalk-{VERSION}.sbom.cdx.json"
 
 
 def expected_artifact_names(version=VERSION):
-    return (
-        f"codetalk-{version}-py3-none-any.whl",
-        f"codetalk-{version}.tar.gz",
+    return python_artifact_names(version) + (
         f"codetalk-{version}.mcpb",
         f"vscode-codetalk-{version}.vsix",
     )
 
 
 def python_artifact_names(version=VERSION):
-    wheel, sdist, _, _ = expected_artifact_names(version)
-    return wheel, sdist
+    return (
+        f"{PYTHON_ARTIFACT_PREFIX}-{version}-py3-none-any.whl",
+        f"{PYTHON_ARTIFACT_PREFIX}-{version}.tar.gz",
+    )
 
 
 def _sha256(path):
@@ -82,7 +84,7 @@ def _metadata_version(payload):
 
 def _validate_python_metadata(payload, version):
     name, found, requirements = _metadata_version(payload)
-    if name != "codetalk" or found != version:
+    if name != PYPI_DISTRIBUTION or found != version:
         raise ValueError(f"Python metadata drift: {name} {found}")
     unconditional = [item for item in requirements if "extra ==" not in item]
     if unconditional:
@@ -102,7 +104,7 @@ def _validate_wheel(path, version):
 
 
 def root_sdist_metadata(names, version=VERSION):
-    expected = f"codetalk-{version}/PKG-INFO"
+    expected = f"{PYTHON_ARTIFACT_PREFIX}-{version}/PKG-INFO"
     if expected not in names:
         raise ValueError("sdist root PKG-INFO is missing")
     return expected
@@ -157,8 +159,9 @@ def render_sbom(version, records):
         "bomFormat": "CycloneDX", "specVersion": "1.6",
         "serialNumber": f"urn:uuid:{serial}", "version": 1,
         "metadata": {"component": {
-            "type": "application", "name": "codetalk", "version": version,
-            "purl": f"pkg:pypi/codetalk@{version}",
+            "type": "application", "name": PYPI_DISTRIBUTION,
+            "version": version,
+            "purl": f"pkg:pypi/{PYPI_DISTRIBUTION}@{version}",
         }},
         "components": [{
             "type": "file", "name": item["name"], "version": version,

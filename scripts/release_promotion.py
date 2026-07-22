@@ -8,6 +8,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from scripts.release_artifacts import (
+    PYPI_DISTRIBUTION,
     SBOM_NAME,
     VERSION,
     expected_artifact_names,
@@ -24,7 +25,7 @@ PAGES_FILES = (
     Path("index.html"),
     Path("docs/images/codetalk-logo-banner.png"),
 )
-PYPI_JSON_URL = f"https://pypi.org/pypi/codetalk/{VERSION}/json"
+PYPI_JSON_URL = f"https://pypi.org/pypi/{PYPI_DISTRIBUTION}/{VERSION}/json"
 
 
 def _sha256(path):
@@ -90,7 +91,7 @@ def _validate_sbom(directory, records):
     if (payload.get("bomFormat") != "CycloneDX"
             or payload.get("specVersion") != "1.6"
             or not isinstance(component, dict)
-            or component.get("name") != "codetalk"
+            or component.get("name") != PYPI_DISTRIBUTION
             or component.get("version") != VERSION):
         raise ValueError("SBOM identity does not match the release")
     components = payload.get("components")
@@ -135,7 +136,8 @@ def validate_candidate(directory, notes_path):
     records = _checksum_records(directory)
     _validate_sbom(directory, records)
     _validate_release_notes(notes_path)
-    validate_release_privacy(directory, notes_path, expected_artifact_names())
+    validate_release_privacy(
+        directory, notes_path, expected_artifact_names(), SBOM_NAME)
 
 
 def _regular_source(repository, relative):

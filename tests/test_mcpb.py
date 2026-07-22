@@ -55,7 +55,7 @@ class TestReleaseMetadata(unittest.TestCase):
     def test_pyproject_has_public_release_metadata(self):
         data = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
         project = data["project"]
-        self.assertEqual(project["name"], "codetalk")
+        self.assertEqual(project["name"], "hukair-codetalk")
         self.assertEqual(project["license"], "AGPL-3.0-or-later")
         self.assertEqual(project["scripts"]["codetalk"], "codetalk.cli:main")
         self.assertIn("Repository", project["urls"])

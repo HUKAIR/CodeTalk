@@ -55,8 +55,10 @@ class TestNoInstallProductProof(unittest.TestCase):
             self.assertIn(phrase, self.html)
 
     def test_install_has_one_canonical_command_and_one_alternative(self):
-        self.assertEqual(self.html.count("pipx install codetalk"), 1)
-        self.assertEqual(self.html.count("uv tool install codetalk"), 1)
+        self.assertEqual(self.html.count("pipx install hukair-codetalk"), 1)
+        self.assertEqual(self.html.count("uv tool install hukair-codetalk"), 1)
+        self.assertIn("The installed command remains <code>codetalk</code>",
+                      self.html)
 
     def test_has_no_external_runtime_assets_or_request_apis(self):
         parser = _AssetParser()
@@ -98,8 +100,9 @@ class TestReadmeEntryPath(unittest.TestCase):
         self.assertGreater(readme.index("## Pipeline"), deeper)
         self.assertGreater(readme.index("### What These Terms Mean"), deeper)
         self.assertIn("docs/images/codetalk-review-proof.png", readme)
-        self.assertIn("pipx install codetalk", readme)
-        self.assertIn("uv tool install codetalk", readme)
+        self.assertIn("pipx install hukair-codetalk", readme)
+        self.assertIn("uv tool install hukair-codetalk", readme)
+        self.assertIn("command remains `codetalk`", readme)
 
     def test_chinese_entry_uses_the_same_conversion_and_privacy_path(self):
         readme = (ROOT / "README.zh-CN.md").read_text(encoding="utf-8")

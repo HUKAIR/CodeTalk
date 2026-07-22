@@ -7,14 +7,14 @@ from pathlib import Path
 from unittest import mock
 
 
-VERSION = "0.3.0"
+VERSION = "0.3.1"
 PRIMARY = (
-    "codetalk-0.3.0-py3-none-any.whl",
-    "codetalk-0.3.0.tar.gz",
-    "codetalk-0.3.0.mcpb",
-    "vscode-codetalk-0.3.0.vsix",
+    "hukair_codetalk-0.3.1-py3-none-any.whl",
+    "hukair_codetalk-0.3.1.tar.gz",
+    "codetalk-0.3.1.mcpb",
+    "vscode-codetalk-0.3.1.vsix",
 )
-SBOM = "codetalk-0.3.0.sbom.cdx.json"
+SBOM = "codetalk-0.3.1.sbom.cdx.json"
 
 
 def _sha256(path):
@@ -28,7 +28,7 @@ class PromotionCase(unittest.TestCase):
         self.dist = self.root / "dist"
         self.dist.mkdir()
         self.notes = self.root / "notes.md"
-        self.notes.write_text("# CodeTalk 0.3.0\n\nKnown limitations.\n",
+        self.notes.write_text("# CodeTalk 0.3.1\n\nKnown limitations.\n",
                               encoding="utf-8")
         self.privacy_patch = mock.patch(
             "scripts.release_promotion.validate_release_privacy")
@@ -51,7 +51,7 @@ class PromotionCase(unittest.TestCase):
             "bomFormat": "CycloneDX",
             "specVersion": "1.6",
             "metadata": {"component": {
-                "type": "application", "name": "codetalk",
+                "type": "application", "name": "hukair-codetalk",
                 "version": VERSION,
             }},
             "components": components,
@@ -67,7 +67,8 @@ class PromotionCase(unittest.TestCase):
         self.make_candidate()
         validate_candidate(self.dist, self.notes)
         validate.assert_called_once_with(self.dist)
-        self.privacy.assert_called_once_with(self.dist, self.notes, PRIMARY)
+        self.privacy.assert_called_once_with(
+            self.dist, self.notes, PRIMARY, SBOM)
 
     @mock.patch("scripts.release_promotion.validate_artifacts")
     def test_candidate_rejects_unexpected_files(self, validate):
@@ -141,7 +142,7 @@ class PromotionCase(unittest.TestCase):
         self.make_candidate()
         for phrase in ("Release Candidate", "not been published", "Unreleased"):
             with self.subTest(phrase=phrase):
-                self.notes.write_text(f"# CodeTalk 0.3.0 {phrase}\n",
+                self.notes.write_text(f"# CodeTalk 0.3.1 {phrase}\n",
                                       encoding="utf-8")
                 with self.assertRaisesRegex(ValueError, "release notes"):
                     validate_candidate(self.dist, self.notes)
