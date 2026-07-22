@@ -1,4 +1,4 @@
-"""The unpublished 0.2.0 release candidate stays internally consistent."""
+"""The unpublished 0.2.1 release candidate stays internally consistent."""
 import gzip
 import io
 import json
@@ -9,7 +9,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent.parent
-VERSION = "0.2.0"
+VERSION = "0.2.1"
 
 
 class TestVersionContract(unittest.TestCase):
@@ -36,19 +36,19 @@ class TestVersionContract(unittest.TestCase):
 
     def test_release_notes_are_status_neutral_and_complete(self):
         changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
-        notes = (ROOT / "docs" / "releases" / "v0.2.0.md").read_text(
+        notes = (ROOT / "docs" / "releases" / "v0.2.1.md").read_text(
             encoding="utf-8")
-        self.assertIn("## 0.2.0 - Unreleased", changelog)
-        self.assertTrue(notes.startswith("# CodeTalk 0.2.0\n"))
+        self.assertIn("## 0.2.1 - Unreleased", changelog)
+        self.assertTrue(notes.startswith("# CodeTalk 0.2.1\n"))
         for phrase in (
                 "cold-start evidence gaps", "human semantic judgment",
                 "provider retention", "unofficial local session formats"):
             self.assertIn(phrase, notes)
         for name in (
-                "codetalk-0.2.0-py3-none-any.whl",
-                "codetalk-0.2.0.tar.gz", "codetalk-0.2.0.mcpb",
-                "vscode-codetalk-0.2.0.vsix",
-                "codetalk-0.2.0.sbom.cdx.json", "SHA256SUMS"):
+                "codetalk-0.2.1-py3-none-any.whl",
+                "codetalk-0.2.1.tar.gz", "codetalk-0.2.1.mcpb",
+                "vscode-codetalk-0.2.1.vsix",
+                "codetalk-0.2.1.sbom.cdx.json", "SHA256SUMS"):
             self.assertIn(name, notes)
         for forbidden in ("Release Candidate", "not been published",
                           "Unreleased"):
@@ -56,26 +56,28 @@ class TestVersionContract(unittest.TestCase):
 
     def test_release_checklist_keeps_public_changes_behind_owner_gate(self):
         checklist = (ROOT / "RELEASE_CHECKLIST.md").read_text(encoding="utf-8")
+        normalized = " ".join(checklist.split())
         for phrase in (
-                "0.2.0 Promotion", "release.yml", "publish=false",
+                "0.2.1 Promotion", "release.yml", "publish=false",
                 "publish=true", "release", "pypi", "github-pages",
                 "Pending Trusted Publisher", "immutable Releases",
                 "GitHub Pages", "fresh explicit confirmation",
+                "deleted PyPI filenames cannot be reused",
                 "Leave issue #142 open"):
-            self.assertIn(phrase, checklist)
+            self.assertIn(phrase, normalized)
 
     def test_user_facing_bundle_examples_are_versioned(self):
         for name in ("README.md", "README.zh-CN.md", "docs/mcp-install.md",
                      "RELEASE_CHECKLIST.md"):
             text = (ROOT / name).read_text(encoding="utf-8")
-            self.assertIn("codetalk-0.2.0.mcpb", text, name)
+            self.assertIn("codetalk-0.2.1.mcpb", text, name)
 
     def test_ci_assembles_and_validates_the_complete_candidate(self):
         workflow = (ROOT / ".github" / "workflows" / "test.yml").read_text(
             encoding="utf-8")
         for phrase in (
                 "SOURCE_DATE_EPOCH", "npm ci", "npm run package",
-                "dist/vscode-codetalk-0.2.0.vsix",
+                "dist/vscode-codetalk-0.2.1.vsix",
                 "python -m scripts.release_artifacts dist",
                 "sha256sum -c SHA256SUMS"):
             self.assertIn(phrase, workflow)
@@ -85,20 +87,20 @@ class TestReleaseMetadata(unittest.TestCase):
     def test_sdist_uses_root_pkg_info_when_egg_info_copy_also_exists(self):
         from scripts.release_artifacts import root_sdist_metadata
         names = {
-            "codetalk-0.2.0/PKG-INFO",
-            "codetalk-0.2.0/codetalk.egg-info/PKG-INFO",
+            "codetalk-0.2.1/PKG-INFO",
+            "codetalk-0.2.1/codetalk.egg-info/PKG-INFO",
         }
         self.assertEqual(root_sdist_metadata(names, VERSION),
-                         "codetalk-0.2.0/PKG-INFO")
+                         "codetalk-0.2.1/PKG-INFO")
 
     def test_expected_primary_artifacts_are_explicit(self):
         from scripts.release_artifacts import (expected_artifact_names,
                                                python_artifact_names)
         self.assertEqual(expected_artifact_names(VERSION), (
-            "codetalk-0.2.0-py3-none-any.whl",
-            "codetalk-0.2.0.tar.gz",
-            "codetalk-0.2.0.mcpb",
-            "vscode-codetalk-0.2.0.vsix",
+            "codetalk-0.2.1-py3-none-any.whl",
+            "codetalk-0.2.1.tar.gz",
+            "codetalk-0.2.1.mcpb",
+            "vscode-codetalk-0.2.1.vsix",
         ))
         self.assertEqual(python_artifact_names(VERSION),
                          expected_artifact_names(VERSION)[:2])
@@ -108,10 +110,10 @@ class TestReleaseMetadata(unittest.TestCase):
         records = [
             {"name": name, "sha256": str(index) * 64, "size": index}
             for index, name in enumerate((
-                "codetalk-0.2.0-py3-none-any.whl",
-                "codetalk-0.2.0.tar.gz",
-                "codetalk-0.2.0.mcpb",
-                "vscode-codetalk-0.2.0.vsix",
+                "codetalk-0.2.1-py3-none-any.whl",
+                "codetalk-0.2.1.tar.gz",
+                "codetalk-0.2.1.mcpb",
+                "vscode-codetalk-0.2.1.vsix",
             ), start=1)
         ]
         sbom = render_sbom(VERSION, records)
@@ -131,7 +133,7 @@ class TestReleaseMetadata(unittest.TestCase):
             with gzip.GzipFile(fileobj=output, mode="wb", mtime=timestamp) as gz:
                 with tarfile.open(fileobj=gz, mode="w") as archive:
                     payload = b"same source"
-                    member = tarfile.TarInfo("codetalk-0.2.0/example.txt")
+                    member = tarfile.TarInfo("codetalk-0.2.1/example.txt")
                     member.size = len(payload)
                     member.mtime = timestamp
                     archive.addfile(member, io.BytesIO(payload))

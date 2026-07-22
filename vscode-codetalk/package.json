@@ -2,7 +2,7 @@
   "name": "vscode-codetalk",
   "displayName": "CodeTalk — Decision Blame",
   "description": "See why code was written this way, not just who/when. Foldable CodeLens with real commit decisions, hover cards with full context.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "codetalk",
   "license": "AGPL-3.0-or-later",
   "repository": { "type": "git", "url": "https://github.com/HUKAIR/CodeTalk" },

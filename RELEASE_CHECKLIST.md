@@ -10,15 +10,15 @@ Use this checklist before a public CodeTalk release.
 - `python3 -m scripts.check_static_no_external codetalk/web_chat.html codetalk/console.html codetalk/tunnel.html codetalk/course.html codetalk/graph.html codetalk/trust_ab.html`
 - `python3 -m unittest tests.test_product_proof`
 - `SOURCE_DATE_EPOCH=<release-commit-epoch> python3 -m build`
-- `python3 -m scripts.build_mcpb` → `dist/codetalk-0.2.0.mcpb`
+- `python3 -m scripts.build_mcpb` → `dist/codetalk-0.2.1.mcpb`
 - `python3 -m pip install -e . --no-deps --dry-run --no-build-isolation`
 - `git diff --check`
 
 After packaging the editor extension, copy
-`vscode-codetalk/vscode-codetalk-0.2.0.vsix` into `dist/`, then run:
+`vscode-codetalk/vscode-codetalk-0.2.1.vsix` into `dist/`, then run:
 
 - `SOURCE_DATE_EPOCH=<release-commit-epoch> python3 -m scripts.release_artifacts dist`
-- `python3 -m scripts.release_promotion validate-candidate dist docs/releases/v0.2.0.md`
+- `python3 -m scripts.release_promotion validate-candidate dist docs/releases/v0.2.1.md`
 - `cd dist && shasum -a 256 -c SHA256SUMS`
 - Confirm the sdist contains no `tests/` tree and all four archives pass the
   secret, private-path, member-type, and public-filename scan.
@@ -32,7 +32,7 @@ After packaging the editor extension, copy
 - `npm run typecheck`
 - `npm run build`
 - `npm run package`
-- `unzip -t vscode-codetalk-0.2.0.vsix`
+- `unzip -t vscode-codetalk-0.2.1.vsix`
 - Confirm the VSIX contains `extension/LICENSE.txt`.
 - Install the VSIX into a clean `--extensions-dir`, confirm
   `codetalk.vscode-codetalk` appears in `--list-extensions --show-versions`,
@@ -41,7 +41,7 @@ After packaging the editor extension, copy
 
 ## MCP Bundle
 
-- Build `dist/codetalk-0.2.0.mcpb`.
+- Build `dist/codetalk-0.2.1.mcpb`.
 - Inspect `manifest.json` and confirm package name, command, and version.
 - Confirm the bundle contains `LICENSE`.
 - Extract into a new temporary directory and run MCP `initialize` and
@@ -51,8 +51,8 @@ After packaging the editor extension, copy
 ## Python Wheel
 
 - Create a new virtual environment outside the repository.
-- Install only `dist/codetalk-0.2.0-py3-none-any.whl` with `--no-deps`.
-- Confirm `codetalk --version` reports `0.2.0` and `pip check` passes.
+- Install only `dist/codetalk-0.2.1-py3-none-any.whl` with `--no-deps`.
+- Confirm `codetalk --version` reports `0.2.1` and `pip check` passes.
 - In a synthetic git repository, smoke-test `doctor`, `review --json`, local
   feedback export, default no-request enrichment, payload preview, and explicit
   recording-fake authorization behavior.
@@ -81,19 +81,20 @@ After packaging the editor extension, copy
   environment; `uv tool install codetalk` is the one documented alternative.
 - Generate the shareable A/B trust demo for the announcement:
   `python3 scripts/trust_ab_demo.py . 5 --html demo.html` (needs an LLM key).
-- Verify MCP bundle install works: use `codetalk-0.2.0.mcpb` and confirm
+- Verify MCP bundle install works: use `codetalk-0.2.1.mcpb` and confirm
   `initialize` + `tools/list` from a clean MCP client.
 - Add at least one short demo recording or screenshot for the README or docs.
 - Confirm LICENSE, SECURITY, CONTRIBUTING, CHANGELOG, and issue templates are
   present.
 
-## 0.2.0 Promotion
+## 0.2.1 Promotion
 
 Preparation snapshot; update every item from its public or owner-only endpoint
 before promotion:
 
-- [x] Protected `release`, `pypi`, and `github-pages` environments require the
-  owner reviewer and accept only the exact `v0.2.0` tag.
+- [ ] Protected `release`, `pypi`, and `github-pages` environments require the
+  owner reviewer but still accept only the exact `v0.2.0` tag; replace those
+  policies with the exact `v0.2.1` tag before promotion.
 - [x] The owner confirmed the PyPI Pending Trusted Publisher for project
   `codetalk`, repository `HUKAIR/CodeTalk`, workflow `release.yml`, and
   environment `pypi`.
@@ -111,6 +112,12 @@ Run the non-publishing rehearsal first:
   immutable-Releases endpoint. Do not solve this with a PAT. Verify the setting
   from the owner CLI before dispatch and retain the post-public immutable
   Release and asset-attestation checks.
+- The authorized `v0.2.0` promotion run `29880629420` passed every repository
+  gate and authenticated to PyPI through OIDC, then stopped when PyPI reported
+  that both `0.2.0` filenames had been uploaded and deleted previously. No
+  GitHub Release or Pages deployment became public. PyPI rule: deleted PyPI
+  filenames cannot be reused; never delete a PyPI release to retry, and advance
+  the package version after a filename tombstone.
 - Watch the run and require the reusable test workflow, candidate validation,
   secret scan, product-proof test, and Pages artifact upload to pass.
 - Confirm every job after `candidate` is skipped.
@@ -122,24 +129,24 @@ enable or perform public, partly irreversible changes:
 
 - Configure required reviewers and tag restrictions on the `release`, `pypi`,
   and `github-pages` environments.
-- Add a repository tag ruleset that blocks update and deletion of `v0.2.0`,
+- Add a repository tag ruleset that blocks update and deletion of `v0.2.1`,
   including administrator bypass during the promotion window.
 - Register the PyPI Pending Trusted Publisher with the exact values above.
 - Enable immutable Releases and verify
   `gh api repos/HUKAIR/CodeTalk/immutable-releases --jq .enabled` prints `true`.
 - Enable GitHub Pages with GitHub Actions as the source and verify
   `gh api repos/HUKAIR/CodeTalk/pages --jq .build_type` prints `workflow`.
-- Create a signed annotated `v0.2.0` tag at the fully verified preparation
+- Create a signed annotated `v0.2.1` tag at the fully verified preparation
   commit and confirm GitHub reports its signature as verified.
 - Push only that tag, then run
-  `gh workflow run release.yml --ref v0.2.0 -f publish=true`.
+  `gh workflow run release.yml --ref v0.2.1 -f publish=true`.
 
 After promotion, verify from public endpoints:
 
-- `python3 -m pip install --no-cache-dir --no-deps codetalk==0.2.0` in a new
+- `python3 -m pip install --no-cache-dir --no-deps codetalk==0.2.1` in a new
   virtual environment, followed by `codetalk --version`, `doctor`, and
   `review --json` in a synthetic repository.
-- `gh release verify v0.2.0` and `gh release verify-asset v0.2.0 <local-file>`
+- `gh release verify v0.2.1` and `gh release verify-asset v0.2.1 <local-file>`
   for the wheel, sdist, MCP bundle, VSIX, SBOM, and `SHA256SUMS`.
 - Fetch the Pages root and `docs/images/codetalk-logo-banner.png`, then compare
   them byte-for-byte with a fresh local `stage-pages` output. The staged PNG is

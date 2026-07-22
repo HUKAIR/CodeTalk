@@ -163,7 +163,7 @@ static demonstration.
   conversation text may remain in a remote payload.
 - Generated interpretation may improve readability but is never accepted as
   decision evidence. The original source remains available beside it.
-- The initial public package version is synchronized to `0.2.0` across Python,
+- The initial public package version is synchronized to `0.2.1` across Python,
   MCP, and editor artifacts before release.
 - PyPI is the canonical CLI distribution. The primary command is
   `pipx install codetalk`; `uv tool install codetalk` is a documented alternative.

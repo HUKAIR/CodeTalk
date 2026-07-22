@@ -2,7 +2,7 @@
 
 ## Verdict
 
-CodeTalk is ready for a non-publishing 0.2.0 release rehearsal and remains ready
+CodeTalk is ready for a non-publishing 0.2.1 release rehearsal and remains ready
 for a source-install pilot from the public repository. It is not yet ready to
 claim general package distribution: no immutable GitHub Release, PyPI package,
 or Marketplace listing has been published and verified from an independent
@@ -85,6 +85,10 @@ to reproduce the conclusion.
   public filenames.
 - Added deterministic removal of PNG EXIF, text, and time metadata while
   preserving the original compressed pixel chunks.
+- Recorded that a PyPI 404 cannot reveal deleted-filename tombstones. The
+  `0.2.0` upload authenticated through OIDC but failed closed on PyPI's permanent
+  filename reservation; recovery advances to `0.2.1` without a token,
+  `skip-existing`, or weaker verification.
 - Recheck the signed annotated tag immediately before draft creation, PyPI
   publication, and public Release publication. Existing public Releases are
   accepted only when immutable and byte-identical, allowing Pages recovery.
@@ -108,7 +112,7 @@ directory where applicable:
   the hidden search drawer no longer obscured the main interface.
 - Repository constraints: all Python modules remain below 300 lines and
   `git diff --check` passed.
-- A locally built 0.2.0 candidate passed exact-set, checksum, SBOM, archive
+- A locally built 0.2.1 candidate passed exact-set, checksum, SBOM, archive
   privacy, and status-neutral release-note validation. Its wheel installed with
   no dependencies in a fresh environment; `--version`, `doctor`, and
   `review --json` passed in a synthetic repository.
@@ -116,9 +120,12 @@ directory where applicable:
   [`29871281164`](https://github.com/HUKAIR/CodeTalk/actions/runs/29871281164)
   completed successfully from commit `97f5d3c`: all build and candidate jobs
   passed, while preflight and every publication job were skipped.
-- The post-run public-state audit found no remote tag, GitHub Release, PyPI
-  0.2.0 publication, Pages site, or Homepage. Issue #142 remained open;
-  protected environments and immutable Releases remained unconfigured.
+- The authorized `v0.2.0` promotion run
+  [`29880629420`](https://github.com/HUKAIR/CodeTalk/actions/runs/29880629420)
+  passed repository, candidate, signed-tag, and OIDC gates. PyPI rejected the
+  permanently reserved deleted filenames, so Release publication, Pages, and
+  public verification stayed skipped. The Release remains a hidden draft;
+  PyPI has no public `codetalk` version and the Homepage remains unchanged.
 
 ## Remaining Release Gates
 
@@ -126,7 +133,8 @@ These are evidence gaps, not hidden implementation claims:
 
 - Install the generated VSIX and MCP bundle in at least one independent clean
   client and verify CodeLens, hover, MCP initialization, and tool calls.
-- Choose and synchronize release versions before creating immutable artifacts.
+- Replace the protected-environment tag policies with exact `v0.2.1`, then pass
+  a fresh non-publishing workflow run from the synchronized version commit.
 - Publish and verify a GitHub Release before describing the MCP bundle or VSIX as
   directly downloadable.
 - Publish and verify PyPI only if `pip install codetalk` will be advertised.

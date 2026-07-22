@@ -58,9 +58,9 @@ jobs:
           python -m build
           mkdir -p /tmp/codetalk-rebuild
           python -m build --outdir /tmp/codetalk-rebuild
-          python -c "from scripts.release_artifacts import normalize_sdist; normalize_sdist('dist/codetalk-0.2.0.tar.gz', '$SOURCE_DATE_EPOCH'); normalize_sdist('/tmp/codetalk-rebuild/codetalk-0.2.0.tar.gz', '$SOURCE_DATE_EPOCH')"
-          cmp dist/codetalk-0.2.0-py3-none-any.whl /tmp/codetalk-rebuild/codetalk-0.2.0-py3-none-any.whl
-          cmp dist/codetalk-0.2.0.tar.gz /tmp/codetalk-rebuild/codetalk-0.2.0.tar.gz
+          python -c "from scripts.release_artifacts import normalize_sdist; normalize_sdist('dist/codetalk-0.2.1.tar.gz', '$SOURCE_DATE_EPOCH'); normalize_sdist('/tmp/codetalk-rebuild/codetalk-0.2.1.tar.gz', '$SOURCE_DATE_EPOCH')"
+          cmp dist/codetalk-0.2.1-py3-none-any.whl /tmp/codetalk-rebuild/codetalk-0.2.1-py3-none-any.whl
+          cmp dist/codetalk-0.2.1.tar.gz /tmp/codetalk-rebuild/codetalk-0.2.1.tar.gz
       - name: Build editor package for candidate
         working-directory: vscode-codetalk
         run: |
@@ -70,7 +70,7 @@ jobs:
           npm run package
       - name: Assemble and validate release candidate
         run: |
-          cp vscode-codetalk/vscode-codetalk-0.2.0.vsix dist/vscode-codetalk-0.2.0.vsix
+          cp vscode-codetalk/vscode-codetalk-0.2.1.vsix dist/vscode-codetalk-0.2.1.vsix
           export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
           python -m scripts.release_artifacts dist
           cd dist
@@ -82,7 +82,7 @@ jobs:
       - name: Validate candidate before artifact upload
         run: >-
           python -m scripts.release_promotion validate-candidate
-          dist docs/releases/v0.2.0.md
+          dist docs/releases/v0.2.1.md
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: codetalk-release-candidate-${{ github.sha }}
@@ -117,8 +117,8 @@ jobs:
       - name: Package VSIX
         run: npm run package
       - name: Verify VSIX archive
-        run: unzip -t vscode-codetalk-0.2.0.vsix
+        run: unzip -t vscode-codetalk-0.2.1.vsix
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: codetalk-vsix
-          path: vscode-codetalk/vscode-codetalk-0.2.0.vsix
+          path: vscode-codetalk/vscode-codetalk-0.2.1.vsix

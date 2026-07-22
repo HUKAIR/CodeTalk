@@ -6,7 +6,11 @@ This project follows a small, source-backed changelog style: each entry should
 describe user-visible behavior and point to the release, PR, or commit that
 made it verifiable.
 
-## 0.2.0 - Unreleased
+## 0.2.1 - Unreleased
+
+Version `0.2.0` was not publicly released. PyPI permanently reserved its
+deleted artifact filenames, so the public release advances to `0.2.1` without
+skipping any user-facing changes listed below.
 
 ### Added
 
