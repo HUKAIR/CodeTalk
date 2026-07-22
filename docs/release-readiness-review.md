@@ -147,6 +147,12 @@ directory where applicable:
   rejected the permanently reserved deleted `0.2.2` filenames, so Release
   publication, Pages, and public verification remained skipped. The exact
   six-file Release candidate remains a hidden draft.
+- The `0.3.0` rehearsal
+  [`29885343260`](https://github.com/HUKAIR/CodeTalk/actions/runs/29885343260)
+  passed from commit `9442efd`: Python 3.11-3.14, extension packaging, history
+  and source privacy scans, reproducible distributions, exact candidate
+  validation, product proof, and Pages staging all succeeded. `preflight` and
+  all eight downstream public jobs were skipped.
 
 ## Remaining Release Gates
 

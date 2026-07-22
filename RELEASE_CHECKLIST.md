@@ -134,6 +134,11 @@ Run the non-publishing rehearsal first:
   Pages stayed skipped, and the Release remains a hidden draft. After three
   consecutive reserved patch versions, recovery advances directly to `0.3.0`
   instead of probing another patch filename.
+- The synchronized `0.3.0` non-publishing run `29885343260` passed from commit
+  `9442efd`: Python 3.11-3.14, extension packaging, history and source privacy,
+  reproducible distributions, exact candidate validation, product proof, and
+  Pages staging all succeeded. `preflight` and all eight downstream public jobs
+  were skipped.
 - Watch the run and require the reusable test workflow, candidate validation,
   secret scan, product-proof test, and Pages artifact upload to pass.
 - Confirm every job after `candidate` is skipped.

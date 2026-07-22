@@ -55,6 +55,9 @@ OIDC Trusted Publishing, GitHub Pages.
   All downstream public jobs stayed closed. After three consecutive reserved
   patch versions, recovery advances directly to `0.3.0` instead of probing
   another patch filename.
+- The `0.3.0` rehearsal `29885343260` passed from commit `9442efd`. Every build,
+  test, candidate, privacy, product-proof, and Pages-staging gate succeeded;
+  `preflight` and all eight downstream public jobs were skipped.
 
 ## Global Constraints
 
