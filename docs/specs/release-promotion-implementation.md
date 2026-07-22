@@ -72,6 +72,15 @@ OIDC Trusted Publishing, GitHub Pages.
   non-publishing gate from that commit, and all public jobs were skipped. The
   follow-up check confirmed no `v0.3.1` tag or Release, no public PyPI version,
   no Homepage change, and issue #142 still open.
+- The authorized promotion `29959650706` completed successfully from verified
+  signed tag `v0.3.1` at preparation commit `194dca9`. OIDC publication created
+  public `hukair-codetalk 0.3.1`; both PyPI files matched the candidate hashes.
+  GitHub Release `358338498` is public and immutable with the exact six assets,
+  and each asset attestation verified. Pages deployed the sanitized two-file
+  allowlist and matched a fresh local staging byte-for-byte. A GitHub hosted
+  runner incident delayed job starts, but the workflow required no retry and
+  finished with every job successful. Homepage remained unset and issue #142
+  remained open by design.
 
 ## Global Constraints
 

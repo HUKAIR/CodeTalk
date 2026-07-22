@@ -93,7 +93,7 @@ After packaging the editor extension, copy
 Preparation snapshot; update every item from its public or owner-only endpoint
 before promotion:
 
-- [ ] Protected `release`, `pypi`, and `github-pages` environments require the
+- [x] Protected `release`, `pypi`, and `github-pages` environments require the
   owner reviewer and accept only the exact `v0.3.1` tag.
 - [x] The owner confirmed the PyPI Pending Trusted Publisher for project
   `hukair-codetalk`, repository `HUKAIR/CodeTalk`, workflow `release.yml`, and
@@ -111,6 +111,12 @@ Run the non-publishing rehearsal first:
   Every job from `preflight` onward was skipped. A follow-up check found no
   `v0.3.1` tag or Release, no public PyPI version, no Homepage change, and issue
   #142 remained open.
+- The authorized `v0.3.1` promotion run `29959650706` completed successfully
+  from signed tag target `194dca9`. PyPI OIDC publication, public hash
+  verification, immutable Release publication, six asset attestations, the
+  two-file Pages deployment, and final clean-client verification all passed.
+  GitHub hosted-runner degradation delayed two jobs without changing release
+  state or requiring a retry.
 - Completed evidence: Actions run `29871281164` passed from `97f5d3c`; all jobs
   after `candidate` were skipped and the public-state recheck was unchanged.
 - The first authorized promotion run `29879880097` stopped before draft,
@@ -160,37 +166,40 @@ Run the non-publishing rehearsal first:
 - [x] Reconfirm that the rehearsal created no `v0.3.1` tag, public PyPI version,
   public GitHub Release, Pages deployment, or Homepage change.
 
-The following owner actions require fresh explicit confirmation because they
-enable or perform public, partly irreversible changes:
+The following owner actions were completed under explicit authorization:
 
-- Configure required reviewers and tag restrictions on the `release`, `pypi`,
+- [x] Configure required reviewers and tag restrictions on the `release`, `pypi`,
   and `github-pages` environments.
-- Extend the repository tag ruleset to block update and deletion of `v0.3.1`,
+- [x] Extend the repository tag ruleset to block update and deletion of `v0.3.1`,
   including administrator bypass during the promotion window.
-- Register the PyPI Pending Trusted Publisher with the exact values above.
-- Enable immutable Releases and verify
+- [x] Register the PyPI Pending Trusted Publisher with the exact values above.
+- [x] Enable immutable Releases and verify
   `gh api repos/HUKAIR/CodeTalk/immutable-releases --jq .enabled` prints `true`.
-- Enable GitHub Pages with GitHub Actions as the source and verify
+- [x] Enable GitHub Pages with GitHub Actions as the source and verify
   `gh api repos/HUKAIR/CodeTalk/pages --jq .build_type` prints `workflow`.
-- Create a signed annotated `v0.3.1` tag at the fully verified preparation
+- [x] Create a signed annotated `v0.3.1` tag at the fully verified preparation
   commit and confirm GitHub reports its signature as verified.
-- Push only that tag, then run
+- [x] Push only that tag, then run
   `gh workflow run release.yml --ref v0.3.1 -f publish=true`.
+
+Any future tag, package, Release, Pages, Homepage, or issue-state change requires
+fresh explicit confirmation; this completed authorization does not carry over.
 
 After promotion, verify from public endpoints:
 
-- `python3 -m pip install --no-cache-dir --no-deps hukair-codetalk==0.3.1` in a new
+- [x] `python3 -m pip install --no-cache-dir --no-deps hukair-codetalk==0.3.1` in a new
   virtual environment, followed by `codetalk --version`, `doctor`, and
   `review --json` in a synthetic repository.
-- `gh release verify v0.3.1` and `gh release verify-asset v0.3.1 <local-file>`
+- [x] `gh release verify v0.3.1` and `gh release verify-asset v0.3.1 <local-file>`
   for the wheel, sdist, MCP bundle, VSIX, SBOM, and `SHA256SUMS`.
-- Fetch the Pages root and `docs/images/codetalk-logo-banner.png`, then compare
+- [x] Fetch the Pages root and `docs/images/codetalk-logo-banner.png`, then compare
   them byte-for-byte with a fresh local `stage-pages` output. The staged PNG is
   expected to differ from the source only by removed EXIF/text/time metadata.
-- Set the repository Homepage only after the Pages URL and local asset resolve
-  from a clean session.
-- Leave issue #142 open until every public endpoint, hash, install smoke test,
-  and Homepage check succeeds.
+- [ ] Set the repository Homepage only after a separate explicit product
+  decision. It remains unset; successful publication does not silently change
+  repository presentation.
+- [x] Leave issue #142 open for a separate scope/title review; release
+  verification must not silently close an issue whose title still names 0.2.0.
 
 ## Post-Release
 

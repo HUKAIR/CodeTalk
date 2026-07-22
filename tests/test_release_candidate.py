@@ -42,7 +42,7 @@ class TestVersionContract(unittest.TestCase):
         changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
         notes = (ROOT / "docs" / "releases" / "v0.3.1.md").read_text(
             encoding="utf-8")
-        self.assertIn("## 0.3.1 - Unreleased", changelog)
+        self.assertIn("## 0.3.1 - 2026-07-22", changelog)
         self.assertTrue(notes.startswith("# CodeTalk 0.3.1\n"))
         for phrase in (
                 "cold-start evidence gaps", "human semantic judgment",

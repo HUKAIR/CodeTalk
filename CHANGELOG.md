@@ -6,7 +6,7 @@ This project follows a small, source-backed changelog style: each entry should
 describe user-visible behavior and point to the release, PR, or commit that
 made it verifiable.
 
-## 0.3.1 - Unreleased
+## 0.3.1 - 2026-07-22
 
 Versions `0.2.0`, `0.2.1`, `0.2.2`, and `0.3.0` were not publicly released
 because PyPI had permanently reserved their deleted `codetalk` artifact

@@ -2,12 +2,11 @@
 
 ## Verdict
 
-CodeTalk 0.3.1 has passed its non-publishing release rehearsal and remains ready
-for a source-install pilot from the public repository. Promotion is still
-gated on the exact-tag environment restrictions, protected signed tag, and
-public endpoint verification. General package distribution must not be claimed
-until `hukair-codetalk`, the immutable GitHub Release, and the Pages payload are
-published and verified from an independent clean client.
+CodeTalk 0.3.1 has been published and independently verified. The
+`hukair-codetalk` distribution, immutable GitHub Release, six release assets,
+and two-file Pages payload match the verified candidate and are ready for
+general package distribution. Remaining items below concern product adoption
+and external validation rather than release correctness.
 
 This review does not claim mathematical certainty. It records the concrete
 threats checked, the defects found, the fixes applied, and the evidence needed
@@ -139,6 +138,20 @@ directory where applicable:
   skipped. The follow-up public-state check found no `v0.3.1` tag or Release;
   PyPI remained unpublished, Homepage remained unset, and issue #142 remained
   open.
+- The authorized promotion
+  [`29959650706`](https://github.com/HUKAIR/CodeTalk/actions/runs/29959650706)
+  completed successfully from verified signed tag `v0.3.1` at `194dca9`.
+  Trusted Publishing uploaded the two exact Python files, public PyPI hashes
+  matched the candidate, Release `358338498` became immutable with six assets,
+  all six asset attestations verified, Pages deployed its sanitized two-file
+  allowlist, and the workflow's final clean-client check passed. A concurrent
+  GitHub hosted-runner incident delayed job starts but caused no retry or state
+  divergence.
+- A separate fresh environment installed `hukair-codetalk==0.3.1` from public
+  PyPI with no dependencies. Distribution metadata, `codetalk.__version__`,
+  `codetalk --version`, `pip check`, `doctor`, and `review --json` all passed.
+  The public Pages HTML and sanitized logo were byte-identical to a fresh local
+  `stage-pages` output.
 - GitHub Actions run
   [`29871281164`](https://github.com/HUKAIR/CodeTalk/actions/runs/29871281164)
   completed successfully from commit `97f5d3c`: all build and candidate jobs
@@ -183,19 +196,13 @@ directory where applicable:
 
 ## Remaining Release Gates
 
-These are evidence gaps, not hidden implementation claims:
+There are no remaining release-engineering blockers for 0.3.1. These are the
+remaining product-evidence gaps, not hidden implementation claims:
 
 - Open the installed VSIX in an independent editor profile and visually verify
   CodeLens and hover cards on a real committed file. Package installation has
   passed in isolated VS Code and Cursor profiles; MCP initialization and
   `tools/list` have passed from the unpacked bundle.
-- Restrict all protected release environments and the tag ruleset to the exact
-  signed `v0.3.1` tag before the publishing workflow is dispatched.
-- Publish and verify a GitHub Release before describing the MCP bundle or VSIX as
-  directly downloadable.
-- Publish and verify `hukair-codetalk==0.3.1` before advertising the canonical
-  `pipx install hukair-codetalk` path; the installed command must remain
-  `codetalk`.
 - Collect at least one external pilot interception. The current blind comparison
   is useful but small (`N=5`, one repository, human judged).
 - Add a short current-product demo recording before a broad launch.
@@ -203,11 +210,13 @@ These are evidence gaps, not hidden implementation claims:
   installs the test client's declared dependency explicitly rather than relying
   on an older transitive `httpx` installation.
 
-## Safest Release Path
+## Post-Release Discipline
 
-1. Preserve commit `194dca9` and rehearsal `29936384409` as the verified source
-   and non-publishing evidence.
-2. Protect and sign `v0.3.1`, then approve each public environment only after
-   the preceding gate has succeeded.
-3. Expand distribution claims only after PyPI, the immutable GitHub Release,
-   and Pages match the locally verified hashes and bytes.
+1. Preserve commit `194dca9`, rehearsal `29936384409`, promotion
+   `29959650706`, signed tag `v0.3.1`, and immutable Release `358338498` as the
+   release evidence chain.
+2. Keep the repository Homepage unset and issue #142 open until each receives a
+   separate explicit product decision; publication must not broaden unrelated
+   repository changes.
+3. Monitor installation, MCP-client, and editor feedback, and keep adoption
+   claims separate from the verified release-integrity claims above.
