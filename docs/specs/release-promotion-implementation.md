@@ -58,6 +58,13 @@ OIDC Trusted Publishing, GitHub Pages.
 - The `0.3.0` rehearsal `29885343260` passed from commit `9442efd`. Every build,
   test, candidate, privacy, product-proof, and Pages-staging gate succeeded;
   `preflight` and all eight downstream public jobs were skipped.
+- The authorized `v0.3.0` promotion `29885612746` passed the signed-tag,
+  candidate, privacy, hidden-draft, public-state, OIDC, and Sigstore gates.
+  PyPI then reported that the exact `0.3.0` wheel filename had also been deleted
+  previously. Public PyPI remains 404 and every downstream public job stayed
+  closed. Hidden draft `357744277` keeps the six verified assets. No further
+  version under distribution name `codetalk` should be probed without an
+  explicit distribution-name decision.
 
 ## Global Constraints
 

@@ -8,10 +8,11 @@ made it verifiable.
 
 ## 0.3.0 - Unreleased
 
-Versions `0.2.0`, `0.2.1`, and `0.2.2` were not publicly released. PyPI
-permanently reserved their deleted artifact filenames, so the first public
-release advances to `0.3.0` without skipping any user-facing changes listed
-below.
+Versions `0.2.0`, `0.2.1`, and `0.2.2` were not publicly released. The `0.3.0`
+candidate also remains unpublished because PyPI permanently reserved its
+deleted artifact filenames. No user-facing change below has been dropped; the
+next public distribution identity is intentionally undecided until a
+collision-free package name or a GitHub-only path is approved.
 
 ### Added
 

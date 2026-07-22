@@ -153,6 +153,14 @@ directory where applicable:
   and source privacy scans, reproducible distributions, exact candidate
   validation, product proof, and Pages staging all succeeded. `preflight` and
   all eight downstream public jobs were skipped.
+- The authorized `v0.3.0` promotion run
+  [`29885612746`](https://github.com/HUKAIR/CodeTalk/actions/runs/29885612746)
+  passed the signed-tag, exact-candidate, privacy, hidden-draft, public-state,
+  OIDC, and Sigstore gates. PyPI rejected the wheel because its exact filename
+  had been uploaded and deleted previously. The public version endpoint remains
+  404; Release publication, Pages, and public verification were skipped. Hidden
+  draft `357744277` retains exactly six assets with server-recorded SHA-256
+  digests.
 
 ## Remaining Release Gates
 
@@ -162,8 +170,9 @@ These are evidence gaps, not hidden implementation claims:
   CodeLens and hover cards on a real committed file. Package installation has
   passed in isolated VS Code and Cursor profiles; MCP initialization and
   `tools/list` have passed from the unpacked bundle.
-- Replace the protected-environment tag policies with exact `v0.3.0`, then
-  create and verify the signed tag at the final recorded source commit.
+- Decide whether to use a collision-resistant PyPI distribution name while
+  keeping the `codetalk` CLI, or to make the first release GitHub-only. Do not
+  probe another version under the opaque `codetalk` filename history.
 - Publish and verify a GitHub Release before describing the MCP bundle or VSIX as
   directly downloadable.
 - Publish and verify PyPI only if `pip install codetalk` will be advertised.

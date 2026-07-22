@@ -92,9 +92,8 @@ After packaging the editor extension, copy
 Preparation snapshot; update every item from its public or owner-only endpoint
 before promotion:
 
-- [ ] Protected `release`, `pypi`, and `github-pages` environments require the
-  owner reviewer but still accept only the exact `v0.2.2` tag; replace those
-  policies with the exact `v0.3.0` tag before promotion.
+- [x] Protected `release`, `pypi`, and `github-pages` environments require the
+  owner reviewer and accept only the exact `v0.3.0` tag.
 - [x] The owner confirmed the PyPI Pending Trusted Publisher for project
   `codetalk`, repository `HUKAIR/CodeTalk`, workflow `release.yml`, and
   environment `pypi`.
@@ -139,6 +138,14 @@ Run the non-publishing rehearsal first:
   reproducible distributions, exact candidate validation, product proof, and
   Pages staging all succeeded. `preflight` and all eight downstream public jobs
   were skipped.
+- The authorized `v0.3.0` promotion run `29885612746` passed every repository,
+  signed-tag, candidate, privacy, hidden-draft, public-state, OIDC, and Sigstore
+  gate. PyPI then rejected the wheel because that exact `0.3.0` filename had
+  also been uploaded and deleted previously. The public version endpoint
+  remains 404; Release publication, Pages, and public verification were
+  skipped. Hidden draft `357744277` retains exactly six hashed assets. Do not
+  probe another `codetalk` version until the distribution-name decision is
+  explicit.
 - Watch the run and require the reusable test workflow, candidate validation,
   secret scan, product-proof test, and Pages artifact upload to pass.
 - Confirm every job after `candidate` is skipped.
