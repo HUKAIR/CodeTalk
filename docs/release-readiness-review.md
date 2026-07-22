@@ -135,6 +135,11 @@ directory where applicable:
   [`29882535367`](https://github.com/HUKAIR/CodeTalk/actions/runs/29882535367)
   reached OIDC successfully and found the same deleted-filename tombstone for
   `0.2.1`; every downstream public job remained skipped.
+- The synchronized `0.2.2` rehearsal
+  [`29884029536`](https://github.com/HUKAIR/CodeTalk/actions/runs/29884029536)
+  passed the Python 3.11-3.14 matrix, extension build, full-history and source
+  privacy scans, reproducible distributions, candidate and product-proof gates,
+  and Pages staging. Every public job was skipped.
 
 ## Remaining Release Gates
 
@@ -144,8 +149,8 @@ These are evidence gaps, not hidden implementation claims:
   CodeLens and hover cards on a real committed file. Package installation has
   passed in isolated VS Code and Cursor profiles; MCP initialization and
   `tools/list` have passed from the unpacked bundle.
-- Replace the protected-environment tag policies with exact `v0.2.2`, then pass
-  a fresh non-publishing workflow run from the synchronized version commit.
+- Replace the protected-environment tag policies with exact `v0.2.2`, then
+  create and verify the signed tag at the final recorded source commit.
 - Publish and verify a GitHub Release before describing the MCP bundle or VSIX as
   directly downloadable.
 - Publish and verify PyPI only if `pip install codetalk` will be advertised.

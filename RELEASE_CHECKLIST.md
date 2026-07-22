@@ -124,11 +124,15 @@ Run the non-publishing rehearsal first:
   repository and OIDC gate, then PyPI reported that the `0.2.1` filenames had
   previously been deleted as well. Release publication and Pages stayed
   skipped, and the Release remained a hidden draft.
+- The synchronized `0.2.2` non-publishing run `29884029536` passed the Python
+  3.11-3.14 matrix, extension build, history and source privacy scans,
+  reproducible distributions, exact candidate validation, product-proof test,
+  and Pages staging; all public jobs were skipped.
 - Watch the run and require the reusable test workflow, candidate validation,
   secret scan, product-proof test, and Pages artifact upload to pass.
 - Confirm every job after `candidate` is skipped.
-- Reconfirm that no tag, PyPI project, GitHub Release, Pages site, or Homepage
-  change exists.
+- Reconfirm that the rehearsal created no `v0.2.2` tag, public PyPI version,
+  public GitHub Release, Pages deployment, or Homepage change.
 
 The following owner actions require fresh explicit confirmation because they
 enable or perform public, partly irreversible changes:
