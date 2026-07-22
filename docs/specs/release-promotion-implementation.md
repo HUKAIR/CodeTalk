@@ -30,6 +30,12 @@ OIDC Trusted Publishing, GitHub Pages.
   and read-only public-state recheck in Actions run `29871281164`. No tag or
   public release state was created; the irreversible promotion gate remains
   closed and requires fresh owner authorization.
+- The first authorized promotion run `29879880097` stopped before any public
+  write. Its verified candidate and signed-tag checks passed, but GitHub
+  returned HTTP 403 when the job token queried the Administration-only
+  immutable-Releases setting. The recovery keeps the owner-side setting check
+  and the post-public `immutable` plus attestation checks, while removing the
+  impossible in-workflow query instead of adding a long-lived PAT.
 
 ## Global Constraints
 
@@ -302,13 +308,15 @@ annotated tag object type == tag
 tag verification.verified == true
 tag target type == commit
 tag target SHA == github.sha
-immutable releases enabled == true
 Pages build_type == workflow
 ```
 
 Use `gh api` and `jq -e`; pass `${{ github.token }}` through `GH_TOKEN`. Any
-missing API permission or false setting stops promotion. This deliberately
-fails closed instead of accepting a long-lived administrator secret.
+missing API permission or false setting stops promotion. The repository owner
+checks the Administration-only immutable-Releases setting before dispatch;
+the job token cannot read that endpoint, and the workflow deliberately refuses
+to accept a long-lived administrator secret. The published Release must still
+report `immutable == true` before promotion can complete.
 
 - [ ] **Step 6: Implement hidden draft and idempotent PyPI flow**
 

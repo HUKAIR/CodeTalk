@@ -98,7 +98,13 @@ checks all of the following before any public write:
 - the candidate artifact contains exactly the expected release files;
 - `SHA256SUMS` validates every distributable and the SBOM;
 - all package metadata reports version `0.2.0`;
-- the release notes are publication-ready and do not claim candidate status.
+- the release notes are publication-ready and do not claim candidate status;
+- GitHub Pages is configured to deploy from Actions workflows.
+
+Immediately before dispatch, the repository owner separately verifies that
+immutable Releases are enabled through the administration endpoint. GitHub's
+job token cannot read repository Administration settings, and the workflow
+must not introduce a long-lived PAT merely to repeat that owner-side check.
 
 The signed tag identity is checked again immediately before draft creation,
 PyPI publication, and public Release publication. A repository tag ruleset must
@@ -125,8 +131,9 @@ Before first use, the PyPI pending publisher must be configured for repository
 
 After PyPI succeeds, the `release` environment job confirms that the public
 PyPI files have the expected SHA-256 values, then publishes the draft. The
-repository's immutable releases setting must already be enabled. Publication
-must stop if the setting cannot be confirmed.
+repository's immutable releases setting must already be enabled. After
+publication, the job requires the public Release itself to report
+`immutable == true` and verifies the Release and every asset attestation.
 
 ### 6. GitHub Pages
 

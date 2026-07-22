@@ -98,13 +98,11 @@ jobs:
           test "$(jq -r '.verification.verified' <<<"$tag_json")" = "true"
           test "$(jq -r '.object.type' <<<"$tag_json")" = "commit"
           test "$(jq -r '.object.sha' <<<"$tag_json")" = "$GITHUB_SHA"
-      - name: Verify immutable Releases and Pages settings
+      - name: Verify Pages setting
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          immutable="$(gh api "repos/$GITHUB_REPOSITORY/immutable-releases" --jq '.enabled')"
-          test "$immutable" = "true"
           build_type="$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq '.build_type')"
           test "$build_type" = "workflow"
 

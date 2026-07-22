@@ -92,19 +92,25 @@ After packaging the editor extension, copy
 Preparation snapshot; update every item from its public or owner-only endpoint
 before promotion:
 
-- [ ] Protected `release`, `pypi`, and `github-pages` environments are not yet
-  configured.
-- [ ] The PyPI Pending Trusted Publisher still requires owner setup for project
+- [x] Protected `release`, `pypi`, and `github-pages` environments require the
+  owner reviewer and accept only the exact `v0.2.0` tag.
+- [x] The owner confirmed the PyPI Pending Trusted Publisher for project
   `codetalk`, repository `HUKAIR/CodeTalk`, workflow `release.yml`, and
   environment `pypi`.
-- [ ] GitHub immutable Releases are currently disabled.
-- [ ] GitHub Pages is currently disabled; its source must be GitHub Actions.
+- [x] GitHub immutable Releases are enabled.
+- [x] GitHub Pages is enabled with GitHub Actions as its source.
 
 Run the non-publishing rehearsal first:
 
 - `gh workflow run release.yml --ref main -f publish=false`
 - Completed evidence: Actions run `29871281164` passed from `97f5d3c`; all jobs
   after `candidate` were skipped and the public-state recheck was unchanged.
+- The first authorized promotion run `29879880097` stopped before draft,
+  PyPI, Release, or Pages writes. Candidate and signed-tag checks passed; the
+  preflight exposed that `GITHUB_TOKEN` cannot read the Administration-only
+  immutable-Releases endpoint. Do not solve this with a PAT. Verify the setting
+  from the owner CLI before dispatch and retain the post-public immutable
+  Release and asset-attestation checks.
 - Watch the run and require the reusable test workflow, candidate validation,
   secret scan, product-proof test, and Pages artifact upload to pass.
 - Confirm every job after `candidate` is skipped.

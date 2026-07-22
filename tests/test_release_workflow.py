@@ -69,13 +69,17 @@ class TestReleaseWorkflow(unittest.TestCase):
         self.assertNotIn("password:", text)
         self.assertNotIn("skip-existing", text)
 
-    def test_preflight_fails_closed_on_identity_and_repository_settings(self):
+    def test_preflight_uses_only_github_token_readable_settings(self):
         text = self.release_text()
+        preflight = text.split("  preflight:\n", 1)[1].split(
+            "\n  draft-release:\n", 1)[0]
         for phrase in (
                 TAG, "refs/tags/v0.2.0", "verification.verified",
-                "object.type", "github.sha", "immutable-releases",
-                "build_type", "workflow"):
-            self.assertIn(phrase, text)
+                "object.type", "github.sha", "build_type", "workflow"):
+            self.assertIn(phrase, preflight)
+        self.assertNotIn("immutable-releases", preflight)
+        self.assertIn('releases/tags/$TAG', text)
+        self.assertIn('test "$immutable" = "true"', text)
         self.assertIn("python -m scripts.release_promotion validate-candidate",
                       text)
         self.assertIn("python -m scripts.scan_secrets", text)
