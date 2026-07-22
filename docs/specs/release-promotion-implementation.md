@@ -65,6 +65,13 @@ OIDC Trusted Publishing, GitHub Pages.
   closed. Hidden draft `357744277` keeps the six verified assets. No further
   version under distribution name `codetalk` should be probed without an
   explicit distribution-name decision.
+- The distribution-name recovery is implemented in preparation commit
+  `194dca9`: PyPI identity is `hukair-codetalk` at `0.3.1`, while the command,
+  import package, MCP identity, and editor branding remain `codetalk`. The exact
+  Pending Trusted Publisher is registered. Rehearsal `29936384409` passed every
+  non-publishing gate from that commit, and all public jobs were skipped. The
+  follow-up check confirmed no `v0.3.1` tag or Release, no public PyPI version,
+  no Homepage change, and issue #142 still open.
 
 ## Global Constraints
 
@@ -489,7 +496,7 @@ git commit -m "docs(release): define 0.3.1 promotion runbook" \
 - Produces: a pushed preparation commit and a successful non-publishing Actions
   run, or a precise blocker with no public release state changed.
 
-- [ ] **Step 1: Run the complete local suite**
+- [x] **Step 1: Run the complete local suite**
 
 Run:
 
@@ -503,7 +510,7 @@ git diff --check HEAD~3
 
 Expected: all tests and scans pass. Do not claim completion from partial output.
 
-- [ ] **Step 2: Inspect history and working tree**
+- [x] **Step 2: Inspect history and working tree**
 
 Run:
 
@@ -517,12 +524,12 @@ Expected: only the approved design, plan, helper, workflow, tests, notes, and
 checklist are ahead of `origin/main`; every implementation commit contains a
 `Vibe-Decision:` body.
 
-- [ ] **Step 3: Push preparation only**
+- [x] **Step 3: Push preparation only**
 
 Push `main` without tags. Confirm `git tag --list` remains empty and no public
 Release exists.
 
-- [ ] **Step 4: Trigger the safe dry run**
+- [x] **Step 4: Trigger the safe dry run**
 
 Run:
 
@@ -533,7 +540,7 @@ gh workflow run release.yml --ref main -f publish=false
 Watch the run to completion. Expected: reusable test and candidate jobs pass;
 all promotion, PyPI, Release, and Pages deployment jobs are skipped.
 
-- [ ] **Step 5: Re-check public state**
+- [x] **Step 5: Re-check public state**
 
 Confirm no `v0.3.1` tag, GitHub Release, PyPI 0.3.1 project, Pages site, or
 Homepage change was created. Leave issue #142 open.

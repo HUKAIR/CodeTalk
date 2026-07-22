@@ -104,6 +104,13 @@ before promotion:
 Run the non-publishing rehearsal first:
 
 - `gh workflow run release.yml --ref main -f publish=false`
+- The exact `0.3.1` rehearsal `29936384409` passed from preparation commit
+  `194dca9`: Python 3.11-3.14, the full test suite, VSIX, history and source
+  privacy scans, reproducible distributions, exact candidate validation,
+  installed-wheel smoke test, product proof, and Pages staging all passed.
+  Every job from `preflight` onward was skipped. A follow-up check found no
+  `v0.3.1` tag or Release, no public PyPI version, no Homepage change, and issue
+  #142 remained open.
 - Completed evidence: Actions run `29871281164` passed from `97f5d3c`; all jobs
   after `candidate` were skipped and the public-state recheck was unchanged.
 - The first authorized promotion run `29879880097` stopped before draft,
@@ -147,10 +154,10 @@ Run the non-publishing rehearsal first:
   skipped. Hidden draft `357744277` retains exactly six hashed assets. Do not
   probe another `codetalk` version until the distribution-name decision is
   explicit.
-- Watch the run and require the reusable test workflow, candidate validation,
-  secret scan, product-proof test, and Pages artifact upload to pass.
-- Confirm every job after `candidate` is skipped.
-- Reconfirm that the rehearsal created no `v0.3.1` tag, public PyPI version,
+- [x] Require the reusable test workflow, candidate validation, secret scan,
+  product-proof test, and Pages artifact upload to pass.
+- [x] Confirm every job after `candidate` is skipped.
+- [x] Reconfirm that the rehearsal created no `v0.3.1` tag, public PyPI version,
   public GitHub Release, Pages deployment, or Homepage change.
 
 The following owner actions require fresh explicit confirmation because they

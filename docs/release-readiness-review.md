@@ -2,10 +2,11 @@
 
 ## Verdict
 
-CodeTalk 0.3.1 is locally ready for a non-publishing release rehearsal and
-remains ready for a source-install pilot from the public repository. It is not
-yet ready to claim general package distribution: the new `hukair-codetalk`
-distribution, immutable GitHub Release, and Pages payload have not yet been
+CodeTalk 0.3.1 has passed its non-publishing release rehearsal and remains ready
+for a source-install pilot from the public repository. Promotion is still
+gated on the exact-tag environment restrictions, protected signed tag, and
+public endpoint verification. General package distribution must not be claimed
+until `hukair-codetalk`, the immutable GitHub Release, and the Pages payload are
 published and verified from an independent clean client.
 
 This review does not claim mathematical certainty. It records the concrete
@@ -129,6 +130,15 @@ directory where applicable:
 - The unpacked `codetalk-0.3.1.mcpb` negotiated MCP protocol `2025-11-25`,
   reported server version `0.3.1`, and returned exactly seven tools with
   `readOnlyHint: true`.
+- The exact `0.3.1` rehearsal
+  [`29936384409`](https://github.com/HUKAIR/CodeTalk/actions/runs/29936384409)
+  passed from commit `194dca9`: Python 3.11-3.14, the full unit suite, VSIX
+  packaging, history and source privacy scans, reproducible Python artifacts,
+  the exact six-file candidate, wheel smoke test, product proof, and Pages
+  staging all succeeded. `preflight` and all eight publication jobs were
+  skipped. The follow-up public-state check found no `v0.3.1` tag or Release;
+  PyPI remained unpublished, Homepage remained unset, and issue #142 remained
+  open.
 - GitHub Actions run
   [`29871281164`](https://github.com/HUKAIR/CodeTalk/actions/runs/29871281164)
   completed successfully from commit `97f5d3c`: all build and candidate jobs
@@ -179,8 +189,6 @@ These are evidence gaps, not hidden implementation claims:
   CodeLens and hover cards on a real committed file. Package installation has
   passed in isolated VS Code and Cursor profiles; MCP initialization and
   `tools/list` have passed from the unpacked bundle.
-- Run the 0.3.1 non-publishing workflow from the exact preparation commit and
-  require every build, candidate, privacy, and Pages-staging gate to pass.
 - Restrict all protected release environments and the tag ruleset to the exact
   signed `v0.3.1` tag before the publishing workflow is dispatched.
 - Publish and verify a GitHub Release before describing the MCP bundle or VSIX as
@@ -197,9 +205,9 @@ These are evidence gaps, not hidden implementation claims:
 
 ## Safest Release Path
 
-1. Commit and push the fully verified 0.3.1 preparation state.
-2. Run the non-publishing workflow from that exact commit and record its run ID.
-3. Protect and sign `v0.3.1`, then approve each public environment only after
+1. Preserve commit `194dca9` and rehearsal `29936384409` as the verified source
+   and non-publishing evidence.
+2. Protect and sign `v0.3.1`, then approve each public environment only after
    the preceding gate has succeeded.
-4. Expand distribution claims only after PyPI, the immutable GitHub Release,
+3. Expand distribution claims only after PyPI, the immutable GitHub Release,
    and Pages match the locally verified hashes and bytes.
