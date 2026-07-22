@@ -1,10 +1,10 @@
-name: Prepare or publish CodeTalk 0.2.2
+name: Prepare or publish CodeTalk 0.3.0
 
 on:
   workflow_dispatch:
     inputs:
       publish:
-        description: Publish the verified v0.2.2 tag to public services
+        description: Publish the verified v0.3.0 tag to public services
         required: true
         type: boolean
         default: false
@@ -13,11 +13,11 @@ permissions:
   contents: read
 
 env:
-  VERSION: "0.2.2"
-  TAG: "v0.2.2"
+  VERSION: "0.3.0"
+  TAG: "v0.3.0"
 
 concurrency:
-  group: codetalk-v0.2.2-${{ github.ref }}
+  group: codetalk-v0.3.0-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -47,7 +47,7 @@ jobs:
       - name: Validate the exact candidate
         run: >-
           python -m scripts.release_promotion validate-candidate
-          dist docs/releases/v0.2.2.md
+          dist docs/releases/v0.3.0.md
       - name: Stage the public proof allowlist
         run: python -m scripts.release_promotion stage-pages . pages
       - name: Scan the source tree for secrets
@@ -84,13 +84,13 @@ jobs:
       - name: Revalidate candidate bytes
         run: >-
           python -m scripts.release_promotion validate-candidate
-          dist docs/releases/v0.2.2.md
+          dist docs/releases/v0.3.0.md
       - name: Verify tag identity and signature
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          test "$GITHUB_REF" = "refs/tags/v0.2.2"
+          test "$GITHUB_REF" = "refs/tags/v0.3.0"
           ref_json="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG")"
           test "$(jq -r '.object.type' <<<"$ref_json")" = "tag"
           tag_sha="$(jq -r '.object.sha' <<<"$ref_json")"
@@ -129,13 +129,13 @@ jobs:
       - name: Validate candidate before draft creation
         run: >-
           python -m scripts.release_promotion validate-candidate
-          dist docs/releases/v0.2.2.md
+          dist docs/releases/v0.3.0.md
       - name: Reverify signed tag before creating a draft
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          test "$GITHUB_REF" = "refs/tags/v0.2.2"
+          test "$GITHUB_REF" = "refs/tags/v0.3.0"
           ref_json="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG")"
           test "$(jq -r '.object.type' <<<"$ref_json")" = "tag"
           tag_sha="$(jq -r '.object.sha' <<<"$ref_json")"
@@ -149,11 +149,11 @@ jobs:
         run: |
           set -euo pipefail
           ASSETS=(
-            codetalk-0.2.2-py3-none-any.whl
-            codetalk-0.2.2.tar.gz
-            codetalk-0.2.2.mcpb
-            vscode-codetalk-0.2.2.vsix
-            codetalk-0.2.2.sbom.cdx.json
+            codetalk-0.3.0-py3-none-any.whl
+            codetalk-0.3.0.tar.gz
+            codetalk-0.3.0.mcpb
+            vscode-codetalk-0.3.0.vsix
+            codetalk-0.3.0.sbom.cdx.json
             SHA256SUMS
           )
           gh api --paginate --slurp \
@@ -178,7 +178,7 @@ jobs:
             release_state="missing"
           fi
           if test "$release_state" != "missing"; then
-            test "$(jq -r '.body' /tmp/release-status.json)" = "$(cat docs/releases/v0.2.2.md)"
+            test "$(jq -r '.body' /tmp/release-status.json)" = "$(cat docs/releases/v0.3.0.md)"
             mkdir -p existing-assets
             mapfile -t existing < <(jq -r '.assets[].name' /tmp/release-status.json)
             for name in "${existing[@]}"; do
@@ -208,14 +208,14 @@ jobs:
             fi
           else
             gh release create "$TAG" \
-              dist/codetalk-0.2.2-py3-none-any.whl \
-              dist/codetalk-0.2.2.tar.gz \
-              dist/codetalk-0.2.2.mcpb \
-              dist/vscode-codetalk-0.2.2.vsix \
-              dist/codetalk-0.2.2.sbom.cdx.json \
+              dist/codetalk-0.3.0-py3-none-any.whl \
+              dist/codetalk-0.3.0.tar.gz \
+              dist/codetalk-0.3.0.mcpb \
+              dist/vscode-codetalk-0.3.0.vsix \
+              dist/codetalk-0.3.0.sbom.cdx.json \
               dist/SHA256SUMS \
-              --draft --verify-tag --title "CodeTalk 0.2.2" \
-              --notes-file docs/releases/v0.2.2.md
+              --draft --verify-tag --title "CodeTalk 0.3.0" \
+              --notes-file docs/releases/v0.3.0.md
           fi
 
   inspect-pypi:
@@ -266,7 +266,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          test "$GITHUB_REF" = "refs/tags/v0.2.2"
+          test "$GITHUB_REF" = "refs/tags/v0.3.0"
           ref_json="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG")"
           test "$(jq -r '.object.type' <<<"$ref_json")" = "tag"
           tag_sha="$(jq -r '.object.sha' <<<"$ref_json")"
@@ -277,8 +277,8 @@ jobs:
       - name: Isolate Python distribution files
         run: |
           mkdir -p pypi-dist
-          cp dist/codetalk-0.2.2-py3-none-any.whl pypi-dist/
-          cp dist/codetalk-0.2.2.tar.gz pypi-dist/
+          cp dist/codetalk-0.3.0-py3-none-any.whl pypi-dist/
+          cp dist/codetalk-0.3.0.tar.gz pypi-dist/
       - uses: pypa/gh-action-pypi-publish@ba38be9e461d3875417946c167d0b5f3d385a247 # v1.14.1
         with:
           packages-dir: pypi-dist/
@@ -339,14 +339,14 @@ jobs:
         run: |
           set -euo pipefail
           ASSETS=(
-            codetalk-0.2.2-py3-none-any.whl
-            codetalk-0.2.2.tar.gz
-            codetalk-0.2.2.mcpb
-            vscode-codetalk-0.2.2.vsix
-            codetalk-0.2.2.sbom.cdx.json
+            codetalk-0.3.0-py3-none-any.whl
+            codetalk-0.3.0.tar.gz
+            codetalk-0.3.0.mcpb
+            vscode-codetalk-0.3.0.vsix
+            codetalk-0.3.0.sbom.cdx.json
             SHA256SUMS
           )
-          test "$GITHUB_REF" = "refs/tags/v0.2.2"
+          test "$GITHUB_REF" = "refs/tags/v0.3.0"
           ref_json="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG")"
           test "$(jq -r '.object.type' <<<"$ref_json")" = "tag"
           tag_sha="$(jq -r '.object.sha' <<<"$ref_json")"
@@ -361,7 +361,7 @@ jobs:
           release_count="$(jq 'length' <<<"$release_matches")"
           test "$release_count" = "1"
           release_json="$(jq '.[0]' <<<"$release_matches")"
-          test "$(jq -r '.body' <<<"$release_json")" = "$(cat docs/releases/v0.2.2.md)"
+          test "$(jq -r '.body' <<<"$release_json")" = "$(cat docs/releases/v0.3.0.md)"
           mapfile -t existing < <(jq -r '.assets[].name' <<<"$release_json")
           test "${#existing[@]}" = "${#ASSETS[@]}"
           mkdir -p prepublish-assets
@@ -392,11 +392,11 @@ jobs:
             sleep 10
           done
           gh release verify "$TAG"
-          gh release verify-asset "$TAG" dist/codetalk-0.2.2-py3-none-any.whl
-          gh release verify-asset "$TAG" dist/codetalk-0.2.2.tar.gz
-          gh release verify-asset "$TAG" dist/codetalk-0.2.2.mcpb
-          gh release verify-asset "$TAG" dist/vscode-codetalk-0.2.2.vsix
-          gh release verify-asset "$TAG" dist/codetalk-0.2.2.sbom.cdx.json
+          gh release verify-asset "$TAG" dist/codetalk-0.3.0-py3-none-any.whl
+          gh release verify-asset "$TAG" dist/codetalk-0.3.0.tar.gz
+          gh release verify-asset "$TAG" dist/codetalk-0.3.0.mcpb
+          gh release verify-asset "$TAG" dist/vscode-codetalk-0.3.0.vsix
+          gh release verify-asset "$TAG" dist/codetalk-0.3.0.sbom.cdx.json
           gh release verify-asset "$TAG" dist/SHA256SUMS
 
   deploy-pages:
@@ -461,7 +461,7 @@ jobs:
           set -euo pipefail
           python -m venv /tmp/codetalk-public-venv
           /tmp/codetalk-public-venv/bin/python -m pip install \
-            --no-cache-dir --no-deps "codetalk==0.2.2"
+            --no-cache-dir --no-deps "codetalk==0.3.0"
           /tmp/codetalk-public-venv/bin/python -P -m codetalk --version
           mkdir -p /tmp/codetalk-public-home /tmp/codetalk-public-repo
           git -C /tmp/codetalk-public-repo init

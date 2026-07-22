@@ -2,7 +2,7 @@
 
 ## Verdict
 
-CodeTalk is ready for a non-publishing 0.2.2 release rehearsal and remains ready
+CodeTalk is ready for a non-publishing 0.3.0 release rehearsal and remains ready
 for a source-install pilot from the public repository. It is not yet ready to
 claim general package distribution: no immutable GitHub Release, PyPI package,
 or Marketplace listing has been published and verified from an independent
@@ -86,9 +86,10 @@ to reproduce the conclusion.
 - Added deterministic removal of PNG EXIF, text, and time metadata while
   preserving the original compressed pixel chunks.
 - Recorded that a PyPI 404 cannot reveal deleted-filename tombstones. The
-  `0.2.0` and `0.2.1` uploads authenticated through OIDC but failed closed on
-  PyPI's permanent filename reservations; recovery advances to `0.2.2` without
-  a token, `skip-existing`, or weaker verification.
+  `0.2.0`, `0.2.1`, and `0.2.2` uploads authenticated through OIDC but failed
+  closed on PyPI's permanent filename reservations. Recovery advances directly
+  to `0.3.0` without a token, sequential patch probing, `skip-existing`, or
+  weaker verification.
 - Recheck the signed annotated tag immediately before draft creation, PyPI
   publication, and public Release publication. Existing public Releases are
   accepted only when immutable and byte-identical, allowing Pages recovery.
@@ -106,7 +107,7 @@ directory where applicable:
 - MCP bundle: built, unpacked, initialized, and returned seven read-only tools.
 - VS Code extension: `npm ci`, typecheck, build, package, archive validation, and
   production dependency audit passed; the VSIX contains the AGPL license and
-  installed as `codetalk.vscode-codetalk@0.2.2` in isolated VS Code and Cursor
+  installed as `codetalk.vscode-codetalk@0.3.0` in isolated VS Code and Cursor
   profiles without touching the existing profiles.
 - Docker: image built from the allowlisted context; loopback-mapped home page
   returned HTTP 200; a forged non-loopback Host header returned HTTP 403.
@@ -114,7 +115,7 @@ directory where applicable:
   the hidden search drawer no longer obscured the main interface.
 - Repository constraints: all Python modules remain below 300 lines and
   `git diff --check` passed.
-- Two independently built 0.2.2 candidates produced byte-identical wheels and
+- Two independently built 0.3.0 candidates produced byte-identical wheels and
   normalized sdists. The assembled six-file candidate passed exact-set,
   checksum, SBOM, archive privacy, and status-neutral release-note validation.
   Its wheel installed with no dependencies in a fresh environment; `--version`
@@ -140,6 +141,12 @@ directory where applicable:
   passed the Python 3.11-3.14 matrix, extension build, full-history and source
   privacy scans, reproducible distributions, candidate and product-proof gates,
   and Pages staging. Every public job was skipped.
+- The authorized `v0.2.2` promotion run
+  [`29884421966`](https://github.com/HUKAIR/CodeTalk/actions/runs/29884421966)
+  passed repository, signed-tag, candidate, privacy, and OIDC gates. PyPI
+  rejected the permanently reserved deleted `0.2.2` filenames, so Release
+  publication, Pages, and public verification remained skipped. The exact
+  six-file Release candidate remains a hidden draft.
 
 ## Remaining Release Gates
 
@@ -149,7 +156,7 @@ These are evidence gaps, not hidden implementation claims:
   CodeLens and hover cards on a real committed file. Package installation has
   passed in isolated VS Code and Cursor profiles; MCP initialization and
   `tools/list` have passed from the unpacked bundle.
-- Replace the protected-environment tag policies with exact `v0.2.2`, then
+- Replace the protected-environment tag policies with exact `v0.3.0`, then
   create and verify the signed tag at the final recorded source commit.
 - Publish and verify a GitHub Release before describing the MCP bundle or VSIX as
   directly downloadable.

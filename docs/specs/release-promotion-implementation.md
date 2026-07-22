@@ -5,7 +5,7 @@
 > superpowers:executing-plans to implement this plan task-by-task. Steps use
 > checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a manual, dry-run-first 0.2.2 release workflow that builds once,
+**Goal:** Add a manual, dry-run-first 0.3.0 release workflow that builds once,
 uses short-lived publishing identity, and cannot publish until the verified tag
 and protected external settings are in place.
 
@@ -20,8 +20,8 @@ OIDC Trusted Publishing, GitHub Pages.
 
 ## Implementation Record
 
-- This plan originally targeted `0.2.0`. That identity is retained only in the
-  historical run evidence below; the active release identity is `0.2.2`.
+- This plan originally targeted `0.2.0`. Earlier identities are retained only
+  in the historical run evidence below; the active release identity is `0.3.0`.
 - Tasks 1-3 are implemented in commits `fca3a8e`, `1774c08`, and `c3df3c6`.
 - The final privacy and recovery review added pre-upload archive inspection,
   sanitized Pages PNG staging, repeated signed-tag checks, and immutable public
@@ -49,6 +49,12 @@ OIDC Trusted Publishing, GitHub Pages.
   PyPI tombstone response for the deleted `0.2.1` filenames. Downstream jobs
   again stayed closed. Recovery now advances the active identity to `0.2.2`;
   it does not weaken Trusted Publishing or enable `skip-existing`.
+- The `0.2.2` rehearsal `29884029536` passed every non-publishing gate. Its
+  authorized promotion `29884421966` passed the signed-tag, candidate, privacy,
+  and OIDC gates, then PyPI reported the same permanent filename reservation.
+  All downstream public jobs stayed closed. After three consecutive reserved
+  patch versions, recovery advances directly to `0.3.0` instead of probing
+  another patch filename.
 
 ## Global Constraints
 
@@ -56,8 +62,8 @@ OIDC Trusted Publishing, GitHub Pages.
   change the repository Homepage, or close issue #142.
 - The only workflow trigger is `workflow_dispatch`; `publish` is a required
   boolean with default `false`.
-- Release identity is fixed to package `codetalk`, version `0.2.2`, and tag
-  `v0.2.2`.
+- Release identity is fixed to package `codetalk`, version `0.3.0`, and tag
+  `v0.3.0`.
 - Core runtime dependencies remain empty; new validation code uses only the
   Python standard library.
 - Every Python module remains below 300 lines.
@@ -86,7 +92,7 @@ OIDC Trusted Publishing, GitHub Pages.
 - Create `.github/workflows/release.yml`: manual dry run and guarded promotion.
 - Modify `.github/workflows/test.yml`: expose the existing complete test and
   artifact build as a reusable workflow.
-- Modify `docs/releases/v0.2.2.md`: make the notes suitable for both the tag and
+- Create `docs/releases/v0.3.0.md`: make the notes suitable for both the tag and
   public Release without claiming publication early.
 - Modify `RELEASE_CHECKLIST.md`: document external settings, dry run, exact
   promotion command, and public verification.
@@ -177,7 +183,7 @@ Expected: the candidate and Pages tests pass.
 - [ ] **Step 5: Add and test PyPI state comparison**
 
 Pass decoded PyPI JSON into `pypi_state()`. Return `"verified"` only when the
-0.2.2 release contains exactly the expected wheel and sdist and both public
+0.3.0 release contains exactly the expected wheel and sdist and both public
 SHA-256 digests match local bytes. Return `"publish"` only for an explicit
 not-found payload. Raise `ValueError` for an existing partial or mismatched
 release.
@@ -294,7 +300,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-      - run: python -m scripts.release_promotion validate-candidate dist docs/releases/v0.2.2.md
+      - run: python -m scripts.release_promotion validate-candidate dist docs/releases/v0.3.0.md
       - run: python -m scripts.release_promotion stage-pages . pages
       - run: python -m scripts.scan_secrets
       - run: python -m unittest tests.test_product_proof
@@ -316,7 +322,7 @@ Add `preflight` with `if: ${{ inputs.publish }}`, environment `release`, and
 read-only permissions. It must require:
 
 ```text
-github.ref == refs/tags/v0.2.2
+github.ref == refs/tags/v0.3.0
 annotated tag object type == tag
 tag verification.verified == true
 tag target type == commit
@@ -350,8 +356,8 @@ Do not use `skip-existing`; an existing mismatched version is a hard failure.
 
 - [ ] **Step 7: Implement immutable Release and Pages publication**
 
-`publish-release` uses `gh release edit v0.2.2 --draft=false --latest`, then
-requires `gh release verify v0.2.2`, `gh release verify-asset` for all six files,
+`publish-release` uses `gh release edit v0.3.0 --draft=false --latest`, then
+requires `gh release verify v0.3.0`, `gh release verify-asset` for all six files,
 and REST field `immutable == true`.
 
 `deploy-pages` runs last with environment `github-pages`, `pages: write`, and
@@ -365,7 +371,7 @@ and REST field `immutable == true`.
 Add `verify-public` after deployment. It must download the candidate, require
 `pypi-state` to return `verified`, verify the immutable Release and each local
 asset with GitHub CLI, fetch the Pages HTML and local logo, reject external
-runtime assets, and install `codetalk==0.2.2` from public PyPI into a clean
+runtime assets, and install `codetalk==0.3.0` from public PyPI into a clean
 virtual environment for `--version`, `doctor`, and local review smoke checks.
 No workflow job changes the repository Homepage or closes issue #142.
 
@@ -385,7 +391,7 @@ Expected: all tests pass and no whitespace errors are reported.
 
 ```bash
 git add -- .github/workflows/test.yml .github/workflows/release.yml tests/test_release_promotion.py
-git commit -m "ci(release): add guarded 0.2.2 promotion" \
+git commit -m "ci(release): add guarded 0.3.0 promotion" \
   -m "Vibe-Decision: Reuse the tested candidate and require explicit publish input, verified tag, protected environments, OIDC, and immutable assets." \
   -m "Vibe-Watch: The immutable-release preflight depends on GitHub granting the job token read access to the repository setting and must be proven before promotion."
 ```
@@ -395,7 +401,7 @@ git commit -m "ci(release): add guarded 0.2.2 promotion" \
 ### Task 3: Publication-Ready Notes And Operator Checklist
 
 **Files:**
-- Modify: `docs/releases/v0.2.2.md`
+- Create: `docs/releases/v0.3.0.md`
 - Modify: `RELEASE_CHECKLIST.md`
 - Modify: `tests/test_release_candidate.py`
 
@@ -405,7 +411,7 @@ git commit -m "ci(release): add guarded 0.2.2 promotion" \
 
 - [ ] **Step 1: Write failing release-copy tests**
 
-Require the release heading `# CodeTalk 0.2.2`, the four known limitations,
+Require the release heading `# CodeTalk 0.3.0`, the four known limitations,
 all six artifact names, `workflow_dispatch`, the three environment names,
 Trusted Publisher, immutable Releases, and Pages setup. Reject `Release
 Candidate`, `not been published`, and any instruction claiming issue #142 is
@@ -419,14 +425,14 @@ Expected: failure on the current candidate-status wording.
 
 - [ ] **Step 3: Make release notes status-neutral**
 
-Retitle the notes `# CodeTalk 0.2.2`, preserve the product workflow and honest
+Retitle the notes `# CodeTalk 0.3.0`, preserve the product workflow and honest
 limitations, list all six public assets, and replace the candidate gate with an
 integrity section explaining `SHA256SUMS`, CycloneDX SBOM, and immutable GitHub
 Release verification. Do not state that publication has already occurred.
 
 - [ ] **Step 4: Extend the operator checklist**
 
-Add an exact `0.2.2 Promotion` section recording the current blocked state and
+Add an exact `0.3.0 Promotion` section recording the current blocked state and
 the owner actions:
 
 ```text
@@ -437,7 +443,7 @@ Pages: currently disabled
 ```
 
 Document the dry run first, the owner-side setting checks, the future
-`gh workflow run release.yml --ref v0.2.2 -f publish=true` command, public PyPI
+`gh workflow run release.yml --ref v0.3.0 -f publish=true` command, public PyPI
 install, `gh release verify`, `gh release verify-asset`, Pages asset checks, and
 Homepage update only after the site is reachable. State that these public
 actions require a fresh explicit confirmation.
@@ -455,8 +461,8 @@ git diff --check
 Then commit:
 
 ```bash
-git add -- docs/releases/v0.2.2.md RELEASE_CHECKLIST.md tests/test_release_candidate.py docs/specs/release-promotion-implementation.md
-git commit -m "docs(release): define 0.2.2 promotion runbook" \
+git add -- docs/releases/v0.3.0.md RELEASE_CHECKLIST.md tests/test_release_candidate.py docs/specs/release-promotion-implementation.md
+git commit -m "docs(release): define 0.3.0 promotion runbook" \
   -m "Vibe-Decision: Keep release notes status-neutral and keep every public repository or registry change behind a fresh owner confirmation."
 ```
 
@@ -518,7 +524,7 @@ all promotion, PyPI, Release, and Pages deployment jobs are skipped.
 
 - [ ] **Step 5: Re-check public state**
 
-Confirm no `v0.2.2` tag, GitHub Release, PyPI 0.2.2 project, Pages site, or
+Confirm no `v0.3.0` tag, GitHub Release, PyPI 0.3.0 project, Pages site, or
 Homepage change was created. Leave issue #142 open.
 
 - [ ] **Step 6: Stop at the irreversible gate**

@@ -2,7 +2,7 @@
 
 ## Status
 
-Approved direction for preparing the CodeTalk 0.2.2 public release. This design
+Approved direction for preparing the CodeTalk 0.3.0 public release. This design
 does not authorize creating a tag, publishing to PyPI, publishing a GitHub
 Release, enabling GitHub Pages, or changing repository public settings.
 
@@ -53,15 +53,15 @@ bytes.
 
 ## Fixed Release Identity
 
-The 0.2.2 workflow is release-specific:
+The 0.3.0 workflow is release-specific:
 
-- package version: `0.2.2`;
-- tag: `v0.2.2`;
-- release notes: `docs/releases/v0.2.2.md`;
+- package version: `0.3.0`;
+- tag: `v0.3.0`;
+- release notes: `docs/releases/v0.3.0.md`;
 - expected artifact names come from `scripts/release_artifacts.py`.
 
 Dry runs build the immutable commit that started the workflow. Promotion must
-be manually dispatched from the exact `v0.2.2` tag after that tag contains the
+be manually dispatched from the exact `v0.3.0` tag after that tag contains the
 workflow. It must stop unless the tag resolves to the workflow run's commit and
 GitHub reports the annotated tag signature as verified. This avoids a mutable
 branch checkout and the impossible self-reference of embedding a commit's own
@@ -97,7 +97,7 @@ checks all of the following before any public write:
 - GitHub reports the annotated tag signature as verified;
 - the candidate artifact contains exactly the expected release files;
 - `SHA256SUMS` validates every distributable and the SBOM;
-- all package metadata reports version `0.2.2`;
+- all package metadata reports version `0.3.0`;
 - the release notes are publication-ready and do not claim candidate status;
 - GitHub Pages is configured to deploy from Actions workflows.
 
@@ -199,7 +199,7 @@ Repository tests will parse the workflow as text and structured YAML-compatible
 data where the standard library permits, and assert:
 
 - manual dispatch is the only trigger and dry run is the default;
-- promotion conditions and fixed 0.2.2 identity are present;
+- promotion conditions and fixed 0.3.0 identity are present;
 - permissions are least-privilege and assigned per job;
 - protected environments guard every public write;
 - no token secret is referenced;
@@ -223,8 +223,8 @@ Promotion remains blocked until the owner explicitly confirms all of these:
 - register the PyPI pending Trusted Publisher;
 - enable GitHub Actions as the Pages source;
 - enable immutable GitHub Releases;
-- create the verified annotated `v0.2.2` tag at the recorded source commit;
-- protect `v0.2.2` against update and deletion with a repository tag ruleset;
+- create the verified annotated `v0.3.0` tag at the recorded source commit;
+- protect `v0.3.0` against update and deletion with a repository tag ruleset;
 - authorize the workflow's promotion input.
 
 These actions are intentionally outside the preparation change because they

@@ -145,7 +145,7 @@ def validate_release_privacy(directory, notes_path, artifact_names):
     directory = Path(directory)
     for name in artifact_names:
         validate_archive(directory / name)
-    for name in ("SHA256SUMS", "codetalk-0.2.2.sbom.cdx.json"):
+    for name in ("SHA256SUMS", "codetalk-0.3.0.sbom.cdx.json"):
         validate_public_text(directory / name)
     validate_public_text(notes_path)
 

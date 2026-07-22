@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "codetalk",
   "display_name": "CodeTalk —— 代码当初为什么这么写",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "本地优先的代码决策溯源:就一段代码接地提问『当初为什么这么写』,用真实 commit / 测试 / PR / 会话原话作答。blame/graph/search 零 LLM、数据不出本机。",
   "author": {
     "name": "codetalk"

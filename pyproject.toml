@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "codetalk"
-version = "0.2.2"
+version = "0.3.0"
 description = "本地优先的代码决策溯源:git 历史 + Claude/Cursor/Codex 会话 → 可核验 why / 理解债 / 决策影响图"
 readme = "README.md"
 requires-python = ">=3.11"

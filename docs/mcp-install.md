@@ -20,14 +20,14 @@ MCP transport 使用同机 stdio。只有显式启用 LLM 并调用 `ask` 综合
 
 ```bash
 cd ~/Github/CodeTalk
-python3 -m scripts.build_mcpb        # → 生成 dist/codetalk-0.2.2.mcpb
+python3 -m scripts.build_mcpb        # → 生成 dist/codetalk-0.3.0.mcpb
 ```
 
 ## 2.(推荐)命令行自检,先确认包本身没问题
 
 ```bash
 vt="$(mktemp -d "${TMPDIR:-/tmp}/codetalk-mcp.XXXXXX")"
-unzip -q dist/codetalk-0.2.2.mcpb -d "$vt"
+unzip -q dist/codetalk-0.3.0.mcpb -d "$vt"
 printf '%s\n' \
  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25"}}' \
  '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
@@ -42,11 +42,11 @@ printf '%s\n' \
 ### A. Claude Desktop —— `.mcpb` 主场,拖拽即装
 
 1. 打开 Claude Desktop → **Settings(设置)→ Extensions(扩展)**
-2. 点 **Install Extension…** 选 `codetalk-0.2.2.mcpb`,或直接把文件拖进窗口
+2. 点 **Install Extension…** 选 `codetalk-0.3.0.mcpb`,或直接把文件拖进窗口
 3. 安装界面会要一个 **项目路径(project)** → 填某个 git 仓根目录(如 `~/Github/你的项目`)
 4. 开启扩展 → 新建对话,工具列表里应出现 7 个 `codetalk_*`
 
-_（预期界面:Claude Desktop → Settings → Extensions:安装 codetalk-0.2.2.mcpb,填 project 路径,启用后 7 个工具出现）_
+_（预期界面:Claude Desktop → Settings → Extensions:安装 codetalk-0.3.0.mcpb,填 project 路径,启用后 7 个工具出现）_
 
 ### B. Claude Code —— 用 JSON 配置(不吃 `.mcpb` 拖拽)
 
@@ -157,7 +157,7 @@ MCP 是在 agent 对话里用 CodeTalk;如果你想在编辑器里**直接看到
 ```bash
 cd vscode-codetalk && npm install && npm run build
 npm run package
-cursor --install-extension vscode-codetalk-0.2.2.vsix
+cursor --install-extension vscode-codetalk-0.3.0.vsix
 ```
 
 详见 **[`vscode-codetalk/README.md`](../vscode-codetalk/README.md)**。两者互补:
