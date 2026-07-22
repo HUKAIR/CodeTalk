@@ -64,11 +64,11 @@ npm run build
 
 # 2. Package
 npm run package
-# -> vscode-codetalk-0.2.1.vsix
+# -> vscode-codetalk-0.2.2.vsix
 
 # 3. Install (pick your editor)
-cursor --install-extension vscode-codetalk-0.2.1.vsix
-# or: code --install-extension vscode-codetalk-0.2.1.vsix
+cursor --install-extension vscode-codetalk-0.2.2.vsix
+# or: code --install-extension vscode-codetalk-0.2.2.vsix
 # or: Windsurf -> Extensions -> Install from VSIX -> select file
 
 # 4. Reload
@@ -78,10 +78,10 @@ cursor --install-extension vscode-codetalk-0.2.1.vsix
 If `cursor` / `code` command is not found, use the full path:
 ```bash
 # macOS Cursor:
-/Applications/Cursor.app/Contents/Resources/app/bin/cursor --install-extension vscode-codetalk-0.2.1.vsix
+/Applications/Cursor.app/Contents/Resources/app/bin/cursor --install-extension vscode-codetalk-0.2.2.vsix
 
 # macOS VS Code:
-"/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" --install-extension vscode-codetalk-0.2.1.vsix
+"/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" --install-extension vscode-codetalk-0.2.2.vsix
 ```
 
 Or install from the command palette: Cmd+Shift+P -> "Extensions: Install from VSIX..."

@@ -2,7 +2,7 @@
 
 ## Verdict
 
-CodeTalk is ready for a non-publishing 0.2.1 release rehearsal and remains ready
+CodeTalk is ready for a non-publishing 0.2.2 release rehearsal and remains ready
 for a source-install pilot from the public repository. It is not yet ready to
 claim general package distribution: no immutable GitHub Release, PyPI package,
 or Marketplace listing has been published and verified from an independent
@@ -86,9 +86,9 @@ to reproduce the conclusion.
 - Added deterministic removal of PNG EXIF, text, and time metadata while
   preserving the original compressed pixel chunks.
 - Recorded that a PyPI 404 cannot reveal deleted-filename tombstones. The
-  `0.2.0` upload authenticated through OIDC but failed closed on PyPI's permanent
-  filename reservation; recovery advances to `0.2.1` without a token,
-  `skip-existing`, or weaker verification.
+  `0.2.0` and `0.2.1` uploads authenticated through OIDC but failed closed on
+  PyPI's permanent filename reservations; recovery advances to `0.2.2` without
+  a token, `skip-existing`, or weaker verification.
 - Recheck the signed annotated tag immediately before draft creation, PyPI
   publication, and public Release publication. Existing public Releases are
   accepted only when immutable and byte-identical, allowing Pages recovery.
@@ -105,17 +105,20 @@ directory where applicable:
   environment; `python -P -m codetalk --version` launched the installed copy.
 - MCP bundle: built, unpacked, initialized, and returned seven read-only tools.
 - VS Code extension: `npm ci`, typecheck, build, package, archive validation, and
-  production dependency audit passed; the VSIX contains the AGPL license.
+  production dependency audit passed; the VSIX contains the AGPL license and
+  installed as `codetalk.vscode-codetalk@0.2.2` in isolated VS Code and Cursor
+  profiles without touching the existing profiles.
 - Docker: image built from the allowlisted context; loopback-mapped home page
   returned HTTP 200; a forged non-loopback Host header returned HTTP 403.
 - Browser QA: the current console rendered with an isolated empty CodeTalk cache;
   the hidden search drawer no longer obscured the main interface.
 - Repository constraints: all Python modules remain below 300 lines and
   `git diff --check` passed.
-- A locally built 0.2.1 candidate passed exact-set, checksum, SBOM, archive
-  privacy, and status-neutral release-note validation. Its wheel installed with
-  no dependencies in a fresh environment; `--version`, `doctor`, and
-  `review --json` passed in a synthetic repository.
+- Two independently built 0.2.2 candidates produced byte-identical wheels and
+  normalized sdists. The assembled six-file candidate passed exact-set,
+  checksum, SBOM, archive privacy, and status-neutral release-note validation.
+  Its wheel installed with no dependencies in a fresh environment; `--version`
+  and `doctor` launched the installed copy.
 - GitHub Actions run
   [`29871281164`](https://github.com/HUKAIR/CodeTalk/actions/runs/29871281164)
   completed successfully from commit `97f5d3c`: all build and candidate jobs
@@ -126,14 +129,22 @@ directory where applicable:
   permanently reserved deleted filenames, so Release publication, Pages, and
   public verification stayed skipped. The Release remains a hidden draft;
   PyPI has no public `codetalk` version and the Homepage remains unchanged.
+- The `0.2.1` rehearsal
+  [`29881493075`](https://github.com/HUKAIR/CodeTalk/actions/runs/29881493075)
+  passed all non-publishing gates. Promotion run
+  [`29882535367`](https://github.com/HUKAIR/CodeTalk/actions/runs/29882535367)
+  reached OIDC successfully and found the same deleted-filename tombstone for
+  `0.2.1`; every downstream public job remained skipped.
 
 ## Remaining Release Gates
 
 These are evidence gaps, not hidden implementation claims:
 
-- Install the generated VSIX and MCP bundle in at least one independent clean
-  client and verify CodeLens, hover, MCP initialization, and tool calls.
-- Replace the protected-environment tag policies with exact `v0.2.1`, then pass
+- Open the installed VSIX in an independent editor profile and visually verify
+  CodeLens and hover cards on a real committed file. Package installation has
+  passed in isolated VS Code and Cursor profiles; MCP initialization and
+  `tools/list` have passed from the unpacked bundle.
+- Replace the protected-environment tag policies with exact `v0.2.2`, then pass
   a fresh non-publishing workflow run from the synchronized version commit.
 - Publish and verify a GitHub Release before describing the MCP bundle or VSIX as
   directly downloadable.

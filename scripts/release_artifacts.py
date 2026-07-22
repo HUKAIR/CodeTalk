@@ -13,7 +13,7 @@ from email.parser import BytesParser
 from pathlib import Path
 
 
-VERSION = "0.2.1"
+VERSION = "0.2.2"
 SBOM_NAME = f"codetalk-{VERSION}.sbom.cdx.json"
 
 

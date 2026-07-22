@@ -7,14 +7,14 @@ from pathlib import Path
 from unittest import mock
 
 
-VERSION = "0.2.1"
+VERSION = "0.2.2"
 PRIMARY = (
-    "codetalk-0.2.1-py3-none-any.whl",
-    "codetalk-0.2.1.tar.gz",
-    "codetalk-0.2.1.mcpb",
-    "vscode-codetalk-0.2.1.vsix",
+    "codetalk-0.2.2-py3-none-any.whl",
+    "codetalk-0.2.2.tar.gz",
+    "codetalk-0.2.2.mcpb",
+    "vscode-codetalk-0.2.2.vsix",
 )
-SBOM = "codetalk-0.2.1.sbom.cdx.json"
+SBOM = "codetalk-0.2.2.sbom.cdx.json"
 
 
 def _sha256(path):
@@ -28,7 +28,7 @@ class PromotionCase(unittest.TestCase):
         self.dist = self.root / "dist"
         self.dist.mkdir()
         self.notes = self.root / "notes.md"
-        self.notes.write_text("# CodeTalk 0.2.1\n\nKnown limitations.\n",
+        self.notes.write_text("# CodeTalk 0.2.2\n\nKnown limitations.\n",
                               encoding="utf-8")
         self.privacy_patch = mock.patch(
             "scripts.release_promotion.validate_release_privacy")
@@ -141,7 +141,7 @@ class PromotionCase(unittest.TestCase):
         self.make_candidate()
         for phrase in ("Release Candidate", "not been published", "Unreleased"):
             with self.subTest(phrase=phrase):
-                self.notes.write_text(f"# CodeTalk 0.2.1 {phrase}\n",
+                self.notes.write_text(f"# CodeTalk 0.2.2 {phrase}\n",
                                       encoding="utf-8")
                 with self.assertRaisesRegex(ValueError, "release notes"):
                     validate_candidate(self.dist, self.notes)

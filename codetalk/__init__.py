@@ -4,4 +4,4 @@ from importlib.metadata import PackageNotFoundError, version
 try:
     __version__ = version("codetalk")
 except PackageNotFoundError:        # 源码树未安装时回退,不崩
-    __version__ = "0.2.1"
+    __version__ = "0.2.2"
