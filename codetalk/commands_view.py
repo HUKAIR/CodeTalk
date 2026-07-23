@@ -75,7 +75,7 @@ def blame_cmd(args):
 
 
 def review_cmd(args):
-    """review 现场入口(零 LLM):--diff 文件 / 管道 stdin / 默认 git diff HEAD。"""
+    """review 现场入口(零 LLM):--diff 文件 / 管道 stdin / 默认有界工作树 diff。"""
     from .review import build_review_cards, review
     diff_text = None
     if getattr(args, "diff", None):

@@ -6,6 +6,20 @@ This project follows a small, source-backed changelog style: each entry should
 describe user-visible behavior and point to the release, PR, or commit that
 made it verifiable.
 
+## Unreleased
+
+### Changed
+
+- `drift` now treats a later same-path commit as landed, rejects commits that
+  predate the recorded file action, and merges parent/subagent summaries while
+  preserving the latest known action time per file.
+- Default `review` includes a bounded set of untracked regular text files, while
+  skipping symlinks, binaries, ignored files, and oversized files.
+- Cold-start guidance labels immediate blame output as a limited baseline and
+  prioritizes future decision recording plus inspectable enrichment.
+- Public documentation is limited to implemented product behavior, privacy
+  boundaries, evidence limits, and verified release facts.
+
 ## 0.3.1 - 2026-07-22
 
 Versions `0.2.0`, `0.2.1`, `0.2.2`, and `0.3.0` were not publicly released

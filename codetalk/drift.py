@@ -1,9 +1,9 @@
 """codetalk drift:AI 工具动作 vs 实际提交的确定性偏差(零 LLM)。
 
-复用 sessions.files_written(AI 用 Write/Edit/NotebookEdit 工具改的文件)+ git 提交文件 +
-align 软对齐,报**字面文件级缺口**:本会话工具改了、却没落进其高置信对齐提交的文件
+复用 sessions.files_written(AI 用 Write/Edit/NotebookEdit 工具改的文件)+ git 提交文件,
+报**字面文件级缺口**:本会话工具改了、却没落进会话开始后的任何提交
 (做了没落地 / 被回滚 / 未提交)。直击「AI 说了去干却没做全」痛点。
-**诚实边界**:「声称」=工具动作(非散文计划——后者语义、需模型);只报可数文件缺口,
+**诚实边界**:这里只观察工具动作(非散文计划——后者语义、需模型);只报可数文件缺口,
 **不**判「完成度 X%」「设计是否可行」「执行质量」(那需模型,违零-LLM 护城河)。
 """
 import json
@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 from . import gitlog, sessions
-from .align import _relative_files, align
+from .align import TIME_SLACK, _relative_files
 from .digest import _since_to_dt
 
 
@@ -33,21 +33,45 @@ def _ignored(rel_paths, project_root):
 
 
 def drift_rows(commits, sessions_list, project_root, exclude=None):
-    """对齐后,每会话:工具改的文件(去 exclude)vs 其高置信对齐提交的文件 → 写了未提交。
+    """每会话:工具改的文件(去 exclude)vs 文件最后已知动作后的提交。
     → [{session_id, written, committed, missing:[...]}](纯函数,可单测)。"""
     root = Path(project_root).resolve()
     exclude = exclude or set()
-    align(commits, sessions_list, root)
-    rows = []
-    for s in sessions_list:
-        fw = _relative_files(s, root) - exclude
-        if not fw:
+    merged = {}
+    for index, session in enumerate(sessions_list):
+        start = session.get("start")
+        if start is None:
             continue
+        written = _relative_files(session, root) - exclude
+        if not written:
+            continue
+        key = (session.get("source", "claude"),
+               session.get("session_id") or f"missing:{index}")
+        row = merged.setdefault(key, {
+            "session_id": session.get("session_id", ""),
+            "file_starts": {}})
+        for rel in written:
+            previous = row["file_starts"].get(rel)
+            try:
+                if previous is None or start > previous:
+                    row["file_starts"][rel] = start
+            except TypeError:
+                continue
+    rows = []
+    for s in merged.values():
+        file_starts = s["file_starts"]
+        fw = set(file_starts)
         committed = set()
         for c in commits:
-            for m in c.get("matches", []):
-                if m["session"] is s and m["confidence"] == "high":
-                    committed |= set(c["files"])
+            date = c.get("date")
+            if not date:
+                continue
+            for rel in fw & set(c.get("files") or []):
+                try:
+                    if date >= file_starts[rel] - TIME_SLACK:
+                        committed.add(rel)
+                except TypeError:
+                    continue
         rows.append({"session_id": s.get("session_id", ""),
                      "written": len(fw), "committed": len(fw & committed),
                      "missing": sorted(fw - committed)})
@@ -88,12 +112,12 @@ def drift_cmd(args):
     flagged = [r for r in drift_rows(commits, sess, pp, exclude=exclude) if r["missing"]]
     print(f"# 偏差自检 · {pp.name}(AI 工具动作 vs 实际提交,零 LLM)\n")
     if not flagged:
-        print("本窗口无「写了未提交」偏差(工具改动都落进了对齐提交)。")
+        print("本窗口无「未见后续提交」偏差。")
     for r in flagged:
         print(f"会话 {r['session_id'][:8]}:工具改 {r['written']} 文件、{r['committed']} 已提交、"
-              f"{len(r['missing'])} 个写了未提交:")
+              f"{len(r['missing'])} 个未见后续同路径提交:")
         for f in r["missing"][:12]:
             print(f"  ✗ {f}")
-    print("\n注:「声称」=AI 工具动作(Write/Edit),非散文计划;只报字面文件缺口,"
-          "不判完成度%/设计可行性(那需模型)。")
+    print("\n注:这里只观察 AI 工具动作(Write/Edit),非散文计划;后续任一提交触及同路径即算落地。"
+          "只报字面文件缺口,不判完成度%/设计可行性(那需模型)。")
     return 0

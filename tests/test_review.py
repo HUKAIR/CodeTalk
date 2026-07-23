@@ -149,11 +149,21 @@ class TestReview(unittest.TestCase):
         self.assertIn("没有可分析的改动块", out)
 
     def test_review_default_uses_git_diff_head(self):
-        self.f.write_text("l1\nCHANGED2\nl3\n")          # diff_text=None → 内部 git diff HEAD
+        self.f.write_text("l1\nCHANGED2\nl3\n")          # diff_text=None → 内部工作树 diff
         with mock.patch.object(review_mod, "CACHE_DB_PATH", self.db):
             out, err = review(self.d)                     # 不传 diff
         self.assertIsNone(err)
         self.assertIn("a.py", out)
+
+    def test_review_default_includes_untracked_text_file(self):
+        (Path(self.d) / "brand_new.py").write_text("print('new')", encoding="utf-8")
+        (Path(self.d) / "second_new.py").write_text("print('second')", encoding="utf-8")
+        with mock.patch.object(review_mod, "CACHE_DB_PATH", self.db):
+            cards, err, _ = review_mod.build_review_cards(self.d)
+        self.assertIsNone(err)
+        files = {card["change"]["file"] for card in cards}
+        self.assertEqual(files, {"brand_new.py", "second_new.py"})
+        self.assertTrue(all(card["kind"] == "no_evidence" for card in cards))
 
 
 class TestGroundingBadge(unittest.TestCase):

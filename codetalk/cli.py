@@ -84,7 +84,7 @@ def _build_parser():
                      help="结构化 JSON 输出(供 IDE 扩展/agent 消费)")
     rev = _proj(sub.add_parser(
         "review", help="review 现场:粘 diff/git diff → 逐改动块的历史决策+真实引用(零 LLM)"))
-    rev.add_argument("--diff", help="读 diff 文件(默认 git diff HEAD;或 git diff | codetalk review)")
+    rev.add_argument("--diff", help="读 diff 文件(默认工作树,含有界未跟踪文本文件;或管道输入)")
     rev_out = rev.add_mutually_exclusive_group()
     rev_out.add_argument("--json", action="store_true", dest="as_json",
                          help="输出结构化决策审查卡(agent/IDE 可读)")
@@ -109,7 +109,7 @@ def _build_parser():
     prm.add_argument("--source", choices=["claude", "cursor", "codex", "both", "all"],
                      help="会话源(默认按 config.sources;cursor 需 opt-in)")
     drf = _proj(sub.add_parser(
-        "drift", help="偏差自检:AI 工具改了却没提交的文件(声称 vs 实际,零 LLM)"))
+        "drift", help="偏差自检:AI 工具写过但未见后续同路径提交的文件(零 LLM)"))
     drf.add_argument("--since", default="1 day ago",
                      help='报告哪些会话(按会话活动时间,默认近 1 天);提交集取全史以正确对齐')
     grp = _proj(sub.add_parser("graph", help="生成决策影响图(时间轴 DAG,零 LLM)"))

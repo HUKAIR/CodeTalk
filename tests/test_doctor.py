@@ -45,6 +45,9 @@ class TestDoctor(unittest.TestCase):
         self.assertIsNone(err)
         self.assertIn("Evidence: cold-start (0/1 non-merge commits with decision notes", report)
         self.assertIn("codetalk enrich --project", report)
+        self.assertNotIn("1. 看真实效果:", report)
+        self.assertIn("1. 先让未来提交留痕:", report)
+        self.assertIn("冷启动基线(可能只有提交标题)", report)
 
     def test_demo_file_prefers_groundable_signal_over_churn(self):
         # 改动最多的文件全是光秃提交,另一个改动少却带 Vibe-* 面包屑;

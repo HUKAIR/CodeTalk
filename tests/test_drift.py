@@ -1,4 +1,4 @@
-"""drift_rows 纯函数:AI 工具动作(files_written)vs 高置信对齐提交 → 写了未提交。"""
+"""drift_rows:AI 工具动作(files_written)vs 后续同路径提交。"""
 import sys
 import unittest
 from datetime import datetime, timedelta
@@ -42,12 +42,41 @@ class TestDriftRows(unittest.TestCase):
         self.assertEqual(rows[0]["written"], 1)        # .git/X 被排除
         self.assertEqual(rows[0]["missing"], [])       # 只剩 a.py、已提交
 
-    def test_out_of_window_not_high_conf_counts_as_missing(self):
-        # 提交在会话时间窗外(±30min 之外)→ 非 high 置信 → 不计入「已提交」→ 写了的都算 missing
+    def test_later_commit_counts_as_landed(self):
+        # 会话结束数小时后才提交仍算最终落地,不能因超出软对齐窗口而误报。
         sess = [{"session_id": "s1", "files_written": {"/proj/a.py"}, "start": _DT, "end": _DT}]
         commits = [{"sha": "w" * 40, "date": _DT + timedelta(hours=5), "files": ["a.py"]}]
         rows = drift_rows(commits, sess, "/proj")
+        self.assertEqual(rows[0]["missing"], [])
+
+    def test_commit_before_session_does_not_prove_landing(self):
+        sess = [{"session_id": "s1", "files_written": {"/proj/a.py"}, "start": _DT, "end": _DT}]
+        commits = [{"sha": "w" * 40, "date": _DT - timedelta(hours=5), "files": ["a.py"]}]
+        rows = drift_rows(commits, sess, "/proj")
         self.assertEqual(rows[0]["missing"], ["a.py"])
+
+    def test_subagent_summaries_with_same_session_id_merge(self):
+        sess = [
+            {"session_id": "s1", "files_written": {"/proj/a.py"}, "start": _DT, "end": _DT},
+            {"session_id": "s1", "files_written": {"/proj/b.py"}, "start": _DT, "end": _DT},
+        ]
+        commits = [{"sha": "w" * 40, "date": _DT, "files": ["a.py"]}]
+        rows = drift_rows(commits, sess, "/proj")
+        self.assertEqual(rows, [{"session_id": "s1", "written": 2,
+                                 "committed": 1, "missing": ["b.py"]}])
+
+    def test_merged_subagent_uses_latest_known_start_per_file(self):
+        sess = [
+            {"session_id": "s1", "files_written": {"/proj/a.py"},
+             "start": _DT, "end": _DT},
+            {"session_id": "s1", "files_written": {"/proj/b.py"},
+             "start": _DT + timedelta(hours=5), "end": _DT + timedelta(hours=5)},
+        ]
+        commits = [{"sha": "w" * 40, "date": _DT + timedelta(hours=1),
+                    "files": ["a.py", "b.py"]}]
+        rows = drift_rows(commits, sess, "/proj")
+        self.assertEqual(rows, [{"session_id": "s1", "written": 2,
+                                 "committed": 1, "missing": ["b.py"]}])
 
 
 if __name__ == "__main__":

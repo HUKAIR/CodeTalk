@@ -5,6 +5,7 @@
 无叙事覆盖的块**显式标「无据」而非编造**(诚实暴露接地命中率上限,对抗 AI 反推噪声)。
 终端和结构化输出共享同一审查卡契约。零 LLM、不出网、出口脱敏、解析失败降级绝不崩。
 """
+import difflib
 import hashlib
 import subprocess
 from pathlib import Path
@@ -17,7 +18,8 @@ from .review_diff import parse_unified_diff_hunks
 # 逐块 blame 是 O(hunks)(每块一次 git log -L);大仓大 diff(实测某深历史仓 276 块约 33s)会过慢,
 # 上限内接地、超出截断并指引单点 blame——防 review 在中大仓上拖死。
 MAX_REVIEW_HUNKS = 60
-
+MAX_UNTRACKED_FILES = 60
+MAX_UNTRACKED_BYTES = 1_000_000
 _PRECISION = {"line": "行级精确",
               "file": "文件级降级(可能含本块外历史)",
               "none": "无行历史"}
@@ -62,7 +64,7 @@ def parse_unified_diff(text):
 
 
 def _git_diff(pp):
-    """工作树相对 HEAD 的 diff(本地 git,不出网)→ (text, error)。"""
+    """工作树相对 HEAD 的 diff,含有界未跟踪文本文件(本地 git,不出网)。"""
     try:
         out = subprocess.run(["git", "-C", str(pp), "diff", "HEAD"],
                              capture_output=True, text=True, timeout=30)
@@ -70,8 +72,28 @@ def _git_diff(pp):
         return None, f"git diff 失败:{exc}"
     if out.returncode != 0:
         return None, f"git diff 失败:{out.stderr.strip()[:200]}"
-    return out.stdout, None
-
+    try:
+        listed = subprocess.run(
+            ["git", "-C", str(pp), "ls-files", "--others",
+             "--exclude-standard", "-z"], capture_output=True,
+            timeout=30, check=True).stdout.decode("utf-8", errors="replace")
+    except (OSError, subprocess.SubprocessError):
+        listed = ""
+    chunks = [out.stdout]
+    for rel in listed.split("\0")[:MAX_UNTRACKED_FILES]:
+        path = pp / rel
+        try:
+            if not rel or path.is_symlink() or not path.is_file():
+                continue
+            raw = path.read_bytes()
+        except OSError:
+            continue
+        if len(raw) > MAX_UNTRACKED_BYTES or b"\0" in raw:
+            continue
+        lines = raw.decode("utf-8", errors="replace").splitlines(keepends=True)
+        diff = difflib.unified_diff([], lines, fromfile="/dev/null", tofile=f"b/{rel}")
+        chunks.append(f"diff --git a/{rel} b/{rel}\n" + "".join(diff))
+    return "".join(chunks), None
 
 def _valid_segments(segments):
     list_fields = ("decisions", "rejected", "authored_decisions",
@@ -270,7 +292,7 @@ def render_review_cards(cards, meta):
 
 
 def review(project_path, diff_text=None):
-    """→ (report_text, error)。diff_text=None → 用 git diff HEAD。"""
+    """→ (report_text, error)。diff_text=None → 用有界工作树 diff。"""
     cards, err, meta = build_review_cards(project_path, diff_text)
     if err:
         return None, err

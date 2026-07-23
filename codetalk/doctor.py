@@ -100,17 +100,20 @@ def build_doctor_report(project):
         "",
         "## 下一步",
     ]
-    if demo:
+    if stats["rich"] and demo:
         lines.append(f"1. 看真实效果: codetalk blame {_quote(demo)} --project {project_q}")
-    else:
+    elif stats["rich"]:
         lines.append(f"1. 先让未来提交留痕: codetalk install-agent-seed --project {project_q}")
     if stats["rich"]:
-        lines.append(f"2. 查是否有 AI 写了但没提交: codetalk drift --project {project_q}")
+        lines.append(f"2. 查 AI 工具动作是否未见后续提交: codetalk drift --project {project_q}")
         lines.append(f"3. 让后续提交自动带决策记录: codetalk install-agent-seed --project {project_q}")
     else:
-        lines.append(f"2. 让后续提交自动带决策记录: codetalk install-agent-seed --project {project_q}")
-        lines.append(f"3. 需要历史全量叙事时: codetalk enrich --project {project_q} "
+        lines.append(f"1. 先让未来提交留痕: codetalk install-agent-seed --project {project_q}")
+        lines.append(f"2. 需要历史全量叙事时: codetalk enrich --project {project_q} "
                      "(先看计划;远端执行再加 --allow-remote)")
+        if demo:
+            lines.append(f"3. 冷启动基线(可能只有提交标题): codetalk blame "
+                         f"{_quote(demo)} --project {project_q}")
     return "\n".join(lines), None
 
 

@@ -121,7 +121,7 @@ Drag `codetalk-0.3.1.mcpb` into your client's extension-install entry point, and
 | `codetalk_blame` | Line-level decision provenance | Zero LLM |
 | `codetalk_graph` | Decision-impact graph (timeline DAG) | Zero LLM |
 | `codetalk_search` | Topic-level "why" retrieval | Zero LLM |
-| `codetalk_drift` | Drift self-check: files AI changed but never committed | Zero LLM |
+| `codetalk_drift` | Drift self-check: recorded agent writes with no later same-path commit | Zero LLM |
 | `codetalk_prompts` | Instruction recall: what you told the AI to do | Zero LLM |
 | `codetalk_adr` | ADR export: MADR / Nygard / CycloneDX (AIBOM) | Zero LLM |
 
@@ -169,7 +169,7 @@ codetalk web --project /path/to/repo --no-llm     # zero egress: falls back to a
 - **Grounded and verifiable**: answers are anchored to real commits / decisions / verbatim session transcripts, and the citation next to each conclusion can be clicked to verify — this is the line that separates it from a "chat wrapper"; **the model won't answer when detached from real material** (empty material → the model isn't called, just a deterministic listing). Each commit citation carries a **`diff ▾`** button that opens the real `git show` in-browser (zero-LLM, local) — the "click the SHA to verify" loop, now in the web UI.
 - **All views are browser-reachable**: besides `/` (chat), the server serves `/console` (unified console), `/tunnel` (timeline), `/graph` (decision-impact DAG), and `/course` (evolution course) — the same rich views the CLI writes as static files. A header **EN / 中文** toggle switches the whole UI language (persisted locally; defaults to the browser language).
 - **Privacy red lines**: by default it only binds `127.0.0.1`, never phones home (except the LLM call), redacts before going out to the network and before persisting, and the frontend has zero external links (CSP `connect-src 'self'`; static artifacts are guarded by `scripts/check_static_no_external.py`); the backend rejects non-loopback Host and cross-Origin requests, preventing other web pages from using localhost to trigger local retrieval / LLM calls.
-- **Self-host for customers**: single-image Docker (see `Dockerfile`: `docker build -t codetalk .` → `docker run`).
+- **Self-host**: single-image Docker (see `Dockerfile`: `docker build -t codetalk .` → `docker run`).
 
 ## Configuration
 
