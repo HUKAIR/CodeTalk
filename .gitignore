@@ -31,3 +31,5 @@ docs/discovery/
 !docs/discovery/interceptions.md
 docs/superpowers/
 /ROADMAP.md
+# Local private workspace; never publish.
+/.private/

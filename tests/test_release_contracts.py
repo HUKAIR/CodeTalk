@@ -22,6 +22,46 @@ class TestDockerPrivacyBoundary(unittest.TestCase):
         self.assertIn("!codetalk/**", dockerignore)
 
 
+class TestPublicRepositoryBoundary(unittest.TestCase):
+    def test_private_workspace_is_ignored_without_revealing_topics(self):
+        ignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
+        self.assertIn("/.private/", ignore)
+        self.assertNotIn("commercialization-options", ignore)
+        self.assertNotIn("keep-first-commercial", ignore)
+
+    def test_public_context_contains_product_language_only(self):
+        context = (ROOT / "CONTEXT.md").read_text(encoding="utf-8")
+        for marker in (
+                "**Design partner**", "**Pilot team**", "**Buying trigger**",
+                "**Commercial service**", "**Pilot success**",
+                "**Target maintainer**", "**Activation**",
+                "**Decision drift**", "**Rationale hallucination**",
+                "**Verification claim gap**", "commercial buyer",
+                "paid continuation"):
+            self.assertNotIn(marker, context)
+        for marker in (
+                "**Action drift**", "**Deterministic mode**",
+                "**Inspectable enrichment**", "**Decision review card**"):
+            self.assertIn(marker, context)
+
+    def test_public_product_docs_omit_internal_commercial_notes(self):
+        paths = (
+            "Dockerfile", "README.md", "README.zh-CN.md", "demo.html",
+            "docs/adr/0003-local-review-outcomes-with-explicit-export.md",
+            "docs/discovery/interceptions.md",
+            "docs/engineering/dogfood-findings.md",
+            "docs/release-readiness-review.md",
+            "docs/specs/product-polish-release.md",
+        )
+        text = "\n".join((ROOT / path).read_text(encoding="utf-8") for path in paths)
+        for marker in (
+                "Self-host for customers", "给客户自托管", "pilot follow-up",
+                "carefully scoped pilot use", "five external design partners",
+                "Design-partner recruitment", "target maintainer", "外部 pilot",
+                "付费墙", "竞品差异/定位/变现等策略内容"):
+            self.assertNotIn(marker, text)
+
+
 class TestPublicCapabilityCopy(unittest.TestCase):
     def test_cli_help_matches_current_surface(self):
         help_text = _build_parser().format_help()

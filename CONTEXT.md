@@ -5,22 +5,6 @@ repeat rejected approaches or violate known risks.
 
 ## Language
 
-**Design partner**:
-An external maintainer or engineering team that uses CodeTalk in a real
-repository and agrees to provide observed workflow feedback.
-_Avoid_: Lead, signup, tester
-
-**Target maintainer**:
-A senior engineer or tech lead accountable for review or architecture in an
-established repository that uses coding agents every week.
-_Avoid_: Generic developer, beginner, compliance buyer
-
-**Activation**:
-The first time a target maintainer finds evidence relevant to a recent or
-proposed change in their own repository and verifies its original source within
-five minutes of installation.
-_Avoid_: Installation, doctor pass, demo completion
-
 **Verified interception**:
 A real development event where recovered historical evidence changes a proposed
 action before a previously rejected approach or known risk is repeated.
@@ -30,6 +14,12 @@ _Avoid_: Demo, self-test, impression
 A proposed change that repeats a recorded rejected approach or violates a
 recorded engineering constraint.
 _Avoid_: Git conflict, code drift, style disagreement
+
+**Action drift**:
+A recorded agent file write for which CodeTalk finds no later commit touching
+the same repository path. It is a literal path-and-time gap, not a judgment of
+task completion, design quality, intent, or deception.
+_Avoid_: Decision drift, laziness, incomplete-task percentage
 
 **Deterministic mode**:
 The default product path that derives results from local evidence without a
@@ -58,8 +48,8 @@ it but is never treated as an authoritative source.
 _Avoid_: Evidence, proof, verdict
 
 **Review judgment**:
-A target maintainer's resolution of a decision review card as confirmed
-conflict, intentional exception, unrelated, or insufficient evidence.
+A maintainer's resolution of a decision review card as confirmed conflict,
+intentional exception, unrelated, or insufficient evidence.
 _Avoid_: Model classification, automatic block
 
 **Review moment**:

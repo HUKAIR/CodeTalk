@@ -203,7 +203,7 @@ remaining product-evidence gaps, not hidden implementation claims:
   CodeLens and hover cards on a real committed file. Package installation has
   passed in isolated VS Code and Cursor profiles; MCP initialization and
   `tools/list` have passed from the unpacked bundle.
-- Collect at least one external pilot interception. The current blind comparison
+- Collect at least one independently verified real-world interception. The current blind comparison
   is useful but small (`N=5`, one repository, human judged).
 - Add a short current-product demo recording before a broad launch.
 - Monitor the optional Web test stack when dependency versions move; CI now

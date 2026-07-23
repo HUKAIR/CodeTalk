@@ -2,7 +2,7 @@
 
 ## Problem Statement
 
-A target maintainer using coding agents on an established repository cannot
+A maintainer using coding agents on an established repository cannot
 reliably see why a relevant approach was previously chosen or rejected while
 reviewing a new local change. Existing CodeTalk output is verifiable but dense,
 optional enrichment can send data as soon as a remote provider is configured,
@@ -25,39 +25,39 @@ static demonstration.
 
 ## User Stories
 
-1. As a target maintainer, I want CodeTalk to review my current local diff, so
+1. As a maintainer, I want CodeTalk to review my current local diff, so
    that relevant historical decisions return before I commit the change.
-2. As a target maintainer, I want each potential conflict shown as one focused
+2. As a maintainer, I want each potential conflict shown as one focused
    decision review card, so that I do not have to read a chronological history
    dump.
-3. As a target maintainer, I want the previously rejected approach and its
+3. As a maintainer, I want the previously rejected approach and its
    reason prioritized, so that I can understand the practical constraint first.
-4. As a target maintainer, I want to see why the card appeared for this change,
+4. As a maintainer, I want to see why the card appeared for this change,
    so that line-level or file-level association is not mistaken for semantic
    certainty.
-5. As a target maintainer, I want human-authored decision evidence labeled
+5. As a maintainer, I want human-authored decision evidence labeled
    separately from model-generated interpretation, so that readable prose is
    not mistaken for proof.
-6. As a target maintainer, I want exact commit, diff, test, pull request, and
+6. As a maintainer, I want exact commit, diff, test, pull request, and
    verbatim session sources available behind the card, so that I can verify the
    original record when necessary.
-7. As a target maintainer, I want generated interpretation labeled as generated,
+7. As a maintainer, I want generated interpretation labeled as generated,
    so that I know it can be incomplete or wrong.
-8. As a target maintainer, I want CodeTalk to leave semantic applicability to
+8. As a maintainer, I want CodeTalk to leave semantic applicability to
    me, so that a deterministic association does not become an unreliable
    automatic block.
-9. As a target maintainer, I want to resolve a card as confirmed conflict,
+9. As a maintainer, I want to resolve a card as confirmed conflict,
    intentional exception, unrelated, or insufficient evidence, so that my real
    judgment is represented without forcing a binary answer.
-10. As a target maintainer, I want to record whether a confirmed conflict
+10. As a maintainer, I want to record whether a confirmed conflict
     changed my action, so that a verified interception is not confused with a
     warning I ignored.
-11. As a target maintainer, I want terminal review output to remain concise and
+11. As a maintainer, I want terminal review output to remain concise and
     deterministic, so that coding agents and scripts can consume it safely.
-12. As a target maintainer, I want a local review page with judgment controls
+12. As a maintainer, I want a local review page with judgment controls
     and collapsible sources, so that I can make a careful human decision without
     parsing raw terminal output.
-13. As a target maintainer, I want the terminal and local page to use the same
+13. As a maintainer, I want the terminal and local page to use the same
     card data, so that different surfaces cannot disagree about the evidence.
 14. As a privacy-sensitive maintainer, I want deterministic mode to remain the
     default activation path, so that first use requires no model or network
@@ -88,11 +88,11 @@ static demonstration.
 23. As a privacy-sensitive maintainer, I want provider retention described as
     outside CodeTalk's control, so that the product does not make promises for a
     third party.
-24. As a target maintainer, I want review judgments stored locally without
+24. As a maintainer, I want review judgments stored locally without
     telemetry, so that product learning does not expose my repository.
-25. As a target maintainer, I want to preview a feedback export before creating
+25. As a maintainer, I want to preview a feedback export before creating
     it, so that I control every field that leaves my machine.
-26. As a target maintainer, I want feedback exports to omit repository identity,
+26. As a maintainer, I want feedback exports to omit repository identity,
     paths, source content, commit identifiers, sessions, and author identity, so
     that I can share product feedback safely.
 27. As a new user, I want one canonical CLI installation command, so that I do
@@ -213,9 +213,8 @@ static demonstration.
 - Automatic semantic classification of whether a change repeats a rejected
   approach.
 - Automatic blocking, enforcement hooks, or cloud pull-request checks.
-- Telemetry, automatic feedback upload, repository analytics, or customer-data
+- Telemetry, automatic feedback upload, repository analytics, or repository-data
   collection.
-- Design-partner recruitment, community promotion, Show HN, or paid acquisition.
 - New model providers, vector databases, retrieval frameworks, or hosted memory.
 - New graph, course, ADR, reporting, or export capabilities unrelated to the
   decision review and feedback loop.
@@ -225,10 +224,7 @@ static demonstration.
 
 ## Further Notes
 
-- The product goal remains five external design partners and one verified
-  interception, but recruitment starts only after this product-polish release
-  meets its gates.
-- Activation means a target maintainer finds evidence relevant to a recent or
+- A successful first use means a maintainer finds evidence relevant to a recent or
   proposed change in their own repository and verifies its original source
   within five minutes of installation.
 - A repository with no usable historical evidence is honestly recorded as not
