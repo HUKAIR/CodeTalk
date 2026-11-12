@@ -1,0 +1,109 @@
+/* Function-specific layout uses existing data, controls and service endpoints. */
+body[data-ui-page="console"] #q {max-width:calc(100% - 56px); margin:0 28px 12px; border-radius:6px; background:var(--card); font-size:14px}
+body[data-ui-page="console"] #chips {padding:0 28px 14px}
+body[data-ui-page="console"] .hero {padding:6px 0 18px; border-bottom:1px solid var(--line)}
+body[data-ui-page="console"] .hero .lead {font-size:27px;line-height:1.45;max-width:44ch}
+body[data-ui-page="console"] .tiles {gap:12px}
+body[data-ui-page="console"] .tile {background:var(--card);padding:18px;border-radius:8px}
+body[data-ui-page="console"] .tnum {font:600 27px var(--display)}
+body[data-ui-page="console"] .act {background:var(--card);padding:15px 18px;border-radius:7px}
+body[data-ui-page="console"] .act-sub {font-size:13px;color:var(--dim)}
+body[data-ui-page="console"] .card {padding:22px 24px}
+body[data-ui-page="console"] .cap-q {border-top:1px dashed var(--line);padding:18px 0 4px;margin-top:20px}
+body[data-ui-page="console"] #v-timeline .day {padding-left:24px;font-size:12px;letter-spacing:0}
+body[data-ui-page="console"] #v-timeline .row {margin-bottom:12px;padding:0 0 0 22px}
+body[data-ui-page="console"] #v-timeline .row>.head {padding:16px 18px;background:var(--card);border:1px solid var(--line);border-radius:8px}
+body[data-ui-page="console"] #v-timeline .row.open>.head {background:var(--selected);border-radius:8px 8px 0 0;outline:0;border-color:var(--accent)}
+body[data-ui-page="console"] #v-timeline .row>.body {padding:18px;background:var(--card);border:1px solid var(--line);border-top:0;border-radius:0 0 8px 8px}
+body[data-ui-page="console"] #v-timeline .subj {font-size:17px;font-weight:500}
+body[data-ui-page="console"] #v-graph {background:var(--card);border:1px solid var(--line);border-radius:9px;padding:20px}
+body[data-ui-page="console"] #v-debt .debt-row {background:var(--card)}
+body[data-ui-page="review"] main {max-width:1280px}
+body[data-ui-page="review"] .card {border:1px solid var(--line);box-shadow:0 12px 28px #00000012;margin-bottom:12px}
+body[data-ui-page="review"] .card-head {background:var(--card2);padding:18px 22px}
+body[data-ui-page="review"] .card-body {grid-template-columns:minmax(0,1.4fr) minmax(275px,.8fr)}
+body[data-ui-page="review"] .main-column {padding:24px}
+body[data-ui-page="review"] .side-column {--ink:var(--paper-ink);--muted:var(--paper-dim);--line:var(--paper-line);--surface:#f7faf1;--soft:#dce6d1;--blue:#47683c;--green:#37684e;--blue-bg:#d5e2c8;--focus:#47683c;--amber:#6b4b13;--amber-bg:#ede5d3;background:var(--paper);color:var(--paper-ink);padding:24px;border-left:0}
+body[data-ui-page="review"] .side-column .provenance {color:var(--paper-dim)}
+body[data-ui-page="review"] .side-column .label,body[data-ui-page="review"] .side-column legend {color:var(--paper-ink)}
+body[data-ui-page="review"] .side-column .save {background:#3f6038;color:#fff;border-color:#3f6038}
+body[data-ui-page="review"] .side-column input {accent-color:#47683c}
+body[data-ui-page="review"] .side-column .saved {color:#3f6038;border-top:1px dashed #b8c7aa;padding-top:12px}
+body[data-ui-page="review"] .side-column .saved:empty {display:none}
+body[data-ui-page="review"] .side-column .verified {color:#335f43;background:#d4e1d8}
+body[data-ui-page="review"] .side-column .saved[data-state="error"] {color:#8e302e}
+body[data-ui-page="review"] .side-column .saved[data-state="success"] {color:#335f43}
+body[data-ui-page="review"] .feedback {background:var(--card);border-top:1px dashed var(--line)}
+body[data-ui-page="review"] pre {background:#14191f;border:1px solid #39424e;border-radius:6px;color:#d1dbe7;padding:16px;font-size:13px}
+body[data-ui-page="review"] .summary h1 {font-size:28px}
+body[data-ui-page="review"] .ui-record-index {display:flex;flex-direction:column;gap:5px}
+body[data-ui-page="review"] .ui-record-index a {font:12px/1.6 var(--mono);padding:7px 8px;color:var(--dim);overflow-wrap:anywhere;border-left:1px solid var(--line);text-decoration:none}
+body[data-ui-page="review"] .ui-record-index a:hover {color:var(--fg);border-color:var(--accent)}
+body[data-ui-page="web_chat"] header {padding:16px 26px}
+body[data-ui-page="web_chat"] main {max-width:980px;min-height:calc(100vh - 70px)}
+body[data-ui-page="web_chat"] #filesbtn {align-self:flex-start;padding:6px 14px;background:var(--card2);color:var(--fg);border:1px solid var(--line)}
+body[data-ui-page="web_chat"] .msg {margin:24px 0}
+body[data-ui-page="web_chat"] .msg .who {font-family:var(--sans);font-size:12px;text-transform:none;margin-bottom:8px}
+body[data-ui-page="web_chat"] .msg.bot .body {padding:22px 24px;border-radius:9px;box-shadow:0 4px 12px #00000012}
+body[data-ui-page="web_chat"] .msg.user .body {padding:8px 0;font-size:18px}
+body[data-ui-page="web_chat"] .evid {background:var(--card2);padding:16px;line-height:1.75;color:var(--fg)}
+body[data-ui-page="web_chat"] #f {padding:14px 0;background:var(--bg)}
+body[data-ui-page="web_chat"] #q {padding:14px;background:var(--card);border-color:var(--line)}
+body[data-ui-page="tunnel"] .row {margin-bottom:18px}
+body[data-ui-page="tunnel"] .head {padding:18px 20px;background:var(--card);border:1px solid var(--line);border-radius:8px}
+body[data-ui-page="tunnel"] .row.open .head {border-color:var(--accent);background:var(--selected);border-radius:8px 8px 0 0}
+body[data-ui-page="tunnel"] .row.open .body {padding:20px;background:var(--card);border:1px solid var(--line);border-radius:0 0 8px 8px}
+body[data-ui-page="tunnel"] .body .cap {background:var(--card2);border:1px solid var(--line);border-radius:7px;padding:16px}
+body[data-ui-page="graph"] #wrap {height:calc(100vh - 105px);padding:20px;gap:0}
+body[data-ui-page="graph"] #graph {min-width:0;background-color:var(--card);background-image:radial-gradient(var(--line) 1px,transparent 1px);background-size:20px 20px;border:1px solid var(--line);border-radius:9px 0 0 9px}
+body[data-ui-page="graph"] #panel {width:300px;flex:none;background:var(--card);border:1px solid var(--line);border-left:0;border-radius:0 9px 9px 0;padding:24px}
+body[data-ui-page="graph"] #panel .txt {font-size:14px;line-height:1.75}
+body[data-ui-page="graph"] #controls button {background:var(--card2);border-radius:6px}
+body[data-ui-page="graph"] .dec-b {fill:#293b52;stroke:#9cb3cf}
+body[data-ui-page="graph"] .dec-n {fill:#262d36;stroke:#9cb3cf}
+body[data-ui-page="graph"] .chg {fill:#22272f;stroke:#596a7e}
+body[data-ui-page="graph"] .edge {stroke:#788ba4}
+body[data-ui-page="course"] .wrap {display:block;max-width:1100px;padding:0 28px;margin:auto}
+body[data-ui-page="course"] .wrap main {width:100%;max-width:none;padding:30px 0 80px}
+body[data-ui-page="course"] .ui-rail #toc {display:flex;flex-direction:column;gap:8px}
+body[data-ui-page="course"] .ui-rail nav .lbl {font-size:12px;color:var(--dim)}
+body[data-ui-page="course"] .ui-rail #toc a {font-size:13px;color:var(--dim);padding:10px;border-radius:6px;display:block}
+body[data-ui-page="course"] .chapter {background:var(--card);border:1px solid var(--line);border-radius:9px;padding:24px}
+body[data-ui-page="recap"] .wrap {grid-template-columns:210px minmax(0,1fr);max-width:1250px;padding:24px;gap:24px}
+body[data-ui-page="recap"] .wrap>aside {background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px}
+body[data-ui-page="recap"] .card {padding:22px;border-radius:8px}
+body[data-ui-page="recap_index"] .sess {padding:18px 22px;margin-bottom:12px}
+body[data-ui-page="recap_index"] .pv {font-size:15px;margin-top:8px;white-space:normal}
+body[data-ui-page="trust_ab"] .ab,body[data-ui-page="trust_ab"] .item {background:var(--card);border-radius:8px}
+.ui-material {transform-origin:50% 50%;backface-visibility:hidden}
+.ui-material::after {content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;background:linear-gradient(110deg,transparent 20%,#ffffff08 48%,transparent 70%);opacity:.6}
+@media(max-width:1000px) {
+ body[data-ui-page="review"] .card-body{grid-template-columns:1fr}body[data-ui-page="review"] .side-column{border-top:1px solid var(--line)}
+ body[data-ui-page="recap"] .wrap{grid-template-columns:1fr}body[data-ui-page="recap"] .wrap>aside{position:static;max-height:none}
+ body[data-ui-page="graph"] #wrap{flex-direction:column;height:auto}body[data-ui-page="graph"] #graph{width:100%;height:62vh;border-radius:8px 8px 0 0}body[data-ui-page="graph"] #panel{width:auto;max-height:none;border:1px solid var(--line);border-top:0;border-radius:0 0 8px 8px}
+}
+@media(max-width:700px) {
+ body[data-ui-page="console"] #q{margin:0 16px 12px;max-width:calc(100% - 32px)}body[data-ui-page="console"] #chips{padding-inline:16px}
+ body[data-ui-page="console"] .hero .lead{font-size:23px}body[data-ui-page="console"] .card{padding:18px}
+ body[data-ui-page="review"] .ui-record-index{display:none}body[data-ui-page="review"] .main-column,body[data-ui-page="review"] .side-column{padding:18px}
+ body[data-ui-page="web_chat"] header{padding:14px 16px}body[data-ui-page="web_chat"] .msg.bot .body{padding:18px}
+ body[data-ui-page="course"] .wrap{padding:0 16px}body[data-ui-page="course"] .ui-rail #toc{flex-direction:row;flex-wrap:wrap}
+ body[data-ui-page="recap"] .wrap{padding:18px 16px}body[data-ui-page="graph"] #wrap{padding:16px}
+}
+
+/* Functional surfaces also follow the light paper palette. */
+body[data-ui-page="review"] .export-button {color:var(--bg)}
+body[data-ui-page="review"] .side-column .save:hover:not(:disabled) {background:#385730}
+body[data-ui-page="web_chat"] #ftdrawer {background:var(--card);border-color:var(--line)}
+body[data-ui-page="web_chat"] #send,body[data-ui-page="web_chat"] #ftdrawer>button,body[data-ui-page="trust_ab"] #tally button {color:var(--bg)}
+body[data-ui-page="graph"] #langbtn {background:var(--card2)}
+body[data-ui-page="graph"] .dec-b {fill:var(--card2);stroke:var(--accent)}
+body[data-ui-page="graph"] .dec-n {fill:var(--card);stroke:var(--accent)}
+body[data-ui-page="graph"] .chg {fill:var(--selected);stroke:var(--dim)}
+body[data-ui-page="course"] .ch h2,body[data-ui-page="course"] .quiz .q {color:var(--fg)}
+body[data-ui-page="course"] .pair,body[data-ui-page="course"] .quiz .opt {background:var(--card);box-shadow:none}
+
+body[data-ui-design="archive-v3"] .st-M {color:var(--warn)}
+body[data-ui-design="archive-v3"] .st-A {color:var(--ok)}
+body[data-ui-design="archive-v3"] .st-D,body[data-ui-design="archive-v3"] .st-U {color:var(--bad)}
+body[data-ui-design="archive-v3"] .st-R,body[data-ui-design="archive-v3"] .st-C {color:var(--accent)}

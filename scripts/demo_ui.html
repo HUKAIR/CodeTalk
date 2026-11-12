@@ -1,0 +1,29 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CodeTalk · 黑色 UI 展示</title><link rel="icon" href="data:,">
+<style>
+:root{color-scheme:dark;--bg:#0d0d0f;--card:#16161a;--line:#26262b;--fg:#e8e8ea;--dim:#a1a1aa;--accent:#5b9cff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.65 -apple-system,"PingFang SC",sans-serif}header,main{max-width:1600px;margin:auto;padding:24px}header{border-bottom:1px solid var(--line)}h1{font-size:28px;margin:10px 0}p{color:var(--dim);max-width:78ch}button,select,a{font:inherit}button,select,a.btn{background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:8px 12px;cursor:pointer}button:hover,a:hover{border-color:var(--accent)}:focus-visible{outline:2px solid var(--accent);outline-offset:3px}nav{display:flex;gap:8px;flex-wrap:wrap}button[aria-pressed=true]{border-color:var(--accent);color:var(--accent)}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:24px}.card{border:1px solid var(--line);border-radius:8px;padding:18px;background:var(--card)}h2{font-size:18px;margin:0 0 12px}.actions{display:flex;gap:8px;flex-wrap:wrap}.btn{text-decoration:none}.pair{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}label{display:flex;gap:12px;align-items:center}select{min-width:0;flex:1}iframe{width:100%;height:680px;border:1px solid var(--line);margin-top:12px;background:var(--bg)}dialog{padding:0;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:8px;width:95vw;max-width:1500px;height:92vh}dialog::backdrop{background:#000a}.modal-head{display:flex;justify-content:space-between;align-items:center;padding:12px 18px}dialog iframe{height:calc(100% - 70px);margin:0;border:0}.note{font-size:13px}@media(max-width:900px){.grid{grid-template-columns:1fr 1fr}}@media(max-width:600px){.grid,.pair{grid-template-columns:1fr}header,main{padding:16px}}
+</style></head><body><header><b>CodeTalk / UI 展示</b><h1>回到熟悉的黑色，读清每一次选择</h1>
+<p>真实模板，同一组合成数据。可比较深浅色、展开记录、查看空状态与长内容。预览不会发送模型请求或保存判断；真实保存流程请运行 <code>python -m scripts.demo_review</code>。</p><nav id="filters" aria-label="界面分类"></nav></header>
+<main><h2>并排比较</h2><div class="pair"><section><label>左侧<select id="left"></select></label><iframe id="frame-left" title="左侧预览" sandbox="allow-scripts allow-modals"></iframe></section><section><label>右侧<select id="right"></select></label><iframe id="frame-right" title="右侧预览" sandbox="allow-scripts allow-modals"></iframe></section></div>
+<p class="note">双栏展示窄窗口布局。点“放大查看”可查看完整桌面布局。复制、表单提交和后端来源查询在此预览中停用。</p><div class="grid" id="grid"></div></main>
+<dialog id="viewer"><div class="modal-head"><strong id="view-title"></strong><button id="close">关闭预览</button></div><iframe id="view-frame" title="完整预览" sandbox="allow-scripts allow-modals"></iframe></dialog>
+<script>
+const items=/* ITEMS */[], cache={}, grid=document.querySelector('#grid'), viewer=document.querySelector('#viewer');let active='全部';
+async function load(frame,item){
+ const wanted=item.id;frame.dataset.item=wanted;
+ try { if(!cache[wanted]){const r=await fetch('pages/'+wanted+'.html');if(!r.ok)throw Error('load');cache[wanted]=await r.text();}
+  if(frame.dataset.item!==wanted)return;
+  const guard='<script>window.fetch=function(){return Promise.reject(new Error("Preview only"))};document.addEventListener("submit",function(e){e.preventDefault();e.stopImmediatePropagation()},true);<\/script>';
+  frame.srcdoc=cache[wanted].replace(/<head>/,'<head><base href="'+new URL('pages/',location.href).href+'">'+guard);
+ }catch(e){frame.srcdoc='<p>预览加载失败，请刷新重试。</p>';}
+}
+function render(){grid.innerHTML='';document.querySelectorAll('#filters button').forEach(b=>b.setAttribute('aria-pressed',b.textContent===active));items.filter(i=>active==='全部'||i.family===active).forEach(item=>{
+ const card=document.createElement('article');card.className='card';const h=document.createElement('h2');h.textContent=item.title;card.append(h);const actions=document.createElement('div');actions.className='actions';
+ const open=document.createElement('button');open.textContent='放大查看';open.onclick=()=>{document.querySelector('#view-title').textContent=item.title;load(document.querySelector('#view-frame'),item);viewer.showModal()};
+ const compare=document.createElement('button');compare.textContent='放到右侧';compare.onclick=()=>{document.querySelector('#right').value=item.id;load(document.querySelector('#frame-right'),item);document.querySelector('.pair').scrollIntoView()};actions.append(open,compare);card.append(actions);grid.append(card);
+ });}
+['全部',...new Set(items.map(i=>i.family))].forEach(label=>{const b=document.createElement('button');b.textContent=label;b.onclick=()=>{active=label;render()};document.querySelector('#filters').append(b)});
+for(const side of ['left','right']){const select=document.querySelector('#'+side);items.forEach(i=>select.add(new Option(i.title,i.id)));select.value=side==='left'?'console-dark':'review';select.onchange=()=>load(document.querySelector('#frame-'+side),items.find(i=>i.id===select.value));select.onchange()}
+document.querySelector('#close').onclick=()=>viewer.close();render();
+</script></body></html>

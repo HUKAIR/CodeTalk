@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hukair-codetalk"
+version = "0.4.0"
+description = "本地优先的代码决策溯源:git 历史 + Claude/Cursor/Codex 会话 → 可核验 why / 理解债 / 决策影响图"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "AGPL-3.0-or-later"
+authors = [{ name = "CodeTalk" }]
+keywords = ["git", "code-provenance", "local-first", "mcp", "ai-coding"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Software Development :: Version Control :: Git",
+]
+# M0 红线:核心零三方依赖(deepseek/openai/qwen 经 stdlib urllib);
+# 仅 anthropic provider 需 SDK,作可选 extra。
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/HUKAIR/CodeTalk"
+Repository = "https://github.com/HUKAIR/CodeTalk"
+Issues = "https://github.com/HUKAIR/CodeTalk/issues"
+
+[project.optional-dependencies]
+anthropic = ["anthropic>=0.40"]
+# web-app 面(M0 分面修订 2026-06-24):仅 `codetalk web` 需要,不污染核心 stdlib。
+web = ["fastapi>=0.110", "uvicorn>=0.29"]
+# Starlette TestClient 专用;不进入 web 运行依赖或 CLI/MCP 核心面。
+test = ["httpx2>=2.0.0"]
+
+[project.scripts]
+codetalk = "codetalk.cli:main"
+
+[tool.setuptools]
+packages = ["codetalk"]
+
+[tool.setuptools.package-data]
+codetalk = ["*.html", "*.md", "*.css", "*.js"]

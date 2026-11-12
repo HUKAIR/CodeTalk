@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="720" viewBox="0 0 1440 720" role="img" aria-labelledby="title desc">
+  <title id="title">CodeTalk: local records, inspectable evidence, human judgment</title>
+  <desc id="desc">Git commits and local coding sessions feed defensive parsing, redaction and a local cache. Deterministic retrieval exposes original sources through CLI, MCP, VS Code and web views. People judge relevance and save review outcomes locally. Optional model interpretation is separate and requires explicit permission before sending redacted input.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M1 1L6 4L1 7" fill="none" stroke="#b5c5dd" stroke-width="1.5"/></marker>
+    <style>
+      text{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;fill:#eceef1}
+      .muted{fill:#a3a9b1}.label{font-size:13px;letter-spacing:1.5px}.heading{font-size:25px;font-weight:600}
+      .body{font-size:18px}.small{font-size:15px}.paper{fill:#26333e}.paper-muted{fill:#536575}
+      .connector{fill:none;stroke:#b5c5dd;stroke-width:2;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1440" height="720" rx="14" fill="#111214"/>
+  <path d="M0 100H1440" stroke="#34373b"/>
+  <text x="48" y="41" class="label muted">CODETALK / EVIDENCE PIPELINE</text>
+  <text x="48" y="79" font-size="28" font-weight="600">Find the record. Inspect the source. Make the judgment.</text>
+  <rect x="32" y="126" width="1376" height="359" rx="10" fill="#17191c" stroke="#34373b"/>
+  <circle cx="57" cy="153" r="4" fill="#9ac8ad"/>
+  <text x="71" y="158" class="label muted">ON YOUR MACHINE · LOCAL RECORDS AND OUTCOMES</text>
+  <rect x="52" y="181" width="392" height="274" rx="8" fill="#191b1e" stroke="#34373b"/>
+  <text x="76" y="214" class="label muted">01 / SOURCES</text>
+  <text x="76" y="252" class="heading">Read what was recorded</text>
+  <path d="M76 274H420" stroke="#34373b"/>
+  <text x="76" y="309" class="body">Git commits, diffs and line history</text>
+  <text x="76" y="345" class="body">Decision · Rejected · Watch notes</text>
+  <text x="76" y="381" class="body">Local coding-session records</text>
+  <text x="76" y="427" class="small muted">Unavailable sources remain explicit gaps.</text>
+  <path d="M446 318H487" class="connector"/>
+  <rect x="496" y="181" width="392" height="274" rx="8" fill="#252a31" stroke="#596574"/>
+  <text x="520" y="214" class="label muted">02 / LOCAL EVIDENCE</text>
+  <text x="520" y="252" class="heading">Parse, redact and retrieve</text>
+  <path d="M520 274H864" stroke="#596574"/>
+  <text x="520" y="309" class="body">Defensive parsing · secret redaction</text>
+  <text x="520" y="345" class="body">Git lookup · local SQLite cache</text>
+  <text x="520" y="381" class="body">Deterministic search and association</text>
+  <text x="520" y="427" class="small muted">Association is not a semantic verdict.</text>
+  <path d="M890 318H931" class="connector"/>
+  <rect x="940" y="181" width="448" height="274" rx="8" fill="#e6e8e8"/>
+  <text x="964" y="214" class="label paper-muted">03 / INSPECT AND DECIDE</text>
+  <text x="964" y="252" class="heading paper">Bring the original into view</text>
+  <path d="M964 274H1364" stroke="#a8b6c1"/>
+  <text x="964" y="309" class="body paper">CLI · MCP · VS Code · Web</text>
+  <text x="964" y="345" class="body paper">Original source beside the current change</text>
+  <text x="964" y="381" class="body paper">Human judgment · locally saved outcome</text>
+  <text x="964" y="427" class="small paper-muted">A saved choice is not an automatic verdict.</text>
+  <path d="M692 456V525" class="connector" stroke-dasharray="5 6"/>
+  <rect x="496" y="536" width="892" height="113" rx="8" fill="#191b1e" stroke="#596574" stroke-dasharray="5 6"/>
+  <text x="520" y="570" class="label muted">OPTIONAL / MODEL INTERPRETATION</text>
+  <text x="520" y="601" class="body">Explicit permission before redacted input leaves the machine.</text>
+  <text x="520" y="629" class="small muted">Generated context stays separate from evidence. Redaction is not anonymization.</text>
+  <text x="52" y="566" class="heading">Zero-LLM core</text>
+  <text x="52" y="598" class="body muted">No model is needed for</text>
+  <text x="52" y="625" class="body muted">local lookup and source inspection.</text>
+  <text x="52" y="689" class="small muted">Workflow diagram · current capabilities · no customer data or third-party product marks</text>
+</svg>

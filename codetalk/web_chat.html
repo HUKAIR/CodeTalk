@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CodeTalk · 接地对话</title>
+<style>
+/* include:web_chat-base.css */
+/* include:ui-design.css */
+/* include:ui-pages.css */
+</style><script>document.addEventListener("pointerdown",function(){document.documentElement.dataset.input="pointer";},true);document.addEventListener("keydown",function(){document.documentElement.dataset.input="keyboard";},true);</script></head><body data-ui-design="archive-v3" data-ui-page="web_chat">
+<aside class="ui-rail"><div class="ui-brand">C<span>CodeTalk</span></div><div class="ui-context"><span class="ui-repo-icon">⌑</span><span data-ui-zh="接地对话" data-ui-en="Grounded chat">接地对话</span></div><nav class="ui-sections" aria-label="Page sections"><a href="#log" data-ui-zh="对话与来源" data-ui-en="Chat and sources">对话与来源</a><a href="#f" data-ui-zh="提出问题" data-ui-en="Ask a question">提出问题</a></nav><div class="ui-rail-note" data-ui-zh="本地记录 · 按来源回看" data-ui-en="Local records · trace the source">本地记录 · 按来源回看</div></aside>
+<header><span><b>CodeTalk</b> // <span data-i18n="tagline">接地对话 · 本地优先 · 模型调用按配置</span></span>
+  <span><a href="/console" data-i18n="nav_console">控制台</a> &nbsp; <a href="/tunnel" data-i18n="nav_tunnel">时光轴</a> &nbsp; <a href="/graph" data-i18n="nav_graph">决策图</a> &nbsp; <a href="/course" data-i18n="nav_course">演进课程</a>
+  &nbsp; <button id="langbtn" type="button" class="copybtn" aria-label="switch language">EN</button></span></header>
+<main>
+  <button id="filesbtn" type="button" aria-controls="ftdrawer" aria-expanded="false" data-i18n="files_btn">文件 ▸</button>
+  <aside id="ftdrawer" inert aria-hidden="true" aria-label="Files"></aside>
+  <p class="hint" data-i18n="hint">问「这段代码当初为什么这么写」——答案接地到真实 commit / 决策 / 会话原话;
+    无 key 或 --no-llm 时降级为零-LLM 接地罗列(不出网)。</p>
+  <div id="log" aria-live="polite" aria-relevant="additions text"></div>
+  <button id="latest" type="button" hidden data-i18n="latest">回到最新</button><div id="shint" class="hint"></div>
+  <form id="f">
+    <textarea id="q" data-i18n-ph="q_ph" placeholder="例:为什么把重试从装饰器改成显式循环?(可带 文件:行)"></textarea>
+    <button id="send" type="submit" data-i18n="send">问</button>
+  </form>
+</main>
+<script>
+/* include:ui-api.js */
+/* include:web_chat-logic-1.js */
+/* include:web_chat-logic-2.js */
+</script>
+<script>
+/* include:ui-motion.js */
+/* include:ui-interactions.js */
+</script>
+</body></html>

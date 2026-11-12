@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>$project — 时光轴</title>
+<style>
+/* include:tunnel-base.css */
+/* include:ui-design.css */
+/* include:ui-pages.css */
+</style><script>document.addEventListener("pointerdown",function(){document.documentElement.dataset.input="pointer";},true);document.addEventListener("keydown",function(){document.documentElement.dataset.input="keyboard";},true);</script></head><body data-ui-design="archive-v3" data-ui-page="tunnel">
+<aside class="ui-rail"><div class="ui-brand">C<span>CodeTalk</span></div><div class="ui-context"><span class="ui-repo-icon">⌑</span><span data-ui-zh="时光轴" data-ui-en="Timeline">时光轴</span></div><nav class="ui-sections" aria-label="Page sections"><a href="#app" data-ui-zh="历史记录" data-ui-en="History">历史记录</a></nav><div class="ui-rail-note" data-ui-zh="本地记录 · 按来源回看" data-ui-en="Local records · trace the source">本地记录 · 按来源回看</div></aside>
+<header>
+  <span><span class="b">CodeTalk</span> // <span data-i18n="header_timeline">时光轴</span> · $project</span>
+  <span>LOCAL-FIRST · $generated
+    <button id="langbtn" type="button" aria-label="switch language">EN</button></span>
+</header>
+<main id="app"></main>
+<footer id="foot"></footer>
+<script>
+/* include:ui-api.js */
+/* include:tunnel-logic-1.js */
+/* include:tunnel-logic-2.js */
+</script>
+<script>
+/* include:ui-motion.js */
+/* include:ui-interactions.js */
+</script>
+</body></html>

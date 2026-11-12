@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>$project — 会话摘要 · $session</title>
+<script>try {
+  var saved = localStorage.getItem("codetalk.theme");
+  document.documentElement.setAttribute("data-theme", saved === "light" ? "light" : "dark");
+} catch (e) {}</script>
+<style>
+/* include:recap-base.css */
+/* include:ui-design.css */
+/* include:ui-pages.css */
+</style><script>document.addEventListener("pointerdown",function(){document.documentElement.dataset.input="pointer";},true);document.addEventListener("keydown",function(){document.documentElement.dataset.input="keyboard";},true);</script></head><body data-ui-design="archive-v3" data-ui-page="recap">
+<aside class="ui-rail"><div class="ui-brand">C<span>CodeTalk</span></div><div class="ui-context"><span class="ui-repo-icon">⌑</span><span data-ui-zh="会话摘要" data-ui-en="Session recap">会话摘要</span></div><nav class="ui-sections" aria-label="Page sections"><a id="back-index-rail" href="$index_href" data-ui-zh="返回索引" data-ui-en="Back to index">返回索引</a></nav><div class="ui-rail-note" data-ui-zh="本地记录 · 按来源回看" data-ui-en="Local records · trace the source">本地记录 · 按来源回看</div></aside>
+<header>
+  <div class="hrow">
+    <h1><span class="b">CodeTalk</span> // 会话摘要 · $project · $session</h1>
+    <span class="meta">$span</span>
+    <span class="meta">$stats</span>
+    <span class="meta">LOCAL-FIRST · $generated</span>
+    <a id="back-index" href="$index_href">返回会话索引</a><button class="themebtn" id="themebtn" title="切换主题">◐</button>
+  </div>
+  <div class="frow" role="tablist" aria-label="筛选">
+    <button class="fchip on" data-f="all">全部</button>
+    <button class="fchip" data-f="ask">💬 提问</button>
+    <button class="fchip" data-f="cmd">⌘ 命令</button>
+    <button class="fchip" data-f="edit">✎ 有改动</button>
+    <span id="vcount">可见 <b>0</b> 轮</span>
+  </div>
+  <nav class="minimap" aria-label="按天日程">$minimap</nav>
+</header>
+<div class="wrap">
+  <aside aria-label="目录">$toc</aside>
+  <main>$cards</main>
+</div>
+<script>
+/* include:recap-logic-1.js */
+</script>
+<script>
+/* include:ui-motion.js */
+/* include:ui-interactions.js */
+</script>
+</body></html>

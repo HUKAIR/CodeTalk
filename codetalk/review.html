@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>$project - Decision review</title>
+  <style>
+/* include:review-base.css */
+/* include:ui-design.css */
+/* include:ui-pages.css */
+</style>
+<script>document.addEventListener("pointerdown",function(){document.documentElement.dataset.input="pointer";},true);document.addEventListener("keydown",function(){document.documentElement.dataset.input="keyboard";},true);</script></head>
+<body data-ui-design="archive-v3" data-ui-page="review">
+<aside class="ui-rail"><div class="ui-brand">C<span>CodeTalk</span></div><div class="ui-context"><span class="ui-repo-icon">⌑</span><span data-ui-zh="决策审查" data-ui-en="Decision review">决策审查</span></div><nav class="ui-sections" aria-label="Page sections"><a href="#cards" data-ui-zh="审查记录" data-ui-en="Review records">审查记录</a><a href="#counts" data-ui-zh="判断进度" data-ui-en="Judgment progress">判断进度</a></nav><div class="ui-rail-note" data-ui-zh="本地记录 · 按来源回看" data-ui-en="Local records · trace the source">本地记录 · 按来源回看</div></aside>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">CodeTalk</div>
+      <div class="crumb">$project</div>
+      <div class="local" data-i18n="local">LOCAL / NO TELEMETRY</div>
+      <button class="lang" id="lang" type="button" aria-label="Switch language">中</button>
+    </div>
+  </header>
+  <main>
+    <section class="summary">
+      <div><h1 data-i18n="title">Decision review</h1><p data-i18n="subtitle">Resolve the evidence before the change ships.</p></div>
+      <div class="counts" id="counts"></div>
+    </section>
+    <div class="cards" id="cards"></div>
+  </main>
+  <script>
+/* include:ui-api.js */
+/* include:review-logic-1.js */
+</script>
+<script>
+/* include:ui-motion.js */
+/* include:ui-interactions.js */
+</script>
+</body>
+</html>

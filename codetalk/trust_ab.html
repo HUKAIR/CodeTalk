@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CodeTalk · $project</title>
+<style>
+/* include:trust_ab-base.css */
+/* include:ui-design.css */
+/* include:ui-pages.css */
+</style><script>document.addEventListener("pointerdown",function(){document.documentElement.dataset.input="pointer";},true);document.addEventListener("keydown",function(){document.documentElement.dataset.input="keyboard";},true);</script></head><body data-ui-design="archive-v3" data-ui-page="trust_ab">
+<aside class="ui-rail"><div class="ui-brand">C<span>CodeTalk</span></div><div class="ui-context"><span class="ui-repo-icon">⌑</span><span data-ui-zh="情境练习" data-ui-en="Practice">情境练习</span></div><nav class="ui-sections" aria-label="Page sections"><a href="#ui-main" data-ui-zh="练习与依据" data-ui-en="Practice and evidence">练习与依据</a></nav><div class="ui-rail-note" data-ui-zh="本地记录 · 按来源回看" data-ui-en="Local records · trace the source">本地记录 · 按来源回看</div></aside>
+<header>
+  <span><b>CodeTalk</b> <span class="sub" data-i18n="tagline">真实记录 vs AI 从 diff 反推 · 零 LLM · SHA 可验证</span></span>
+  <button id="langbtn" type="button" aria-label="switch language">EN</button>
+</header>
+<main id="ui-main">
+  <p class="lead" data-i18n="lead">同一段代码,两个「为什么」。一个是逐字真实记录,一个是 AI 只看 diff 反推的。你更信哪个?</p>
+  <p class="lead-sub" data-i18n="lead_sub">每条先选 A 或 B(别偷看),全选完点「看真相」——看看你几次选中了真实记录。</p>
+  <div id="items"></div>
+</main>
+<div id="tally">
+  <p id="score"></p>
+  <button id="revealbtn" type="button" data-i18n="reveal_btn" disabled>看真相</button>
+  <p class="pitch" data-i18n="pitch">真实记录 = CodeTalk 零-LLM 逐字引 commit/会话,点 SHA 可核验;另一侧 = AI 只凭 diff 反推(未给 commit message)。</p>
+</div>
+<script>
+/* include:trust_ab-logic-1.js */
+</script>
+<script>
+/* include:ui-motion.js */
+/* include:ui-interactions.js */
+</script>
+</body></html>

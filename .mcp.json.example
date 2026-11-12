@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "codetalk": {
+      "command": "python3",
+      "args": ["-m", "codetalk", "mcp-serve", "--project", "/absolute/path/to/your/repo"]
+    }
+  }
+}

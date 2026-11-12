@@ -1,0 +1,221 @@
+import json
+import unittest
+
+from codetalk.ui_template import read_template
+from datetime import datetime, timezone
+from pathlib import Path
+from unittest import mock
+
+from codetalk import graph
+from codetalk.cache import Cache
+
+
+def _c(sha, day, files, subject="s", body=""):
+    # body 现由批量 collect_commit_files 提供,直接挂在 commit 上(不再 commit_body 拉取)
+    return {"sha": sha, "date": datetime(2026, 6, day, tzinfo=timezone.utc),
+            "subject": subject, "files": files, "body": body}
+
+
+class TestAssemble(unittest.TestCase):
+    def test_breadcrumb_decision_file_edge_not_unrelated(self):
+        commits = [_c("d1aaaaaa", 1, ["a.py"], body="Vibe-Decision: 用 urllib"),
+                   _c("c2bbbbbb", 2, ["a.py"]),     # 后续,碰 a.py → 下游
+                   _c("x3cccccc", 3, ["z.py"])]     # 碰无关文件 → 不连
+        cache = Cache(":memory:")
+        data = graph._assemble(commits, ".", "P", cache)
+        ids = {n["id"]: n for n in data["nodes"]}
+        self.assertEqual(ids["d1aaaaa"]["kind"], "breadcrumb")
+        self.assertEqual(ids["d1aaaaa"]["text"], "用 urllib")
+        froms = {(e["from"], e["to"]) for e in data["edges"]}
+        self.assertIn(("d1aaaaa", "c2bbbbb"), froms)        # 同文件、更晚 → 连
+        self.assertNotIn(("d1aaaaa", "x3ccccc"), froms)     # 无关文件 → 不连
+
+    def test_narrative_fallback_kind(self):
+        commits = [_c("n1aaaaaa", 1, ["a.py"]), _c("c2bbbbbb", 2, ["a.py"])]
+        cache = Cache(":memory:")
+        cache.put_narrative("n1aaaaaa", "P", "m",
+                            {"decisions": ["叙事决策"], "risks": [], "open_loops": []})
+        data = graph._assemble(commits, ".", "P", cache)   # 无面包屑(body 空)
+        n = {x["id"]: x for x in data["nodes"]}["n1aaaaa"]
+        self.assertEqual(n["kind"], "narrative")
+        self.assertEqual(n["text"], "叙事决策")
+
+    def test_capsule_badge_and_redaction(self):
+        commits = [_c("d1aaaaaa", 1, ["a.py"],
+                      body="Vibe-Decision: token=sk-abcdefghijklmnop1234")]
+        cache = Cache(":memory:")
+        # 胶囊以 project_path 为键封存(与 digest pkey=str(project_path) 对齐);
+        # _assemble 现按 str(project_path) 查,故 seal 键须用同一 "." 而非 basename "P"。
+        cache.seal_capsule(".", "d1aaaaaa", 0, "并发风险", "2026-06-01", "2026-06-22")
+        data = graph._assemble(commits, ".", "P", cache)
+        n = data["nodes"][0]
+        self.assertTrue(n["badge"].startswith("胶囊:"))     # 有胶囊 → 徽标
+        self.assertNotIn("sk-abcdefghijklmnop1234", n["text"])  # 决策文案脱敏
+        self.assertIn("[REDACTED]", n["text"])
+
+    def test_out_edges_capped_at_max_out(self):
+        commits = [_c("d1aaaaaa", 1, ["a.py"], body="Vibe-Decision: x")] + [
+            _c("c%da" % i, i + 2, ["a.py"]) for i in range(12)]  # 12 个后续都碰 a.py
+        cache = Cache(":memory:")
+        data = graph._assemble(commits, ".", "P", cache)
+        out = [e for e in data["edges"] if e["from"] == "d1aaaaa"]
+        self.assertEqual(len(out), graph.MAX_OUT)            # ≤8,取最近
+        targets = {e["to"] for e in out}
+        # MED-6:取「其后时间最近的 8 个」= 最晚的 8 个下游 c4a..c11a,排除更早的 c0a..c3a
+        for i in range(4, 12):
+            self.assertIn(("c%da" % i)[:7], targets)
+        for i in range(4):
+            self.assertNotIn(("c%da" % i)[:7], targets)
+
+    def test_empty_commits_no_nodes(self):
+        self.assertEqual(graph._assemble([], ".", "P", Cache(":memory:")),
+                         {"nodes": [], "edges": []})
+
+
+import shutil, subprocess, tempfile
+
+
+def _git(args, cwd):
+    subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True)
+
+
+class TestBuildGraph(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        _git(["init", "-q"], self.dir)
+        _git(["config", "user.email", "t@t"], self.dir)
+        _git(["config", "user.name", "t"], self.dir)
+        p = Path(self.dir)
+        (p / "a.py").write_text("x\n")
+        _git(["add", "."], self.dir)
+        _git(["commit", "-q", "-m", "c1\n\nVibe-Decision: 决策一"], self.dir)
+        (p / "a.py").write_text("y\n")
+        _git(["add", "."], self.dir)
+        _git(["commit", "-q", "-m", "c2 改 a.py"], self.dir)
+        self.vault = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.dir, ignore_errors=True)
+        shutil.rmtree(self.vault, ignore_errors=True)
+
+    def test_build_writes_html_with_decision(self):
+        out, err = graph.build_graph(self.dir, vault=self.vault)
+        self.assertIsNone(err)
+        self.assertTrue(out.exists())
+        html = out.read_text(encoding="utf-8")
+        self.assertIn("决策影响图", html)
+        self.assertIn("决策一", html)          # 决策文案注入了
+        self.assertIn('"nodes"', html)          # 数据 JSON 注入了
+
+    def test_empty_repo_writes_empty_graph_not_error(self):
+        empty = tempfile.mkdtemp()
+        _git(["init", "-q"], empty)
+        try:
+            out, err = graph.build_graph(empty, vault=self.vault)
+            self.assertIsNone(err)               # LOW-3:空仓不报错
+            self.assertTrue(out.exists())
+        finally:
+            shutil.rmtree(empty, ignore_errors=True)
+
+
+class TestBuildGraphJson(unittest.TestCase):
+    """build_graph_json:纯内存装配(MCP graph 工具复用),绝不写盘。"""
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        _git(["init", "-q"], self.dir)
+        _git(["config", "user.email", "t@t"], self.dir)
+        _git(["config", "user.name", "t"], self.dir)
+        p = Path(self.dir)
+        (p / "a.py").write_text("x\n")
+        _git(["add", "."], self.dir)
+        _git(["commit", "-q", "-m", "c1\n\nVibe-Decision: 决策一"], self.dir)
+        (p / "a.py").write_text("y\n")
+        _git(["add", "."], self.dir)
+        _git(["commit", "-q", "-m", "c2 改 a.py"], self.dir)
+
+    def tearDown(self):
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def test_returns_json_with_nodes_and_edges(self):
+        cache = Cache(":memory:")
+        before = set(Path(self.dir).iterdir())
+        js, err = graph.build_graph_json(self.dir, cache)
+        self.assertIsNone(err)
+        data = json.loads(js)
+        self.assertIn("nodes", data)
+        self.assertIn("edges", data)
+        self.assertTrue(any(n["text"] == "决策一" for n in data["nodes"]))
+        # 不写盘:项目目录不新增文件
+        self.assertEqual(set(Path(self.dir).iterdir()), before)
+
+    def test_json_ensure_ascii_false_keeps_chinese(self):
+        js, err = graph.build_graph_json(self.dir, Cache(":memory:"))
+        self.assertIsNone(err)
+        self.assertIn("决策一", js)              # 非 \uXXXX 转义
+
+    def test_empty_repo_returns_empty_graph_no_error(self):
+        empty = tempfile.mkdtemp()
+        _git(["init", "-q"], empty)
+        try:
+            js, err = graph.build_graph_json(empty, Cache(":memory:"))
+            self.assertIsNone(err)               # 空仓不报错
+            self.assertEqual(json.loads(js), {"nodes": [], "edges": []})
+        finally:
+            shutil.rmtree(empty, ignore_errors=True)
+
+
+class TestGraphHtmlFeatures(unittest.TestCase):
+    """标记测试:graph.html 模板含 tooltip / 缩放控件 / 移动端适配,且守 $ 纪律。"""
+
+    def _tpl(self):
+        return read_template("graph.html")
+
+    def test_native_title_tooltip(self):
+        # 节点在 SVG <g> 内带原生 <title> 显全名(截断后仍可看全),非文档 <title>
+        tpl = self._tpl()
+        self.assertIn("<title>'", tpl)             # JS 拼出的节点 <title>...</title>
+        self.assertIn("</title>", tpl)
+
+    def test_zoom_controls(self):
+        tpl = self._tpl()
+        self.assertIn('id="controls"', tpl)      # 缩放/适配控件容器
+        self.assertIn("fit", tpl.lower())         # 适配窗口
+
+    def test_mobile_media_query(self):
+        self.assertIn("@media", self._tpl())      # 移动端适配
+
+    def test_dollar_discipline(self):
+        # Template 合法占位符仅 $project $data $serve $generated;别处不得有裸 $
+        import re
+        tpl = self._tpl()
+        bare = re.findall(r"\$(?!project\b|data\b|serve\b|generated\b)\S?", tpl)
+        self.assertEqual(bare, [], "graph.html 出现非法 $:%r" % bare)
+
+
+class TestGraphKeyboard(unittest.TestCase):
+    """键盘缩放:+ 放大 / - 缩小 / 0/f 适配(补已有缩放按钮的键盘可达)。"""
+    def setUp(self):
+        self.html = read_template("graph.html")
+
+    def test_keyboard_zoom_wired(self):
+        self.assertIn("keydown", self.html)          # 此前无键盘
+        self.assertIn("e.key === '+'", self.html)    # 放大键
+        self.assertIn("e.key === '0'", self.html)    # 适配键
+
+
+class TestGraphVisual(unittest.TestCase):
+    """视觉对齐:外壳/面板正文转复古衬线(--serif);图节点 SVG 文本保留等宽(--px)精确对齐。"""
+    def setUp(self):
+        self.html = read_template("graph.html")
+
+    def test_serif_chrome_mono_nodes(self):
+        self.assertIn("--serif", self.html)
+        self.assertIn("Palatino", self.html)                       # 复古衬线栈(系统字体,无 CDN)
+        self.assertIn("font-family:var(--serif)", self.html)       # body 衬线(压缩 CSS,无空格)
+        self.assertIn("svg text{font-family:var(--px)", self.html)  # 节点仍等宽,精确对齐
+        self.assertNotIn("image-rendering:pixelated", self.html)    # 去像素化(SVG 矢量,编辑感)
+
+
+if __name__ == "__main__":
+    unittest.main()

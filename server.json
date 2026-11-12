@@ -1,0 +1,11 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.hukair/codetalk",
+  "description": "Local-first code archaeology: deterministic, zero-LLM grounded answers about why code was written.",
+  "repository": { "url": "https://github.com/HUKAIR/CodeTalk", "source": "github" },
+  "version": "0.4.0",
+  "packages": [
+    { "registryType": "pypi", "identifier": "hukair-codetalk", "version": "0.4.0",
+      "transport": { "type": "stdio" } }
+  ]
+}

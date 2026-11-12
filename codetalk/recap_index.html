@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>$project — 会话索引</title>
+<script>try {
+  var saved = localStorage.getItem("codetalk.theme");
+  document.documentElement.setAttribute("data-theme", saved === "light" ? "light" : "dark");
+} catch (e) {}</script>
+<style>
+/* include:recap_index-base.css */
+/* include:ui-design.css */
+/* include:ui-pages.css */
+</style><script>document.addEventListener("pointerdown",function(){document.documentElement.dataset.input="pointer";},true);document.addEventListener("keydown",function(){document.documentElement.dataset.input="keyboard";},true);</script></head><body data-ui-design="archive-v3" data-ui-page="recap_index">
+<aside class="ui-rail"><div class="ui-brand">C<span>CodeTalk</span></div><div class="ui-context"><span class="ui-repo-icon">⌑</span><span data-ui-zh="会话索引" data-ui-en="Sessions">会话索引</span></div><nav class="ui-sections" aria-label="Page sections"><a href="#ui-main" data-ui-zh="最近会话" data-ui-en="Recent sessions">最近会话</a></nav><div class="ui-rail-note" data-ui-zh="本地记录 · 按来源回看" data-ui-en="Local records · trace the source">本地记录 · 按来源回看</div></aside>
+<header><div class="bar">
+  <span><span class="b">CodeTalk</span> // 会话索引 · $project</span>
+  <span>LOCAL-FIRST · $generated</span>
+  <button class="themebtn" id="themebtn" title="切换主题">◐</button>
+</div></header>
+<main id="ui-main">
+  <p class="sub">$stats</p>
+  $groups
+</main>
+<script>
+document.getElementById("themebtn").addEventListener("click", function () {
+  var root = document.documentElement;
+  var next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+  root.setAttribute("data-theme", next);
+  try { localStorage.setItem("codetalk.theme", next); } catch (e) {}
+});
+window.addEventListener("pagehide",function(){ history.replaceState({scrollY:window.scrollY}, ""); });
+window.addEventListener("pageshow",function(){ if(history.state && Number.isFinite(history.state.scrollY)) window.scrollTo(0,history.state.scrollY); });
+</script>
+<script>
+/* include:ui-motion.js */
+/* include:ui-interactions.js */
+</script>
+</body></html>

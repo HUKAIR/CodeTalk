@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>$project — CodeTalk 控制台</title>
+<script>
+  // 上色先于首屏,避免浅色用户看到深色闪烁(单一偏好解析处)
+  try {
+    var saved = localStorage.getItem("codetalk.theme");
+    document.documentElement.setAttribute("data-theme", saved === "dark" ? "dark" : "light");
+  } catch (e) {}
+</script>
+<style>
+/* include:console-base.css */
+/* include:ui-design.css */
+/* include:ui-pages.css */
+/* include:reading-room.css */
+/* include:reading-room-adapter.css */
+</style><script>document.addEventListener("pointerdown",function(){document.documentElement.dataset.input="pointer";},true);document.addEventListener("keydown",function(){document.documentElement.dataset.input="keyboard";},true);</script></head><body data-ui-design="archive-v3" data-ui-page="console">
+<header class="b-header">
+  <a class="b-brand" href="#timeline"><span class="brand-symbol">C<span>▪</span></span>CodeTalk</a>
+  <div class="project-name"><span class="b-folder-symbol">⌑</span>$project <span class="project-note" data-i18n="room_archive">项目档案</span></div>
+  <nav class="top-nav" aria-label="阅读模式">
+    <button id="room-mode-read" data-i18n="room_read">阅读</button>
+    <button id="room-mode-compare" data-i18n="room_compare">对照</button>
+    <button id="room-mode-saved"><span data-i18n="room_saved">书签</span> <span id="room-bookmark-count">0</span></button>
+  </nav>
+  <div class="b-header-tools">
+    <details class="b-search"><summary data-i18n="room_search">搜索</summary><div class="b-search-panel">
+      <input id="q" type="search" data-i18n-ph="search_ph" data-i18n-aria="search_aria" aria-label="搜索时光轴,Enter 全库检索">
+      <div id="chips"><button class="chip" data-f="crumb" aria-pressed="false" data-i18n="chip_crumb">带决策</button><button class="chip" data-f="risk" aria-pressed="false" data-i18n="chip_risk">有待验证</button><button class="chip" data-f="cap" aria-pressed="false" data-i18n="chip_cap">有胶囊</button></div>
+    </div></details>
+    <details class="b-workspace"><summary data-i18n="room_workspace">工作台</summary><aside class="ui-rail"><nav id="nav"></nav></aside></details>
+    <button id="themebtn" class="themebtn" data-i18n-title="theme_toggle" title="切换浅色/深色">☀</button>
+    <button id="langbtn" class="themebtn" type="button" aria-label="switch language">EN</button>
+  </div>
+</header>
+<main>
+  <section class="view on" id="v-overview" role="tabpanel" tabindex="0"></section>
+  <section class="view" id="v-timeline" role="tabpanel" tabindex="0"></section>
+  <section class="view" id="v-graph" role="tabpanel" tabindex="0"></section>
+  <section class="view" id="v-debt" role="tabpanel" tabindex="0"></section>
+  <section class="view" id="v-filetree" role="tabpanel" tabindex="0"></section>
+  <section class="view" id="v-prompts" role="tabpanel" tabindex="0"></section>
+  <section class="view" id="v-recap" role="tabpanel" tabindex="0"></section>
+</main>
+<button id="chatfab" hidden>💬 <span data-i18n="chatfab">接地追问</span></button>
+<div id="chatdock" role="dialog" data-i18n-aria="chat_dialog" aria-label="接地对话">
+  <div class="ch"><span data-i18n="chat_header">接地对话 · 本地优先 · 模型调用按配置</span>
+    <a href="/" data-i18n="full_chat">完整对话与文件</a>
+    <button id="chatclose" data-i18n-aria="close" aria-label="关闭">✕</button></div>
+  <button id="chatlatest" type="button" hidden data-i18n="latest">回到最新</button><div id="chatlog"></div>
+  <form id="chatform"><textarea id="chatq" rows="2" data-i18n-ph="chatq_ph"
+    placeholder="问这段代码当初为什么这么写…"></textarea>
+    <button id="chatsend" type="submit" data-i18n="ask">问</button></form>
+</div>
+<div id="ftres" hidden role="dialog" data-i18n-aria="ft_result_aria" aria-label="全库检索结果">
+  <div class="ch"><span data-i18n="ft_header">全库检索 · 零 LLM(Enter 搜全仓,不止已加载)</span>
+    <button id="ftclose" data-i18n-aria="ft_close_aria" aria-label="关闭检索结果">✕</button></div>
+  <div id="ftbody" tabindex="0" aria-live="polite"></div>
+</div>
+<footer id="foot"></footer>
+/* include:reading-room-template.html */
+<script>
+/* include:ui-api.js */
+/* include:console-logic-1.js */
+/* include:console-logic-2.js */
+/* include:reading-room.js */
+/* include:reading-room-actions.js */
+/* include:console-logic-3.js */
+/* include:console-logic-4.js */
+</script>
+<script>
+/* include:ui-motion.js */
+/* include:ui-interactions.js */
+</script>
+</body></html>

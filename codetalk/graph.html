@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh">
+<head><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8">
+<title>$project · 决策影响图</title>
+<style>
+/* include:graph-base.css */
+/* include:ui-design.css */
+/* include:ui-pages.css */
+</style>
+<script>document.addEventListener("pointerdown",function(){document.documentElement.dataset.input="pointer";},true);document.addEventListener("keydown",function(){document.documentElement.dataset.input="keyboard";},true);</script></head>
+<body data-ui-design="archive-v3" data-ui-page="graph">
+<aside class="ui-rail"><div class="ui-brand">C<span>CodeTalk</span></div><div class="ui-context"><span class="ui-repo-icon">⌑</span><span data-ui-zh="决策关系图" data-ui-en="Decision graph">决策关系图</span></div><nav class="ui-sections" aria-label="Page sections"><a href="#graph" data-ui-zh="关系画布" data-ui-en="Relationship canvas">关系画布</a><a href="#panel" data-ui-zh="记录详情" data-ui-en="Record detail">记录详情</a></nav><div class="ui-rail-note" data-ui-zh="本地记录 · 按来源回看" data-ui-en="Local records · trace the source">本地记录 · 按来源回看</div></aside>
+<header>
+  <button id="langbtn" type="button" aria-label="switch language">EN</button>
+  <h1>$project · <span data-i18n="graph_title">决策影响图</span></h1>
+  <div class="sub"><span data-i18n="sub_lead">决策 → 沿时间向前牵动的改动 · 点蓝色决策节点看下游</span> · $generated · <span data-i18n="sub_tail">纯本地零 LLM</span></div>
+</header>
+<div id="wrap">
+  <div id="graph">
+    <div id="controls"><button id="clear" data-i18n="clear">清除选择</button><button id="zin" data-i18n-title="zoom_in" title="放大">+</button><button id="zout" data-i18n-title="zoom_out" title="缩小">&minus;</button><button id="zfit" data-i18n-title="zoom_fit" title="适配窗口"><span data-i18n="fit">适配</span></button></div>
+    <svg id="svg"></svg><div id="empty" class="empty" hidden></div></div>
+  <div id="panel"></div>
+</div>
+<script>
+/* include:graph-logic-1.js */
+</script>
+<script>
+/* include:ui-motion.js */
+/* include:ui-interactions.js */
+</script>
+</body>
+</html>

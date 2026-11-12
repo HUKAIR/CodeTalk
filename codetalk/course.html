@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>$project — 演进课程</title>
+<style>
+/* include:course-base.css */
+/* include:ui-design.css */
+/* include:ui-pages.css */
+</style><script>document.addEventListener("pointerdown",function(){document.documentElement.dataset.input="pointer";},true);document.addEventListener("keydown",function(){document.documentElement.dataset.input="keyboard";},true);</script></head><body data-ui-design="archive-v3" data-ui-page="course">
+<aside class="ui-rail"><div class="ui-brand">C<span>CodeTalk</span></div><div class="ui-context"><span class="ui-repo-icon">⌑</span><span data-ui-zh="演进课程" data-ui-en="Evolution course">演进课程</span></div><nav class="ui-sections" aria-label="Page sections"></nav><nav><div class="lbl" data-i18n="chapters_lbl">章节 · Chapters</div><div id="toc"></div></nav><div class="ui-rail-note" data-ui-zh="本地记录 · 按来源回看" data-ui-en="Local records · trace the source">本地记录 · 按来源回看</div></aside>
+<div id="bar"></div>
+<header>
+  <span><span class="t">CodeTalk</span>//<span data-i18n="course_label">演进课程</span> · <span id="proj">$project</span></span>
+  <span><span data-i18n="grew">这个项目怎么长成的</span> · <span id="gen">$generated</span>
+    <button id="langbtn" type="button" aria-label="switch language">EN</button></span>
+</header>
+<div class="wrap">
+
+  <main id="main"></main>
+</div>
+<footer id="foot"></footer>
+<script>
+/* include:course-logic-1.js */
+</script>
+<script>
+/* include:ui-motion.js */
+/* include:ui-interactions.js */
+</script>
+</body></html>
