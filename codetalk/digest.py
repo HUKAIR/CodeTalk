@@ -13,7 +13,7 @@ from pathlib import Path
 from . import align, codex_sessions, cursor_sessions, enrich, gitlog, report, sessions
 from .cache import Cache
 from .config import CODETALK_DIR, load_config, redact_secrets
-from .gitlog import parse_breadcrumbs
+from .gitlog import parse_breadcrumbs, same_breadcrumb
 from .llm import LLMClient, LLMError
 
 log = logging.getLogger("codetalk")
@@ -99,7 +99,7 @@ def _capsule_days():
 
 
 def _seal_commit_capsules(cache, pkey, commit, sealed, opens):
-    """只 seal 与 commit body 里 `Vibe-Watch:` 面包屑逐字一致的 risks。
+    """只 seal 与本 commit 手写 Watch 等价的 risks(兼容旧缓存首行)。
     LLM 推断的 risks 不进胶囊——对账价值低,塞进会污染北极星处理率分母(回面收件箱噪声)。
     用户手写的 Vibe-Watch 才是真在意的预测,值得 21 天后回面验证。"""
     _decs, watches = parse_breadcrumbs(commit.get("body") or "")
@@ -110,7 +110,7 @@ def _seal_commit_capsules(cache, pkey, commit, sealed, opens):
     # 否则含密钥的手写 Watch exact-match 漏命中、永不封存。
     watches_norm = {redact_secrets(w) for w in watches}
     for idx, risk in enumerate(commit["narrative"].get("risks") or []):
-        if redact_secrets(risk) in watches_norm:
+        if any(same_breadcrumb(redact_secrets(risk), w) for w in watches_norm):
             cache.seal_capsule(pkey, commit["sha"], idx, risk, sealed, opens)
 
 

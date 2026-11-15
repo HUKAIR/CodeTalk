@@ -5,6 +5,26 @@ from codetalk import gitlog
 
 
 class TestGitlogExtra(unittest.TestCase):
+    def test_merge_old_cache_uses_full_breadcrumb_at_authored_position(self):
+        narrative = {"decisions": ["选择甲", "生成决策"],
+                     "risks": ["并发安全"], "rejected": ["方案丙"]}
+        body = ("Vibe-Decision: 选择甲\n  原因乙\n"
+                "Vibe-Watch: 并发安全\n  待验证\n"
+                "Vibe-Rejected: 方案丙\n  原因丁")
+        with mock.patch.object(gitlog, "commit_body", return_value=body):
+            self.assertEqual(gitlog.merge_breadcrumbs(narrative, ".", "sha"),
+                             (["生成决策", "选择甲 原因乙"],
+                              ["并发安全 待验证"], ["方案丙 原因丁"]))
+        self.assertEqual(narrative["decisions"], ["选择甲", "生成决策"])
+
+    def test_same_breadcrumb_requires_nonempty_cache_and_space_boundary(self):
+        for cached, fresh, expected in [
+                ("甲", "甲", True), ("甲", "甲 乙", True),
+                ("甲", "甲乙", False), ("甲 乙", "甲", False),
+                ("", "", False), ("", " 内容", False), ("", "内容", False)]:
+            with self.subTest(cached=cached, fresh=fresh):
+                self.assertEqual(gitlog.same_breadcrumb(cached, fresh), expected)
+
     def test_line_log_splices_extra_before_L(self):
         seen = {}
 

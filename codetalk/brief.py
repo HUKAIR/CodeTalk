@@ -6,7 +6,7 @@ from pathlib import Path
 from . import debt as debt_mod
 from .config import redact_secrets
 from .gitlog import (collect_commit_files, commit_body, has_decision_notes,
-                     parse_breadcrumbs)
+                     parse_breadcrumbs, same_breadcrumb)
 
 
 def _debt_block(board):
@@ -134,7 +134,8 @@ def _is_verbatim_watch(project, sha, risk):
     两侧同口径脱敏:cache 里的 risk 经 enrich redact_data 已脱敏,watches 来自原始 body,
     含 secret 形的手写 Watch 否则会因 [REDACTED] 不等而误判成 🤖 AI 预测(与 _seal 同口径)。"""
     _decs, watches = parse_breadcrumbs(commit_body(project, sha))
-    return redact_secrets(risk) in {redact_secrets(w) for w in watches}
+    return any(same_breadcrumb(redact_secrets(risk), redact_secrets(w))
+               for w in watches)
 
 
 def _watch_block(name, path, pending, opened, filled, today):

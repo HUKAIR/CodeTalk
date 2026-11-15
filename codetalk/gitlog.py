@@ -5,6 +5,9 @@ import re
 import subprocess
 from datetime import datetime
 
+from .breadcrumbs import (has_decision_notes, merge_breadcrumb_values,  # noqa: F401
+                          parse_breadcrumbs, parse_rejected, same_breadcrumb)
+
 log = logging.getLogger("codetalk")
 
 FIELD_SEP = "\x1f"
@@ -137,51 +140,14 @@ def tracked_files(project_path):
         return None
 
 
-def parse_breadcrumbs(body):
-    """从 commit body 提取决策面包屑。区分大小写,行首匹配 Vibe-Decision:/Vibe-Watch:。
-    返回 (decisions, watches);body 为空/None 安全返回 ([], [])。"""
-    decisions, watches = [], []
-    for line in (body or "").splitlines():
-        line = line.strip()
-        if line.startswith("Vibe-Decision:"):
-            text = line[len("Vibe-Decision:"):].strip()
-            if text:
-                decisions.append(text)
-        elif line.startswith("Vibe-Watch:"):
-            text = line[len("Vibe-Watch:"):].strip()
-            if text:
-                watches.append(text)
-    return decisions, watches
-
-
-def parse_rejected(body):
-    """从 commit body 提取 Vibe-Rejected 面包屑(被否决的备选)。区分大小写,行首匹配。
-    被否决方案是 diff 结构性取不到的 why-NOT(README 护城河),提成一等公民供 blame 独立标注。
-    body 为空/None 安全返回 []。"""
-    rejected = []
-    for line in (body or "").splitlines():
-        line = line.strip()
-        if line.startswith("Vibe-Rejected:"):
-            text = line[len("Vibe-Rejected:"):].strip()
-            if text:
-                rejected.append(text)
-    return rejected
-
-
-def has_decision_notes(body):
-    """Whether a commit body carries any supported Vibe-* decision record."""
-    decisions, watches = parse_breadcrumbs(body)
-    return bool(decisions or watches or parse_rejected(body))
-
-
 def merge_breadcrumbs(narrative, project_path, sha):
     """命中 SHA 的缓存叙事 ∪ commit body 面包屑(去重,叙事在前、面包屑在后)。
-    返回 (decisions, risks, rejected);供 ask/blame/search 共用,缓存已折入的面包屑不重复。"""
+    返回 (decisions, risks, rejected);等价缓存项移除,全文保留在现算位置。"""
     body = commit_body(project_path, sha)
     decisions, watches = parse_breadcrumbs(body)
-    decs = list(dict.fromkeys((narrative.get("decisions") or []) + decisions))
-    risks = list(dict.fromkeys((narrative.get("risks") or []) + watches))
-    rejected = list(dict.fromkeys((narrative.get("rejected") or []) + parse_rejected(body)))
+    decs = merge_breadcrumb_values(narrative.get("decisions") or [], decisions)
+    risks = merge_breadcrumb_values(narrative.get("risks") or [], watches)
+    rejected = merge_breadcrumb_values(narrative.get("rejected") or [], parse_rejected(body))
     return decs, risks, rejected
 
 

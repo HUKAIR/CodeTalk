@@ -2,6 +2,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 from codetalk import brief
@@ -11,6 +12,25 @@ from codetalk.cache import Cache
 def _git(args, cwd):
     subprocess.run(["git", *args], cwd=cwd, check=True,
                    capture_output=True, text=True)
+
+
+class TestOldCachedWatch(unittest.TestCase):
+    def test_wrapped_watch_is_verbatim(self):
+        from codetalk.config import redact_secrets
+        for first in ("并发安全", 'password="hunter2abcXYZ"'):
+            with self.subTest(first=first):
+                risk = redact_secrets(first)
+                body = f"Vibe-Watch: {first}\n  待验证"
+                with mock.patch.object(brief, "commit_body", return_value=body):
+                    self.assertTrue(brief._is_verbatim_watch(".", "sha", risk))
+                    pending = [{"sha": "sha", "risk": risk,
+                                "sealed_date": "2026-09-01"}]
+                    from datetime import date
+                    rendered = "\n".join(brief._watch_block(
+                        "P", ".", pending, 1, 0, date(2026, 9, 21)))
+                    self.assertIn("🎯 你标的", rendered)
+                    self.assertNotIn("🤖 AI 预测", rendered)
+                    self.assertFalse(brief._is_verbatim_watch(".", "sha", "生成风险"))
 
 
 class TestOpenLoopNoise(unittest.TestCase):
