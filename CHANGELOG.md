@@ -8,6 +8,15 @@ made it verifiable.
 
 ## Unreleased
 
+### Fixed
+
+- `Vibe-Decision`/`Vibe-Watch`/`Vibe-Rejected` notes wrapped onto indented
+  continuation lines are now read in full. Previously only the first line was
+  kept, so `blame`, `search`, `ask`, `brief` and the console showed truncated
+  decisions. A blank line, unindented text, or the next note ends a note.
+  Narratives cached before this fix keep working: a cached first-line value is
+  treated as the same note as its full text, without rewriting the cache.
+
 ## 0.4.0 - 2026-07-27
 
 ### Added

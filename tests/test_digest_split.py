@@ -1,9 +1,24 @@
 """保证 digest 拆分后公共面不破:dispatch 入口 + 日期辅助函数语义。"""
 import unittest
+from unittest import mock
 from datetime import date, datetime, timezone
 
 
 class TestDigestPublicSurface(unittest.TestCase):
+    def test_seal_old_cache_wrapped_watch(self):
+        from codetalk.digest import _seal_commit_capsules
+        from codetalk.config import redact_secrets
+        for first in ("并发安全", 'password="hunter2abcXYZ"'):
+            with self.subTest(first=first):
+                risk = redact_secrets(first)
+                commit = {"sha": "sha", "body": f"Vibe-Watch: {first}\n  待验证",
+                          "narrative": {"risks": [risk, "生成风险"]}}
+                cache = mock.Mock()
+                _seal_commit_capsules(cache, "P", commit, "sealed", "opens")
+                cache.seal_capsule.assert_called_once_with(
+                    "P", "sha", 0, risk, "sealed", "opens")
+                self.assertEqual(commit["narrative"]["risks"], [risk, "生成风险"])
+
     def test_commands_digest_still_callable(self):
         # cli._DISPATCH 与 main 兜底都引用 commands.digest,拆分后须仍可达。
         from codetalk import commands

@@ -119,6 +119,23 @@ class TestBlameSegments(unittest.TestCase):
         self.assertEqual(
             segs[0]["decisions"].count("用 urllib 不引依赖"), 1)
 
+    def test_old_cache_wrapped_notes_are_authored_once(self):
+        sha = self.repo.sha(1)
+        narrative = {"decisions": ["选择甲"], "risks": ["并发安全"],
+                     "rejected": ["方案丙"]}
+        self.cache.put_narrative(sha, "P", "m", narrative)
+        body = ("Vibe-Decision: 选择甲\n  原因乙\n"
+                "Vibe-Watch: 并发安全\n  待验证\n"
+                "Vibe-Rejected: 方案丙\n  原因丁")
+        with mock.patch.object(blame, "commit_body", return_value=body):
+            seg, = blame._build_segments(self.cache, self.repo.dir, [sha])
+        self.assertEqual(seg["decisions"], ["选择甲 原因乙"])
+        self.assertEqual(seg["risks"], ["并发安全 待验证"])
+        self.assertEqual(seg["rejected"], ["方案丙 原因丁"])
+        self.assertEqual(seg["generated_decisions"], [])
+        self.assertEqual(seg["generated_rejected"], [])
+        self.assertEqual(self.cache.get_narrative(sha)["decisions"], ["选择甲"])
+
     def test_line_log_failure_falls_back_to_file_log(self):
         # 坏行范围 → 行级失败 → 文件级降级(仍拿到该文件全部 commit)
         segs = blame.collect_segments(self.cache, self.repo.dir, "f.py",
