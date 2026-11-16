@@ -170,7 +170,7 @@ API key 也可用环境变量 `<PROVIDER>_API_KEY`(如 `DEEPSEEK_API_KEY` / `KIM
 | `self` | **自我周报**:近 N 天用量/省额/回填率,自证关掉 LLM 仍有价值(**零 LLM**) | `codetalk self --days 7` |
 | `prompts` | **指令回看**:按会话时间线列出你发给 AI 的指令 + 改过的文件(**零 LLM**) | `codetalk prompts --since "3 days ago"` |
 | `drift` | **偏差自检**:AI 工具写过但未见后续同路径提交的文件(**零 LLM**) | `codetalk drift` |
-| `graph` | **决策影响图**:哪个决定牵动了后续哪些改动(时间轴 DAG,**零 LLM**;`--canvas` 导出 Obsidian Canvas) | `codetalk graph --canvas` |
+| `graph` | **开发脉络图**:提交排成时间主干,向上长出决策与计划、向下长出被否决方案与待验证事项;点节点或连线看详情(**零 LLM**;`--serve` 可写只存本机的批注、标记已理解、添加计划方向、手动连线;`--canvas` 把决策影响图导出为 Obsidian Canvas) | `codetalk graph --serve` |
 | `course` | **演进课程**:项目怎么一步步长成这样(分章 + 大白话 + 场景测验,单文件 HTML) | `codetalk course` |
 | `ask` | **就某段代码提问**,答案接项目记忆(叙事 + 决策记录行),引用真实 commit | `codetalk ask codetalk/llm.py:72-78 "为什么这么写"` |
 | `console` | **统一控制台(web 入口)**:开工概览 / 时光轴 / 决策图 / 理解债 / 文件树 / 指令回看 / 会话摘要七视图单页(**零 LLM**;`--serve` 回写胶囊) | `codetalk console --serve` |

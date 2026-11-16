@@ -124,6 +124,9 @@ def _build_parser():
     grp.add_argument("--vault", help="覆盖输出目录")
     grp.add_argument("--canvas", action="store_true",
                      help="额外导出 Obsidian JSON Canvas(*-graph.canvas)")
+    grp.add_argument("--serve", action="store_true",
+                     help="起本地服务:可在图上写本机批注(静态导出只读)")
+    grp.add_argument("--no-open", action="store_true", help="--serve 时不自动开浏览器")
     con = _proj(sub.add_parser("console", help="统一控制台:七视图单页 web(零 LLM)"))
     con.add_argument("--serve", action="store_true", help="起本地服务,回答写回 cache")
     con.add_argument("--no-open", action="store_true", help="--serve 时不自动开浏览器")

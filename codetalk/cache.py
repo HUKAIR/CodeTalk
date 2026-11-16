@@ -34,6 +34,9 @@ CREATE TABLE IF NOT EXISTS review_judgments (
     project_key TEXT, card_id TEXT, status TEXT, action_changed INTEGER,
     elapsed_seconds REAL, updated_at TEXT,
     PRIMARY KEY (project_key, card_id));
+CREATE TABLE IF NOT EXISTS graph_annotations (
+    project_key TEXT, node_key TEXT, data_json TEXT, updated_at TEXT,
+    PRIMARY KEY (project_key, node_key));
 CREATE TABLE IF NOT EXISTS web_conversations (
     turn_id TEXT PRIMARY KEY, conv_id TEXT, project TEXT, ts TEXT,
     role TEXT, text TEXT, cited_shas TEXT);
@@ -224,6 +227,32 @@ class Cache(CapsuleMixin):
             "updated_at": row[4],
             "verified_interception": row[1] == "confirmed_conflict" and bool(row[2]),
         } for row in rows}
+
+    def put_graph_annotation(self, project, node_key, data):
+        """Local-only graph note; callers validate and redact before storing."""
+        self.conn.execute(
+            "INSERT OR REPLACE INTO graph_annotations VALUES (?,?,?,?)",
+            (self._review_project_key(project), node_key,
+             json.dumps(data, ensure_ascii=False), self._now()))
+        self.conn.commit()
+
+    def delete_graph_annotation(self, project, node_key):
+        self.conn.execute(
+            "DELETE FROM graph_annotations WHERE project_key=? AND node_key=?",
+            (self._review_project_key(project), node_key))
+        self.conn.commit()
+
+    def get_graph_annotations(self, project):
+        rows = self.conn.execute(
+            "SELECT node_key,data_json FROM graph_annotations WHERE project_key=?",
+            (self._review_project_key(project),)).fetchall()
+        out = {}
+        for key, raw in rows:
+            try:
+                out[key] = json.loads(raw)
+            except (json.JSONDecodeError, TypeError):   # 坏行跳过,不崩页面
+                continue
+        return out
 
     def rekey_project(self, old, new):
         """把胶囊/日报/reviewed 三表的 project 键从 old 迁到 new(同名项目串键修复

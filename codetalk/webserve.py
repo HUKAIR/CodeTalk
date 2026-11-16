@@ -16,7 +16,9 @@ from .report import _OUTCOMES
 def inline_json(data):
     # 把数据嵌进 <script> 块时,序列里出现的 "</" 会让浏览器以为 </script> 提前闭合,
     # 转义成 "<\/" 即可安全内联(对 JSON 解析无影响)。
-    return json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
+    # "<!--" 同理:其后再出现 "<script" 会让解析器进入双重转义态,真正的 </script> 不再闭合。
+    return (json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
+            .replace("<!--", "\\u003c!--"))
 
 
 def serve_html(html_text, project_path, open_browser=True, builder=None, routes=None):

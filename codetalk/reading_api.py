@@ -2,7 +2,7 @@
 import re
 from pathlib import Path
 
-from . import gitlog, search
+from . import gitlog, graph_thread, search
 from .cache import Cache
 from .config import redact_data
 from .report import _OUTCOMES
@@ -54,6 +54,8 @@ def write_reading_record(project, path, payload, cache_path):
             if not gitlog.commit_meta(project, sha)[1]:
                 return {"error": "commit not found"}, 404
             cache.mark_reviewed(project, sha[:7])  # debt.py uses the same seven-character key
+        elif path == "/graph/annotation":
+            return graph_thread.write_annotation(cache, project, payload)
         else:
             return {"error": "not found"}, 404
     return {"ok": True}, 200

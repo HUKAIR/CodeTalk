@@ -8,6 +8,22 @@ made it verifiable.
 
 ## Unreleased
 
+### Added
+
+- `codetalk graph` is now a development thread you can read alone: every
+  scanned commit sits on a time trunk, with `Vibe-Decision` notes and your own
+  plans growing upward and `Vibe-Rejected` / `Vibe-Watch` notes growing
+  downward. Cards carry a one-line summary; clicking a node or a line opens
+  the full text, files, neighbouring commits and (served) the commit diff.
+  Pan, wheel-zoom, drag-to-pin, search, kind filters and a "you are here"
+  marker on the latest commit are built in.
+- `codetalk graph --serve` makes the thread editable. Notes, tags, hidden
+  nodes, pinned positions, manual links, planned directions (one colour per
+  direction, switching to a solid style once you point at the implementing
+  commit) and "understood" marks are stored only in the local cache; Git
+  history is never changed. The static export stays read-only and makes no
+  network requests.
+
 ### Fixed
 
 - `Vibe-Decision`/`Vibe-Watch`/`Vibe-Rejected` notes wrapped onto indented

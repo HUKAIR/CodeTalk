@@ -160,7 +160,7 @@ not require remote authorization.
 | `self` | **Self report**: usage / savings / backfill rate over the last N days — evidence the tool stays useful with the LLM off (**zero LLM**) | `codetalk self --days 7` |
 | `prompts` | **Instruction recall**: session-timeline list of what you told the AI plus the files it changed (**zero LLM**) | `codetalk prompts --since "3 days ago"` |
 | `drift` | **Drift self-check**: files AI tools wrote with no later same-path commit (**zero LLM**) | `codetalk drift` |
-| `graph` | **Decision-impact graph**: which decision drove which later changes (timeline DAG, **zero LLM**; `--canvas` exports an Obsidian Canvas) | `codetalk graph --canvas` |
+| `graph` | **Development thread**: commits on a time trunk with decisions and plans growing upward, rejected options and watches downward; click a node or a line for details (**zero LLM**; `--serve` adds local-only notes, understood marks, planned directions and manual links; `--canvas` exports the decision-impact graph as an Obsidian Canvas) | `codetalk graph --serve` |
 | `course` | **Evolution course**: how the project grew into what it is, step by step (chaptered + plain-language + scenario quizzes, single-file HTML) | `codetalk course` |
 | `ask` | **Ask about a piece of code**, with answers wired to project memory (narratives + decision notes), citing real commits | `codetalk ask codetalk/llm.py:72-78 "why written this way"` |
 | `console` | **Unified console (web entry)**: overview / timeline / decision graph / understanding debt / file tree / prompt replay / session recap — seven views on one page (**zero LLM**; `--serve` adds search, original commits/diffs, review and local write-back) | `codetalk console --serve` |
