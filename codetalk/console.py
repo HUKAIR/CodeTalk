@@ -157,7 +157,7 @@ def render_console(project_path):
     return out, None
 
 
-def serve_console(project_path, open_browser=True):
+def serve_console(project_path, open_browser=True, page="/"):
     """起本地服务,胶囊回答 + 回看即时写回 cache。→ error_or_None(阻塞到 Ctrl+C)。"""
     from .reading_server import create_reading_server
     import webbrowser
@@ -165,7 +165,7 @@ def serve_console(project_path, open_browser=True):
         server = create_reading_server(project_path)
     except ValueError as exc:
         return str(exc)
-    url = f"http://127.0.0.1:{server.server_port}/"
+    url = f"http://127.0.0.1:{server.server_port}{page}"
     print(f"本地决策书房:{url}\n记录写回本机缓存。Ctrl+C 停止。", flush=True)
     if open_browser:
         webbrowser.open(url)

@@ -2,28 +2,32 @@
 <html lang="zh">
 <head><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta charset="utf-8">
-<title>$project · 决策影响图</title>
+<title>$project · 开发脉络图</title>
 <style>
 /* include:graph-base.css */
 /* include:ui-design.css */
 /* include:ui-pages.css */
 </style>
-<script>document.addEventListener("pointerdown",function(){document.documentElement.dataset.input="pointer";},true);document.addEventListener("keydown",function(){document.documentElement.dataset.input="keyboard";},true);</script></head>
+<script>document.addEventListener("pointerdown",function(){document.documentElement.dataset.input="pointer";},true);document.addEventListener("keydown",function(){document.documentElement.dataset.input="keyboard";},true);try{var th=localStorage.getItem("codetalk.theme");if(th==="dark"||th==="light")document.documentElement.setAttribute("data-theme",th);}catch(e){}</script></head>
 <body data-ui-design="archive-v3" data-ui-page="graph">
-<aside class="ui-rail"><div class="ui-brand">C<span>CodeTalk</span></div><div class="ui-context"><span class="ui-repo-icon">⌑</span><span data-ui-zh="决策关系图" data-ui-en="Decision graph">决策关系图</span></div><nav class="ui-sections" aria-label="Page sections"><a href="#graph" data-ui-zh="关系画布" data-ui-en="Relationship canvas">关系画布</a><a href="#panel" data-ui-zh="记录详情" data-ui-en="Record detail">记录详情</a></nav><div class="ui-rail-note" data-ui-zh="本地记录 · 按来源回看" data-ui-en="Local records · trace the source">本地记录 · 按来源回看</div></aside>
+<aside class="ui-rail"><div class="ui-brand">C<span>CodeTalk</span></div><div class="ui-context"><span class="ui-repo-icon">⌑</span><span data-ui-zh="开发脉络图" data-ui-en="Development thread">开发脉络图</span></div><nav class="ui-sections" aria-label="Page sections"><a href="#graph" data-ui-zh="脉络画布" data-ui-en="Thread canvas">脉络画布</a><a href="#panel" data-ui-zh="节点详情" data-ui-en="Node detail">节点详情</a></nav><div class="ui-rail-note" data-ui-zh="本地记录 · 批注只存本机" data-ui-en="Local records · notes stay on this machine">本地记录 · 批注只存本机</div></aside>
 <header>
-  <button id="langbtn" type="button" aria-label="switch language">EN</button>
-  <h1>$project · <span data-i18n="graph_title">决策影响图</span></h1>
-  <div class="sub"><span data-i18n="sub_lead">决策 → 沿时间向前牵动的改动 · 点蓝色决策节点看下游</span> · $generated · <span data-i18n="sub_tail">纯本地零 LLM</span></div>
+  <div class="hbtns"><button id="themebtn" type="button" aria-label="switch theme">◐</button><button id="langbtn" type="button" aria-label="switch language">EN</button></div>
+  <h1>$project · <span data-i18n="graph_title">开发脉络图</span></h1>
+  <div class="sub"><span data-i18n="sub_lead">主干是按时间排列的提交;向上长出决策与计划,向下长出被否决方案与待验证事项</span> · $generated · <span data-i18n="sub_tail">纯本地零 LLM</span></div>
 </header>
 <div id="wrap">
   <div id="graph">
-    <div id="controls"><button id="clear" data-i18n="clear">清除选择</button><button id="zin" data-i18n-title="zoom_in" title="放大">+</button><button id="zout" data-i18n-title="zoom_out" title="缩小">&minus;</button><button id="zfit" data-i18n-title="zoom_fit" title="适配窗口"><span data-i18n="fit">适配</span></button></div>
-    <svg id="svg"></svg><div id="empty" class="empty" hidden></div></div>
+    <div id="toolbar"><input id="q" type="search" autocomplete="off" data-i18n-ph="search_ph" placeholder="搜索"><span id="qn"></span><button class="chip" data-show="decision" aria-pressed="true"><i style="background:var(--ok)"></i><span data-i18n="k_decision">决策</span></button><button class="chip" data-show="rejected" aria-pressed="true"><i style="background:var(--red)"></i><span data-i18n="k_rejected">被否决</span></button><button class="chip" data-show="watch" aria-pressed="true"><i style="background:var(--warn)"></i><span data-i18n="k_watch">待验证</span></button><button class="chip" data-show="plan" aria-pressed="true"><i style="background:#7a5cc4"></i><span data-i18n="k_plan">计划</span></button><button class="chip" data-show="plain" aria-pressed="true"><i style="background:var(--dim)"></i><span data-i18n="k_plain">无记录提交</span></button><button class="chip" data-show="hidden" aria-pressed="false"><span data-i18n="k_hidden">已隐藏</span></button><span class="meter"><span id="progress"></span><span class="track"><span id="bar"></span></span><button id="nextunread" class="chip" type="button">下一个未读</button></span><div id="controls"><button id="zhome" data-i18n="here" title="">你在这里</button><button id="zin" data-i18n-title="zoom_in" title="放大">+</button><button id="zout" data-i18n-title="zoom_out" title="缩小">&minus;</button><button id="zfit" data-i18n-title="zoom_fit" title="适配窗口"><span data-i18n="fit">适配</span></button></div></div>
+    <svg id="svg" role="group" aria-label="development thread"></svg><div id="empty" class="empty" hidden></div>
+    <div id="hint" data-i18n="hint">滚轮缩放 · 拖动空白平移 · 拖动节点可固定位置 · 点线看两端的修改</div></div>
   <div id="panel"></div>
 </div>
 <script>
+/* include:ui-api.js */
 /* include:graph-logic-1.js */
+/* include:graph-logic-2.js */
+/* include:graph-logic-3.js */
 </script>
 <script>
 /* include:ui-motion.js */

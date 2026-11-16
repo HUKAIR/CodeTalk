@@ -18,6 +18,7 @@ remain separate.
 | Mark as read | Disabled | Saves locally | Saves locally | `POST /reviewed`; a reading signal, not review approval |
 | Capsule answer / change answer | Disabled | Saves locally | Saves locally | `POST /capsule`; validates project ownership |
 | Decision graph | Included | Included | Included; full graph also at `/graph` | Existing graph assembly; same-file links are not causation |
+| Development thread (`graph`) | Read-only; saved notes are baked in | `/graph`: notes, understood marks, plans, links | Same as local service | `POST /graph/annotation`, `POST /reviewed`; notes live only in the local cache |
 | Comprehension debt | Included | Updated on page reload | Updated on page reload | Existing debt and capsule/read records |
 | File tree and decision history | Included | Updated on page reload | Updated on page reload | Existing file tree / commit grounding |
 | Prompt replay and session recap | Included if present | Available if present | Available if present | Existing session parsers; honest empty state |

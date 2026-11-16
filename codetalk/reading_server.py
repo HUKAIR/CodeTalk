@@ -3,8 +3,8 @@ import logging
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
-from . import console, review
-from .config import CACHE_DB_PATH
+from . import console, graph, review
+from .config import CACHE_DB_PATH, redact_secrets
 from .reading_api import commit_record, search_records, write_reading_record
 from .review_web import _origin_allowed, create_review_server
 
@@ -45,6 +45,14 @@ def create_reading_server(project_path, cache_path=CACHE_DB_PATH):
                     body = page.encode("utf-8")
                     self._headers(200, "text/html; charset=utf-8", len(body))
                     self.wfile.write(body)
+                elif request.path == "/graph":
+                    page, err = graph.render_graph_html(project, cache_path, serve=True)
+                    if err:
+                        self._json(400, {"error": "graph unavailable"})
+                        return
+                    body = redact_secrets(page).encode("utf-8")
+                    self._headers(200, "text/html; charset=utf-8", len(body))
+                    self.wfile.write(body)
                 elif request.path == "/api/search":
                     self._json(200, search_records(project, query.get("q", [""])[0], cache_path))
                 elif request.path.startswith("/api/commit/"):
@@ -63,7 +71,7 @@ def create_reading_server(project_path, cache_path=CACHE_DB_PATH):
                 self._json(403, {"error": "project is fixed for this server"})
                 return
             self.path = request.path
-            if self.path not in {"/capsule", "/reviewed"}:
+            if self.path not in {"/capsule", "/reviewed", "/graph/annotation"}:
                 super().do_POST()
                 return
             if not self._guard_host():

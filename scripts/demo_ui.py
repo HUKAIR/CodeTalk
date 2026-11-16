@@ -75,6 +75,14 @@ def build_pages(output):
                        for i, title in enumerate(subjects)],
              "edges": [{"from": f"{a:07x}", "to": f"{b:07x}"}
                        for a, b in [(1, 2), (1, 3), (1, 6), (3, 4), (3, 5)]]}
+    # 开发脉络图:主干 = 全部示例提交;偶数项带一条决策叶,全部为合成数据
+    graph["trunk"] = [dict(id=n["id"], sha=n["id"] + "0" * 33, ts=n["ts"], date=n["date"],
+                           subject=n["subject"], files=["cache.py"], nfiles=1)
+                      for n in graph["nodes"]]
+    graph["leaves"] = [dict(id=n["id"] + ":d0", commit=n["id"], kind="decision",
+                            source="breadcrumb", text=n["text"])
+                       for n in graph["nodes"] if n["text"]]
+    graph.update(annotations={}, reviewed=[], head=graph["nodes"][-1]["id"])
     debt = [dict(file=f, debt=n, churn=n//2, reviewed=1, commits=5, caps_total=1,
                  caps_filled=0, last_decision="保留按 key 失效", unreviewed=[], pending_caps=[])
             for f, n in [("cache.py", 8), ("review.py", 5), ("tests/test_cache.py", 3)]]
@@ -136,7 +144,7 @@ def build_pages(output):
     save("chat", "接地对话", chat, "工作台")
     save("timeline", "时光轴", template("tunnel.html", **common,
                                         data=inline_json(timeline), serve="false"), "历史")
-    save("graph", "决策图", template("graph.html", **common, data=inline_json(graph)), "历史")
+    save("graph", "决策图", template("graph.html", **common, data=inline_json(graph), serve="false"), "历史")
     chapters = [{"title": "从缓存边界开始", "intro": reasons[0],
                  "plain": "像只换一本书的标签，无需清空整个书架。",
                  "blocks": [{"type": "feat", "sha": "0000001", "subject": subjects[0],

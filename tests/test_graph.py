@@ -103,7 +103,7 @@ class TestBuildGraph(unittest.TestCase):
         self.assertIsNone(err)
         self.assertTrue(out.exists())
         html = out.read_text(encoding="utf-8")
-        self.assertIn("决策影响图", html)
+        self.assertIn("开发脉络图", html)
         self.assertIn("决策一", html)          # 决策文案注入了
         self.assertIn('"nodes"', html)          # 数据 JSON 注入了
 

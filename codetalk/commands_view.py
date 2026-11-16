@@ -53,6 +53,10 @@ def course_cmd(args):
 
 
 def graph_cmd(args):
+    if getattr(args, "serve", False):          # 可编辑批注需要本地服务;静态导出只读
+        from .console import serve_console
+        err = serve_console(args.project, open_browser=not args.no_open, page="/graph")
+        return _fail(err) if err else 0
     from .graph import build_graph
     path, err = build_graph(args.project, vault=args.vault, canvas=args.canvas)
     if err:

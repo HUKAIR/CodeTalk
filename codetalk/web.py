@@ -21,7 +21,7 @@ from typing import Optional
 from urllib.parse import urlsplit
 
 import uvicorn
-from fastapi import FastAPI, Request
+from fastapi import Body, FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
@@ -103,7 +103,7 @@ def _err_page(zh, en, err):
 @app.get("/graph")
 def graph_view(project: Optional[str] = None):
     """富交互决策影响图 DAG(零 LLM);与 CLI `codetalk graph` 同一渲染,浏览器内可达。"""
-    html, err = render_graph_html(_project(project))
+    html, err = render_graph_html(_project(project), serve=True)
     if err:
         return _err_page("决策图", "Decision graph", err)
     return HTMLResponse(redact_secrets(html))
@@ -238,6 +238,14 @@ def api_capsule(req: CapsuleReq):
 def api_reviewed(req: ReviewedReq):
     """console/tunnel 展开一条 → 标记回看(还理解债信号)写回 cache。"""
     body, status = write_reading_record(_project(req.project), "/reviewed", req.model_dump(), CACHE_DB_PATH)
+    return JSONResponse(body, status_code=status)
+
+
+@app.post("/graph/annotation")
+def api_graph_annotation(payload: dict = Body(...), project: Optional[str] = None):
+    """图上的本机批注(备注/标签/位置/连线)→ 写回 cache;校验与脱敏在 graph_thread。"""
+    body, status = write_reading_record(_project(project or payload.get("project")),
+                                        "/graph/annotation", payload, CACHE_DB_PATH)
     return JSONResponse(body, status_code=status)
 
 

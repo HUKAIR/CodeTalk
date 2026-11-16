@@ -17,6 +17,7 @@ from .ui_template import read_template
 from .cache import Cache
 from .config import CACHE_DB_PATH, load_config, redact_secrets
 from .gitlog import collect_commit_files, parse_breadcrumbs
+from .graph_thread import thread
 from .webserve import inline_json
 
 SCAN_LIMIT = 200
@@ -126,13 +127,15 @@ def _graph_data(pp, project, cache):
             return None, False, err
     commits = commits[-SCAN_LIMIT:]                 # graph.py 自己截断最近 200
     head = commits[-1]["sha"] if commits else "empty"
-    key = "graph:" + head[:40]
-    cached = cache.get_narrative(key)
-    if cached and "nodes" in cached:
-        return cached, True, None
-    data = _assemble(commits, pp, project, cache)
-    cache.put_narrative(key, project, "graph", data)
-    return data, False, None
+    key = "graph2:" + head[:40]                     # graph2:带主干/叶子的新形状
+    data, hit = cache.get_narrative(key), True
+    if not (data and "trunk" in data):
+        data, hit = _assemble(commits, pp, project, cache), False
+        data.update(thread(commits, cache))
+        cache.put_narrative(key, project, "graph", data)
+    # 批注与已读状态随时会变,不进 head 缓存,每次现读
+    return dict(data, annotations=cache.get_graph_annotations(str(pp)),
+                reviewed=sorted(cache.reviewed_shas(str(pp))), head=head[:7]), hit, None
 
 
 def build_graph_json(project_path, cache):
@@ -142,27 +145,31 @@ def build_graph_json(project_path, cache):
     data, _hit, err = _graph_data(pp, pp.name, cache)
     if err:
         return None, err
-    return json.dumps(data, ensure_ascii=False), None
+    # agent 只要决策影响图;主干/叶子/批注是页面数据,不塞进 agent 上下文
+    return json.dumps({"nodes": data["nodes"], "edges": data["edges"]},
+                      ensure_ascii=False), None
 
 
-def _graph_template(project, data):
+def _graph_template(project, data, serve=False):
     """决策影响图数据 → 单文件 HTML 字符串(模板替换,目录名转义防注入)。"""
     today = datetime.now(timezone.utc).astimezone().date()
     template = Template(read_template("graph.html"))
     return template.substitute(project=html.escape(project, quote=True),
                                data=inline_json(data),
+                               serve="true" if serve else "false",
                                generated=f"{today:%Y.%m.%d}")
 
 
-def render_graph_html(project_path):
-    """装配决策影响图 HTML 字符串(不写盘,供 web /graph 路由复用)。→ (html|None, err)。"""
+def render_graph_html(project_path, cache_path=None, serve=False):
+    """装配图 HTML 字符串(不写盘,供本地服务 /graph 复用)。→ (html|None, err)。
+    serve=True 时页面可写批注;静态导出保持只读。"""
     pp = Path(project_path).resolve()
-    cache = Cache(CACHE_DB_PATH)
+    cache = Cache(cache_path or CACHE_DB_PATH)
     data, _hit, err = _graph_data(pp, pp.name, cache)
     cache.close()
     if err:
         return None, err
-    return _graph_template(pp.name, data), None
+    return _graph_template(pp.name, data, serve), None
 
 
 def build_graph(project_path, vault=None, canvas=False):
