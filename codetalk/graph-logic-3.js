@@ -36,11 +36,14 @@ function merged(id, patch){
   return o;
 }
 function saveAnn(key, data, done){             // data 为 null = 删除
+  var had = Object.prototype.hasOwnProperty.call(ANN, key), before = ANN[key];
   if(data === null) delete ANN[key]; else ANN[key] = data;
   render();
   if(!SERVE){ if(done) done(true); return; }
   post('/graph/annotation', {key: key, data: data}).then(function(j){
-    if(j && j.annotations){ ANN = j.annotations; render(); }
+    if(j && j.annotations) ANN = j.annotations;
+    else if(had) ANN[key] = before; else delete ANN[key];     // 写入失败:撤回本地改动,不留假象
+    render();
     if(done) done(!!j);
   });
 }
@@ -51,7 +54,10 @@ function setAnn(id, patch){
 function activate(id){
   if(id.indexOf('run:') === 0){ EXPANDED[id.slice(4)] = true; render(); return; }
   var p = pick; pick = null;
-  if(p && p.mode === 'link' && p.from !== id){ saveAnn('link:' + p.from + '>' + id, {}, function(){ select(p.from); }); return; }
+  if(p && p.mode === 'link' && p.from !== id && BYID[id].type !== 'plan'){   // 计划不是连线端点
+    saveAnn('link:' + p.from + '>' + id, {}, function(ok){ select(p.from); if(!ok) showPanel(t('save_fail')); });
+    return;
+  }
   if(p && p.mode === 'done'){                   // 计划 → 指定实施它的提交
     var n = BYID[id], cid = n.type === 'commit' ? id : n.commit;
     saveAnn(p.from, merged(p.from, {done: cid}), function(){ select(p.from); });
@@ -231,7 +237,9 @@ svg.addEventListener('pointercancel', function(){ press = null; DRAG = null; svg
 svg.addEventListener('pointerover', function(e){ if(press) return; var g = e.target.closest('.n'); hover(g ? g.getAttribute('data-id') : null); });
 svg.addEventListener('pointerleave', function(){ if(!press) hover(null); });
 svg.addEventListener('wheel', function(e){ e.preventDefault(); var pt = at(e); zoomAt(pt.px, pt.py, Math.exp(e.deltaY * 0.0015)); }, {passive: false});
-svg.addEventListener('keydown', function(e){                // 键盘可达:Enter/Space 激活节点
+svg.addEventListener('keydown', function(e){                // 键盘可达:Enter/Space 激活节点或连线
+  var h = e.target.closest && e.target.closest('[data-edge]');
+  if(h && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); selectEdge(h.getAttribute('data-edge')); return; }
   var g = e.target.closest && e.target.closest('.n');
   if(g && (e.key === 'Enter' || e.key === ' ')){
     e.preventDefault(); var id = g.getAttribute('data-id'); activate(id);

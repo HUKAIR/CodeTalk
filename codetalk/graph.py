@@ -127,14 +127,14 @@ def _graph_data(pp, project, cache):
             return None, False, err
     commits = commits[-SCAN_LIMIT:]                 # graph.py 自己截断最近 200
     head = commits[-1]["sha"] if commits else "empty"
-    key = "graph2:" + head[:40]                     # graph2:带主干/叶子的新形状
+    key = "graph:" + head[:40]
     data, hit = cache.get_narrative(key), True
-    if not (data and "trunk" in data):
+    if not (data and "nodes" in data):
         data, hit = _assemble(commits, pp, project, cache), False
-        data.update(thread(commits, cache))
         cache.put_narrative(key, project, "graph", data)
-    # 批注与已读状态随时会变,不进 head 缓存,每次现读
-    return dict(data, annotations=cache.get_graph_annotations(str(pp)),
+    # 主干/叶子、批注、已读状态不进 head 缓存:叙事与本机记录会在同一 HEAD 下变化,每次现算
+    return dict(data, **thread(commits, cache),
+                annotations=cache.get_graph_annotations(str(pp)),
                 reviewed=sorted(cache.reviewed_shas(str(pp))), head=head[:7]), hit, None
 
 
@@ -185,7 +185,7 @@ def build_graph(project_path, vault=None, canvas=False):
     cache.close()
     if err:
         return None, err
-    html_text = _graph_template(project, data)
+    html_text = redact_secrets(_graph_template(project, data))   # 与服务页同口径整页脱敏
     vault_dir = Path(cfg["vault_path"]).expanduser()
     vault_dir.mkdir(parents=True, exist_ok=True)
     out = vault_dir / (project + "-graph.html")

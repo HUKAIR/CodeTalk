@@ -14,7 +14,7 @@ function card(id, cls, chip, text, extra){     // 卡片只放「类型 + 一句
 }
 function line(cls, d, edge, style){            // 可见细线 + 一条透明的粗命中线,方便点中
   return '<path class="' + cls + (selEdge === edge ? ' on' : '') + '" d="' + d + '"' + (style ? ' style="' + style + '"' : '') +
-    '/><path class="hit" data-edge="' + esc(edge) + '" d="' + d + '"/>';
+    '/><path class="hit" tabindex="0" role="button" aria-label="' + esc(t('e_' + edge.split('|')[0])) + '" data-edge="' + esc(edge) + '" d="' + d + '"/>';
 }
 function cx(p){ return p.x + (p.leaf ? LW / 2 : 0); }
 function progress(){

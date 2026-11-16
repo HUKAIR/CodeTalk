@@ -49,6 +49,11 @@ class ThreadCase(unittest.TestCase):
                          {"decision", "rejected", "watch"})
         self.assertEqual({leaf["source"] for leaf in data["leaves"]}, {"narrative"})
 
+    def test_malformed_narrative_lists_are_ignored(self):
+        cache = Cache(":memory:")
+        cache.put_narrative(SHA3, "P", "m", {"decisions": "not a list", "rejected": None})
+        self.assertEqual(graph_thread.thread([_c(SHA3, 3, [])], cache)["leaves"], [])
+
     def test_note_text_is_redacted(self):
         body = 'Vibe-Decision: use api_key="sk-abcdefghijklmnopqrstuvwxyz0123456789"'
         data = graph_thread.thread([_c(SHA1, 1, [], body=body)], Cache(":memory:"))
@@ -74,6 +79,10 @@ class AnnotationCase(unittest.TestCase):
         self.assertEqual(clean, {"text": "split the parser", "dir": "parser", "done": "abcdef1"})
         for bad in ({"done": "xyz"}, {"text": "x" * 301}, {"dir": "d" * 25}, {"done": 7}):
             self.assertIsNotNone(graph_thread.clean_annotation(bad)[1], bad)
+
+    def test_huge_pin_is_a_validation_error_not_a_crash(self):
+        self.assertEqual(graph_thread.clean_annotation({"pin": {"x": 10 ** 400, "y": 1}}),
+                         (None, "bad pin"))
 
     def test_note_is_redacted_before_it_is_stored(self):
         clean, _ = graph_thread.clean_annotation(
@@ -183,6 +192,31 @@ class GraphServeCase(unittest.TestCase):
         page = self.request("/graph")[1]
         self.assertIn('"reviewed": ["%s"]' % self.sha7, page)
         self.assertIn('"head": "%s"' % self.sha7, page)
+
+    def test_comment_opener_in_a_note_cannot_swallow_the_page_script(self):
+        self.start()
+        self.request("/graph/annotation", {"key": self.sha7, "data": {"note": "<!--<script>"}})
+        self.assertNotIn("<!--<script", self.request("/graph")[1].split("var DATA")[1])
+
+    def test_leaves_follow_narratives_cached_after_the_first_view(self):
+        self.git("commit", "-q", "--allow-empty", "-m", "plain follow-up")
+        full = self.git("rev-parse", "HEAD").strip()
+        self.assertNotIn("late decision", graph.render_graph_html(self.project, self.db)[0])
+        with Cache(self.db) as cache:
+            cache.put_narrative(full, str(self.project), "m", {"decisions": ["late decision"]})
+        self.assertIn("late decision", graph.render_graph_html(self.project, self.db)[0])
+
+    def test_key_must_be_exact_and_name_a_real_commit(self):
+        self.start()
+        self.git("branch", "deadbee")                 # a ref that merely looks like a short SHA
+        for key in (self.sha7 + "\n", self.sha7 + ":d\u0663", "deadbee"):
+            status = self.request("/graph/annotation", {"key": key, "data": {"note": "n"}})[0]
+            self.assertIn(status, (400, 404), repr(key))
+        self.request("/graph/annotation", {"key": self.sha7, "data": {"note": "keep"}})
+        self.assertEqual(self.request("/graph/annotation", {"key": self.sha7})[0], 400)
+        with Cache(self.db) as cache:
+            self.assertEqual(cache.get_graph_annotations(str(self.project)),
+                             {self.sha7: {"note": "keep"}})
 
     def test_annotation_write_refuses_bad_origin_unknown_commit_and_bad_shape(self):
         self.start()

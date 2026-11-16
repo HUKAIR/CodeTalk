@@ -244,8 +244,10 @@ def api_reviewed(req: ReviewedReq):
 @app.post("/graph/annotation")
 def api_graph_annotation(payload: dict = Body(...), project: Optional[str] = None):
     """图上的本机批注(备注/标签/位置/连线)→ 写回 cache;校验与脱敏在 graph_thread。"""
-    body, status = write_reading_record(_project(project or payload.get("project")),
-                                        "/graph/annotation", payload, CACHE_DB_PATH)
+    chosen = payload.get("project")
+    body, status = write_reading_record(
+        _project(project or (chosen if isinstance(chosen, str) else None)),
+        "/graph/annotation", payload, CACHE_DB_PATH)
     return JSONResponse(body, status_code=status)
 
 

@@ -32,7 +32,7 @@ svg text{font-family:var(--px);fill:var(--fg)}
 .pline{stroke-width:1.8;fill:none}
 .arc.on,.ulink.on,.pline.on{stroke-width:3.2;opacity:1}
 .hit{stroke:transparent;stroke-width:14;fill:none;cursor:pointer;pointer-events:stroke}
-.hit:hover{stroke:var(--accent);stroke-opacity:.14}
+.hit:hover,.hit:focus-visible{stroke:var(--accent);stroke-opacity:.18;outline:none}
 .month{font-size:10px;fill:var(--mut);letter-spacing:.5px}
 .n{cursor:pointer;outline:none;transition:opacity .15s var(--ease-out,ease)}
 .n text,.n foreignObject{pointer-events:none}
