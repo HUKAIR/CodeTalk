@@ -38,10 +38,10 @@ CodeTalk 找回的是被记录的内容，不保证代码或源记录本身正�
 `python3` 运行、**不打包解释器**:
 
 ```bash
-python3 -m scripts.build_mcpb     # 产出 dist/codetalk-0.4.0.mcpb
+python3 -m scripts.build_mcpb     # 产出 dist/codetalk-0.4.1.mcpb
 ```
 
-构建出的 `codetalk-0.4.0.mcpb` 可以直接拖进客户端安装;在 GitHub 提供可下载 Release 前,
+构建出的 `codetalk-0.4.1.mcpb` 可以直接拖进客户端安装;在 GitHub 提供可下载 Release 前,
 源码 checkout 需要先构建一次。安装时选一个项目根目录即可,暴露 **7 个工具**
 (全标 `readOnlyHint: true`,Claude Code / Cursor 可自动批准不弹确认):
 
@@ -72,8 +72,8 @@ npm run package                                      # 打包 .vsix
 安装（三选一）：
 
 ```bash
-cursor --install-extension vscode-codetalk-0.4.0.vsix   # Cursor
-code --install-extension vscode-codetalk-0.4.0.vsix      # VS Code
+cursor --install-extension vscode-codetalk-0.4.1.vsix   # Cursor
+code --install-extension vscode-codetalk-0.4.1.vsix      # VS Code
 # Windsurf: Extensions → Install from VSIX → 选文件
 ```
 

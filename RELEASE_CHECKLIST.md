@@ -15,15 +15,15 @@ below apply only after separate owner authorization.
 - `python3 -m scripts.check_static_no_external codetalk/web_chat.html codetalk/console.html codetalk/tunnel.html codetalk/course.html codetalk/graph.html codetalk/trust_ab.html codetalk/recap.html codetalk/recap_index.html`
 - `python3 -m unittest tests.test_product_proof`
 - `SOURCE_DATE_EPOCH=<release-commit-epoch> python3 -m build`
-- `python3 -m scripts.build_mcpb` → `dist/codetalk-0.4.0.mcpb`
+- `python3 -m scripts.build_mcpb` → `dist/codetalk-0.4.1.mcpb`
 - `python3 -m pip install -e . --no-deps --dry-run --no-build-isolation`
 - `git diff --check`
 
 After packaging the editor extension, copy
-`vscode-codetalk/vscode-codetalk-0.4.0.vsix` into `dist/`, then run:
+`vscode-codetalk/vscode-codetalk-0.4.1.vsix` into `dist/`, then run:
 
 - `SOURCE_DATE_EPOCH=<release-commit-epoch> python3 -m scripts.release_artifacts dist`
-- `python3 -m scripts.release_promotion validate-candidate dist docs/releases/v0.4.0.md`
+- `python3 -m scripts.release_promotion validate-candidate dist docs/releases/v0.4.1.md`
 - `cd dist && shasum -a 256 -c SHA256SUMS`
 - Confirm the sdist contains no `tests/` tree and all four archives pass the
   secret, private-path, member-type, and public-filename scan.
@@ -37,7 +37,7 @@ After packaging the editor extension, copy
 - `npm run typecheck`
 - `npm run build`
 - `npm run package`
-- `unzip -t vscode-codetalk-0.4.0.vsix`
+- `unzip -t vscode-codetalk-0.4.1.vsix`
 - Confirm the VSIX contains `extension/LICENSE.txt`.
 - Install the VSIX into a clean `--extensions-dir`, confirm
   `codetalk.vscode-codetalk` appears in `--list-extensions --show-versions`,
@@ -46,7 +46,7 @@ After packaging the editor extension, copy
 
 ## MCP Bundle
 
-- Build `dist/codetalk-0.4.0.mcpb`.
+- Build `dist/codetalk-0.4.1.mcpb`.
 - Inspect `manifest.json` and confirm package name, command, and version.
 - Confirm the bundle contains `LICENSE`.
 - Extract into a new temporary directory and run MCP `initialize` and
@@ -56,8 +56,8 @@ After packaging the editor extension, copy
 ## Python Wheel
 
 - Create a new virtual environment outside the repository.
-- Install only `dist/hukair_codetalk-0.4.0-py3-none-any.whl` with `--no-deps`.
-- Confirm `codetalk --version` reports `0.4.0` and `pip check` passes.
+- Install only `dist/hukair_codetalk-0.4.1-py3-none-any.whl` with `--no-deps`.
+- Confirm `codetalk --version` reports `0.4.1` and `pip check` passes.
 - In a synthetic git repository, smoke-test `doctor`, `review --json`, local
   feedback export, default no-request enrichment, payload preview, and explicit
   recording-fake authorization behavior.
@@ -87,20 +87,20 @@ After packaging the editor extension, copy
   alternative, and both must install the `codetalk` command.
 - Generate the shareable A/B trust demo for the announcement:
   `python3 scripts/trust_ab_demo.py . 5 --html demo.html` (needs an LLM key).
-- Verify MCP bundle install works: use `codetalk-0.4.0.mcpb` and confirm
+- Verify MCP bundle install works: use `codetalk-0.4.1.mcpb` and confirm
   `initialize` + `tools/list` from a clean MCP client.
 - Add at least one short demo recording or screenshot for the README or docs.
 - Confirm LICENSE, SECURITY, CONTRIBUTING, CHANGELOG, and issue templates are
   present.
 
-## 0.4.0 Promotion
+## 0.4.1 Promotion
 
 Preparation snapshot; update every item from its public or owner-only endpoint
 before promotion. The `0.3.1` promotion completed on 2026-07-22; none of the
 checks below carry over automatically.
 
 - [ ] Protected `release`, `pypi`, and `github-pages` environments require the
-  owner reviewer and accept only the exact `v0.4.0` tag.
+  owner reviewer and accept only the exact `v0.4.1` tag.
 - [ ] Before a future release from this repository, separately configure and
   verify a PyPI Trusted Publisher for project `hukair-codetalk`, repository
   `HUKAIR/CodeTalk`, workflow `release.yml`, and environment `pypi`.
@@ -116,7 +116,7 @@ Run the non-publishing rehearsal first:
 - [ ] Require the reusable test workflow, candidate validation, secret scan,
   product-proof test, and Pages artifact upload to pass.
 - [ ] Confirm every job after `candidate` is skipped.
-- [ ] Reconfirm that the rehearsal created no `v0.4.0` tag, public PyPI version,
+- [ ] Reconfirm that the rehearsal created no `v0.4.1` tag, public PyPI version,
   public GitHub Release, Pages deployment, or Homepage change.
 
 Durable lessons from the `0.2.0`-`0.3.1` promotion history (full run-by-run
@@ -134,11 +134,11 @@ narrative lives in the `0.3.1` revision of this checklist in git history):
 Owner actions requiring explicit authorization:
 
 - [ ] Extend the repository tag ruleset to block update and deletion of
-  `v0.4.0`, including administrator bypass during the promotion window.
-- [ ] Create a signed annotated `v0.4.0` tag at the fully verified preparation
+  `v0.4.1`, including administrator bypass during the promotion window.
+- [ ] Create a signed annotated `v0.4.1` tag at the fully verified preparation
   commit and confirm GitHub reports its signature as verified.
 - [ ] Push only that tag, then run
-  `gh workflow run release.yml --ref v0.4.0 -f publish=true`.
+  `gh workflow run release.yml --ref v0.4.1 -f publish=true`.
 
 Any tag, package, Release, Pages, Homepage, or issue-state change requires
 fresh explicit confirmation; the completed `0.3.1` authorization does not carry
@@ -146,10 +146,10 @@ over.
 
 After promotion, verify from public endpoints:
 
-- [ ] `python3 -m pip install --no-cache-dir --no-deps hukair-codetalk==0.4.0` in a new
+- [ ] `python3 -m pip install --no-cache-dir --no-deps hukair-codetalk==0.4.1` in a new
   virtual environment, followed by `codetalk --version`, `doctor`, and
   `review --json` in a synthetic repository.
-- [ ] `gh release verify v0.4.0` and `gh release verify-asset v0.4.0 <local-file>`
+- [ ] `gh release verify v0.4.1` and `gh release verify-asset v0.4.1 <local-file>`
   for the wheel, sdist, MCP bundle, VSIX, SBOM, and `SHA256SUMS`.
 - [ ] Fetch the Pages root and `docs/images/codetalk-logo-banner.png`, then compare
   them byte-for-byte with a fresh local `stage-pages` output. The staged PNG is
