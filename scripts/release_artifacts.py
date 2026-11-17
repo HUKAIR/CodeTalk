@@ -13,7 +13,7 @@ from email.parser import BytesParser
 from pathlib import Path
 
 
-VERSION = "0.4.0"
+VERSION = "0.4.1"
 PYPI_DISTRIBUTION = "hukair-codetalk"
 PYTHON_ARTIFACT_PREFIX = "hukair_codetalk"
 SBOM_NAME = f"codetalk-{VERSION}.sbom.cdx.json"

@@ -8,6 +8,8 @@ made it verifiable.
 
 ## Unreleased
 
+## 0.4.1 - 2026-11-17
+
 ### Added
 
 - `codetalk graph` is now a development thread you can read alone: every

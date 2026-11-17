@@ -1,4 +1,4 @@
-"""Static safety contract for the manual 0.4.0 promotion workflow."""
+"""Static safety contract for the manual 0.4.1 promotion workflow."""
 import re
 import unittest
 from pathlib import Path
@@ -7,14 +7,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 RELEASE_WORKFLOW = ROOT / ".github" / "workflows" / "release.yml"
 TEST_WORKFLOW = ROOT / ".github" / "workflows" / "test.yml"
-VERSION = "0.4.0"
-TAG = "v0.4.0"
+VERSION = "0.4.1"
+TAG = "v0.4.1"
 ARTIFACTS = (
-    "hukair_codetalk-0.4.0-py3-none-any.whl",
-    "hukair_codetalk-0.4.0.tar.gz",
-    "codetalk-0.4.0.mcpb",
-    "vscode-codetalk-0.4.0.vsix",
-    "codetalk-0.4.0.sbom.cdx.json",
+    "hukair_codetalk-0.4.1-py3-none-any.whl",
+    "hukair_codetalk-0.4.1.tar.gz",
+    "codetalk-0.4.1.mcpb",
+    "vscode-codetalk-0.4.1.vsix",
+    "codetalk-0.4.1.sbom.cdx.json",
     "SHA256SUMS",
 )
 ACTION_PINS = {
@@ -87,7 +87,7 @@ class TestReleaseWorkflow(unittest.TestCase):
         preflight = text.split("  preflight:\n", 1)[1].split(
             "\n  draft-release:\n", 1)[0]
         for phrase in (
-                TAG, "refs/tags/v0.4.0", "verification.verified",
+                TAG, "refs/tags/v0.4.1", "verification.verified",
                 "object.type", "github.sha", "build_type", "workflow"):
             self.assertIn(phrase, preflight)
         self.assertNotIn("immutable-releases", preflight)
@@ -126,7 +126,7 @@ class TestReleaseWorkflow(unittest.TestCase):
         for phrase in (
                 "gh release verify", "gh release verify-asset",
                 "pypi-state", "deploy-pages", "verify-public",
-                "hukair-codetalk==0.4.0", "doctor", "review --json"):
+                "hukair-codetalk==0.4.1", "doctor", "review --json"):
             self.assertIn(phrase, text)
         self.assertNotIn("gh issue close", text)
         self.assertNotIn("gh repo edit", text)

@@ -11,7 +11,7 @@ session evidence. The core is zero-LLM, local-first, and pure standard library.
 Generated interpretation stays separate from original sources; the maintainer
 makes the judgment.
 
-> 0.4.0 development source · package publication not yet enabled.
+> 0.4.1 development source · package publication not yet enabled.
 > Install this checkout to try these features; the published PyPI version may differ.
 
 ## See it work
